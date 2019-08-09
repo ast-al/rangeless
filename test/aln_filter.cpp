@@ -296,7 +296,7 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
     return std::move(alns_seq)
 
     //-----------------------------------------------------------------------
-    // (1) Filter to latest-versions
+    // (1) Filter to latest mRNA-version per mRNA-accession
     
   % fn::group_adjacent_by(std::mem_fn(&aln_t::gene_id))
   % fn::transform([](alns_t alns_for_gene) -> alns_t
@@ -306,22 +306,8 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
         {
             return a.mrna_id.first;
         })
-#if 1
-
-        // given aignments for query-accession, keep those having maximum (accession,version).
       % fn::transform(my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
       % fn::concat(); // un-group
-
-#else   // alternatively, as left-fold into a container (alns_t out).
-
-      % fn::foldl_d([](alns_t out, alns_t& alns_for_acc)
-        {
-            using fn::operators::operator<<=; // takes rhs by value and move-inserts element(s) into lhs.
-            out <<= std::move(alns_for_acc) 
-                   % my::where_max_by(std::mem_fn(&aln_t::mrna_id));
-            return out;
-        });
-#endif
     })
   % fn::concat()
 
