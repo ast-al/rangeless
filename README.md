@@ -80,7 +80,7 @@ See [calendar.cpp](test/calendar.cpp) vs. [Haskell](https://github.com/BartoszMi
 
 See [aln_filter.cpp](test/aln_filter.cpp) for more advanced examples of use.
 
-See [full documentation](https://ast-al.github.io/rangeless/html/namespacerangeless_1_1fn.html).
+See [full documentation](https://ast-al.github.io/rangeless/docs/html/namespacerangeless_1_1fn.html).
   
 ### Features
 - Portable c++11. (examples are c++14)
@@ -88,8 +88,8 @@ See [full documentation](https://ast-al.github.io/rangeless/html/namespacerangel
 - Minimal standard library dependencies.
 - No inheritance, polymorphism, type-erasures, ADL, advanced metaprogramming, enable_ifs, concepts, preprocessor magic, arcane programming techniques (for some definition of arcane), or compiler-specific workarounds.
 - Low `#include` and compile-time overhead.
-- Enables trivial parallelization (see [`fn::transform_in_parallel`](https://ast-al.github.io/rangeless/html/group__transform.html)).
-- Allows for trivial extension of functionality (see [`fn::adapt`](https://ast-al.github.io/rangeless/html/group__transform.html)).
+- Enables trivial parallelization (see [`fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
+- Allows for trivial extension of functionality (see [`fn::adapt`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
 
 This is not a range library, like `range-v3`, as it is centered around value-semantics rather than reference-semantics. This library does not know or deal with the multitude of range concepts; rather, it deals with data transformations via higher-order functions. It differentiates between two types of inputs: a `Container` and a lazy `seq<NullaryInvokable>` satisfying single-pass forward-only `InputRange` semantics (also known as a data-stream). Most of the function-objects in this library have two overloads of `operator()` respectively. Rather than composing views over ranges as with `range-v3`, `operator()`s take inputs by value, operate on it eagerly or compose a lazy `seq`, as appropriate (following the Principle of least astonishment), and return the result by value (with move-semantics) to the next stage.
 
