@@ -2381,14 +2381,14 @@ namespace impl
                 return src.rend();
             }
 
-            const auto begin() const -> decltype(src.rbegin())
+            auto cbegin() const -> decltype(src.crbegin())
             {
-                return src.rbegin();
+                return src.crbegin();
             }
 
-            const auto end() const -> decltype(src.rend())
+            auto cend() const -> decltype(src.crend())
             {
-                return src.rend();
+                return src.crend();
             }
         };
 
