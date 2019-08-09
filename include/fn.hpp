@@ -100,6 +100,33 @@ namespace impl
             fn::sort_by(key_fn)
           , fn::unique_adjacent_by(key_fn));
     };
+
+
+    Similarly, we could make fn::transform(...) variadic, e.g.
+
+    // before
+    fn::transform([](alns_t alns_for_gene) -> alns_t
+    {   
+        return std::move(alns_for_gene)
+      % my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
+        {   
+            return a.mrna_id.first;
+        })  
+      % fn::transform(
+              my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
+      % fn::concat(); // un-group
+    }) 
+
+    // after (composes the variadic args)
+    fn::transform(
+        my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
+        {   
+            return a.mrna_id.first;
+        })  
+      , fn::transform(
+            my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
+      , fn::concat() // un-group
+    ) 
     */
 
     // Most of the aln_filter.cpp can be rewritten in terms of 
@@ -108,10 +135,15 @@ namespace impl
     // obviates the need in operator%.
     //
     // With operator % we are passing results from one function to
-    // another; through a chain of invocations. 
+    // another through a chain of invocations. 
     // With fn::compose we are creating a "template centipede" instead.
     //
-    // Disabling for now.
+    // Also, with point-free approach we can't specify
+    // input and output types and can't give it a name 
+    // to the input, so even though point-free is shorter,
+    // it is not necessarily easier to reason about.
+    //
+    // Disabling for now; may rething later.
 
     /////////////////////////////////////////////////////////////////////////
     template<typename F, typename G>
@@ -3506,6 +3538,17 @@ namespace impl
 
         return { std::move(map_fn) };
     }
+
+#if 0
+    // see comments around struct composed
+    template<typename F, typename... Fs>
+    auto transform(F fn, Fs... fns) -> impl::transform<decltype(impl::compose(std::move(fn), std::move(fns)...))>
+    {
+        return { impl::compose(std::move(fn), std::move(fns)...) };
+    }
+#endif
+
+
 
 #if RANGELESS_FN_ENABLE_PARALLEL
 
