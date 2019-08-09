@@ -306,7 +306,8 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
         {
             return a.mrna_id.first;
         })
-      % fn::transform(my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
+      % fn::transform(
+              my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
       % fn::concat(); // un-group
     })
   % fn::concat()
@@ -361,7 +362,7 @@ int main()
     // GeneID:2
     alns.push_back(aln_t{ 101, 2, {"NM_000001", 2}, {"NC_000001", 1}, 1000000, 1001000, 100100, 100}); // keep.
     alns.push_back(aln_t{ 102, 2, {"NM_000001", 2}, {"NC_000001", 1}, 1000000, 1001000, 100100, 100}); // duplicate.
-    alns.push_back(aln_t{ 103, 2, {"NM_000001", 2}, {"NC_000001", 1}, 1000001, 1001000, 100100, 50});  // not top-scoring for this mrna.
+    alns.push_back(aln_t{ 103, 2, {"NM_000001", 2}, {"NC_000001", 1}, 1000001, 1001000, 100100, 50 });  / not top-scoring for this mrna.
     alns.push_back(aln_t{ 104, 2, {"NM_000001", 1}, {"NC_000001", 1}, 1000000, 1001000, 100100, 100}); // superceded mrna-version.
     alns.push_back(aln_t{ 201, 2, {"NM_000002", 1}, {"NC_000001", 1}, 1000000, 1001000, 0,      100}); // no valid-CDS.
     alns.push_back(aln_t{ 301, 2, {"NM_000003", 1}, {"NC_000001", 1}, 1000000, 1001000, 0,      100}); // no valid-CDS.
@@ -378,15 +379,12 @@ int main()
 
     std::vector<int64_t> kept_ids{};
 
-#if 0
-    std::move(alns) // we could simply do this, but...
-#else 
-    // demonstrate that input can also be a lazy seq, e.g. deserializing from an istream.
+    // we could just std::move(alns) instead of fn::seq(...) here,
+    // but demonstrating that input can also be a lazy seq, e.g. deserializing from an istream.
     fn::seq([&, i = 0UL]() mutable -> aln_t
     {
         return i < alns.size() ? std::move(alns[i++]) : fn::end_seq();
     })
-#endif
 
   % example::aln_filter
 
