@@ -806,39 +806,44 @@ namespace impl
     // So we'll be comparing keys using lt or eq, equipped to deal with that.
     // See also https://stackoverflow.com/questions/9139748/using-stdreference-wrapper-as-the-key-in-a-stdmap
 
-
-    template<typename T>
-    bool lt(const T& a, const T& b)
+    struct lt
     {
-        return a < b;
-    }
+        template<typename T>
+        bool operator()(const T& a, const T& b) const
+        {
+            return a < b;
+        }
 
-    template<typename A>
-    bool lt(const std::reference_wrapper<A>& a, 
-            const std::reference_wrapper<A>& b)
-    {
-        return a.get() < b.get();
-    }
+        template<typename A>
+        bool operator()(const std::reference_wrapper<A>& a, 
+                        const std::reference_wrapper<A>& b) const
+        {
+            return a.get() < b.get();
+        }
+    };
 
-    template<typename T>
-    bool eq(const T& a, const T& b)
+    struct eq
     {
-        return a == b;
-    }
+        template<typename T>
+        bool operator()(const T& a, const T& b) const
+        {
+            return a == b;
+        }
 
-    template<typename T>
-    bool eq(const std::reference_wrapper<T>& a, 
-            const std::reference_wrapper<T>& b)
-    {
-        return a.get() == b.get();
-    }
+        template<typename T>
+        bool operator()(const std::reference_wrapper<T>& a, 
+                        const std::reference_wrapper<T>& b) const
+        {
+            return a.get() == b.get();
+        }
+    };
 
     template<typename T>
     int compare(const T& a, const T&b)
     {
-        return ( impl::lt(a, b) ? -1 
-               : impl::lt(b, a) ?  1
-               :                   0);
+        return ( lt{}(a, b) ? -1 
+               : lt{}(b, a) ?  1
+               :               0);
     }
 
 
@@ -890,7 +895,7 @@ namespace impl
         template<typename A, typename B>
         bool operator()(const A& a, const B& b) const
         {
-            return impl::lt(key_fn(a), key_fn(b));
+            return lt{}(key_fn(a), key_fn(b));
         }
     };
 
@@ -2470,7 +2475,7 @@ namespace impl
             auto op_less = [this](const typename Iterable::value_type& x, 
                                   const typename Iterable::value_type& y)
             {
-                return impl::lt(key_fn(x), key_fn(y));
+                return lt{}(key_fn(x), key_fn(y));
             };
 
             std::stable_sort(src.begin(), src.end(), op_less); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
@@ -2515,7 +2520,7 @@ namespace impl
                 auto op_gt = [this](const value_type& x, 
                                     const value_type& y)
                 {
-                    return impl::lt(key_fn(y), key_fn(x));
+                    return lt{}(key_fn(y), key_fn(x));
                 };
 
                 if(!heapified) {
@@ -2570,7 +2575,7 @@ namespace impl
             auto op_gt = [this](const value_type& x, 
                                 const value_type& y)
             {
-                return impl::lt(key_fn(y), key_fn(x));
+                return lt{}(key_fn(y), key_fn(x));
             };
 
             // NB: can't use priority_queue, because it provides 
@@ -2593,9 +2598,9 @@ namespace impl
                         // key_fn is expected to be "light", but in case it's not negligibly light
                         // we factor-out evaluation of key_fn here, because we can.
 
-                        return impl::lt(key_x, key_h) ? false  // worse than current-min
-                             : impl::lt(key_h, key_x) ? true   // better than current-min
-                             :                          false; // equiv to current-min (we're at capacity, so keeping current min)
+                        return lt{}(key_x, key_h) ? false  // worse than current-min
+                             : lt{}(key_h, key_x) ? true   // better than current-min
+                             :                      false; // equiv to current-min (we're at capacity, so keeping current min)
                     }();
 
                 if(!insert) {
@@ -2619,10 +2624,16 @@ namespace impl
     };
 
     /////////////////////////////////////////////////////////////////////
-    template<typename F>
+    template<typename F, typename BinaryPred = impl::eq>
     struct group_adjacent_by
     {
-        const F key_fn;
+        // We parametrize to both key_fn and pred2 to reuse
+        // this for both
+        // group_adjacent_by: key_fn:user-provided,      pred2=impl::eq
+        // group_adjacent_if: key_fn=impl::by::identity, pred2:user-provided.
+        
+                 const F key_fn;
+        const BinaryPred pred2;
 
 #if 1
         /////////////////////////////////////////////////////////////////////
@@ -2633,8 +2644,9 @@ namespace impl
         template<typename InGen>
         struct gen
         {
-                 InGen gen;
-               const F key_fn;
+                          InGen gen;
+                        const F key_fn;
+               const BinaryPred pred2;
 
             using inp_t      = typename InGen::value_type;
             using value_type = std::vector<inp_t>; // TODO: string if value_type is char?
@@ -2664,7 +2676,7 @@ namespace impl
                 next.clear(); // clearing does not deallocate internal storage
 
                 for(auto x = gen(); x; x = gen()) {
-                    if(curr.empty() || eq(key_fn(curr.back()), key_fn(*x))) {
+                    if(curr.empty() || pred2(key_fn(curr.back()), key_fn(*x))) {
                         curr.push_back(std::move(*x));
                     } else {
                         next.push_back(std::move(*x));
@@ -2680,7 +2692,7 @@ namespace impl
             }
         };
 
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {}, {} )
+        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, pred2, {}, {} )
 #else
         // Experimental implementation returning non-allocating 
         // seq-of-subseqs instead of seq-of-vectors.
@@ -2732,8 +2744,8 @@ namespace impl
             ++it;
 
             for(; it != it_end; ++it) {
-                if(!eq(key_fn(*ret.back().begin()),
-                       key_fn(*it)))
+                if(!pred2(key_fn(*ret.back().crbegin()), // NB: last!
+                          key_fn(*it)))
                 {
                     ret.push_back(Cont{});
                 }
@@ -2793,7 +2805,7 @@ namespace impl
                         std::vector<typename seq<Gen>::value_type>>>>
         {
             return 
-                group_adjacent_by_t{ key_fn }(
+                group_adjacent_by_t{ key_fn, {} }(
                     impl::to_seq{}(
                         sort_by<F>{ key_fn }(
                             impl::to_vector{}(
@@ -2808,7 +2820,7 @@ namespace impl
             //conversion to vector removes the key-constness, so we
             //need to do it via decltype
             -> decltype(
-                    group_adjacent_by_t{ key_fn }(
+                    group_adjacent_by_t{ key_fn, {} }(
                         impl::to_vector{}(
                             std::move(cont))))
         {
@@ -2837,7 +2849,7 @@ namespace impl
             // to move-out the elements from the set since 
             // set provides only const access to the elements.
 #else
-            return group_adjacent_by_t{ key_fn }(
+            return group_adjacent_by_t{ key_fn, {} }(
                 impl::sort_by<F>{ key_fn }(
                     impl::to_vector{}(
                         std::move(cont))));
@@ -2985,7 +2997,7 @@ namespace impl
                 for(auto x = gen(); x; x = gen()) {
                     if(!curr) {
                         curr = std::move(x);
-                    } else if( impl::eq(key_fn(*curr), key_fn(*x))) {
+                    } else if( impl::eq{}(key_fn(*curr), key_fn(*x))) {
                         continue; // skip equivalent elements
                     } else {
                         next = std::move(x);
@@ -3010,7 +3022,7 @@ namespace impl
                     [this](const typename Cont::value_type& x, 
                            const typename Cont::value_type& y)
                     {
-                        return impl::eq(key_fn(x), key_fn(y));
+                        return impl::eq{}(key_fn(x), key_fn(y));
                     }),
                 cont.end());
 
@@ -4019,12 +4031,19 @@ namespace impl
     template<typename F>
     impl::group_adjacent_by<F> group_adjacent_by(F key_fn)
     {
-        return { std::move(key_fn) };
+        return { std::move(key_fn), {} };
     }
 
     inline impl::group_adjacent_by<by::identity> group_adjacent()
     {
-        return { by::identity{} };
+        return { by::identity{}, {} };
+    }
+
+    /// @brief Group adjacent elements if binary predicate holds.
+    template<typename BinaryPred>
+    impl::group_adjacent_by<fn::by::identity, BinaryPred> group_adjacent_if(BinaryPred pred2)
+    {
+        return { {}, std::move(pred2) };
     }
 
 
@@ -4046,7 +4065,7 @@ namespace impl
         if(n < 1) {
             RANGELESS_FN_THROW("Batch size must be at least 1.");
         }
-        return { impl::chunker{ n, 0 } };
+        return { impl::chunker{ n, 0 }, {} };
     }
 
 
@@ -4818,6 +4837,21 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         })
         % fold;
         VERIFY(res == 12321);
+    };
+
+    tests["group_adjacent_if"] = [&]
+    {
+        auto res = make_inputs({1,2,2,4,4,4,2,2,1})
+        % fn::group_adjacent_if([](const int& a, const int& b)
+        {
+            return abs(a - b) < 2;
+        })
+        % fn::transform([](Xs v)
+        {
+            return int(v.size());
+        })
+        % fold;
+        VERIFY(res == 333);
     };
 
     tests["group_all"] = [&]
