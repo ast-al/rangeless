@@ -184,6 +184,12 @@ namespace impl
    
 #endif
 
+    template<typename Iterable, typename IteratorTag>
+    static void require_iterator_category_at_least(const Iterable&)
+    {
+        static_assert(std::is_base_of<IteratorTag, typename std::iterator_traits<typename Iterable::iterator>::iterator_category>::value, "Iterator category does not meet minimum requirements");
+    }
+
     /////////////////////////////////////////////////////////////////////////
     /// Very bare-bones version of std::optional-like with rebinding assignment semantics.
     template<class T>
@@ -1899,11 +1905,16 @@ namespace impl
         template<typename Cont>
         Cont operator()(Cont cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
-
             auto it = std::find_if_not(cont.begin(), cont.end(), pred);
             cont.erase(it, cont.end()); 
             return cont;
+        }
+
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            auto it = std::find_if_not(v.begin(), v.end(), pred);
+            return { v.begin(), it };
         }
     };
 
@@ -1948,7 +1959,6 @@ namespace impl
         Cont operator()(Cont&& cont) const
         {
             static_assert(std::is_rvalue_reference<Cont&&>::value, "");
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
 
             if(cap < cont.size()) {
                 auto it = cont.begin();
@@ -1961,7 +1971,6 @@ namespace impl
         template<typename Cont>
         Cont operator()(const Cont& cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
             Cont ret{};
 
             if(cap < cont.size()) {
@@ -1971,12 +1980,24 @@ namespace impl
             }
             return ret;
         }
+
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
+
+            const auto size = std::distance(v.begin(), v.end());
+            if(cap < size) {
+                std::advance(v.it_beg, size - cap);
+            }
+            return v;
+        }
     };
 
     /////////////////////////////////////////////////////////////////////////
     struct drop_last
     {
-        const size_t cap;
+        const size_t n;
 
         template<typename InGen>
         struct gen
@@ -2017,17 +2038,16 @@ namespace impl
             }
         };
 
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( cap, {}, 0 )
+        RANGELESS_FN_OVERLOAD_FOR_SEQ( n, {}, 0 )
 
         template<typename Cont>
         Cont operator()(Cont&& cont) const
         {
             static_assert(std::is_rvalue_reference<Cont&&>::value, "");
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
 
-            if(cap < cont.size()) {
+            if(n < cont.size()) {
                 auto it = cont.begin();
-                std::advance(it, cont.size() - cap);
+                std::advance(it, cont.size() - n);
                 cont.erase(it, cont.end());
             } else {
                 cont.clear();
@@ -2039,16 +2059,30 @@ namespace impl
         template<typename Cont>
         Cont operator()(const Cont& cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
             Cont ret{};
 
-            if(cap < cont.size()) {
+            if(n < cont.size()) {
                 auto it = cont.begin();
-                std::advance(it, cont.size() - cap);
+                std::advance(it, cont.size() - n);
                 ret.insert(ret.end(), cont.begin(), it);
             }
 
             return ret;
+        }
+
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
+
+            const auto size = std::distance(v.begin(), v.end());
+            if(n < size) {
+                v.it_end = v.it_beg;
+                std::advance(v.end, size - n);
+            } else {
+                v.it_begin = v.it_end;
+            }
+            return v;
         }
     };
 
@@ -2084,11 +2118,16 @@ namespace impl
         template<typename Cont>
         Cont operator()(Cont cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
-
             auto it = std::find_if_not(cont.begin(), cont.end(), pred);
             cont.erase(cont.begin(), it);
             return cont;
+        }
+
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            auto it = std::find_if_not(v.begin(), v.end(), pred);
+            return { it, v.end() };
         }
     };
 
@@ -2146,7 +2185,6 @@ namespace impl
         template<typename Cont>
         Cont operator()(const Cont& cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
             Cont ret{};
             auto pred_copy = pred;
             std::copy_if(cont.begin(),
@@ -2170,6 +2208,22 @@ namespace impl
                                     // (e.g. won't compile otherwise with Cont=std::vector<std::unique_ptr<int>>)
         }
 
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
+
+            auto pred_copy = pred;
+            auto it = 
+                std::remove_if(
+                    v.begin(), v.end(),
+                    [&pred_copy](const typename Iterator::value_type& x)
+                    {
+                        return !pred_copy(x);
+                    });
+
+            return { v.begin(), it };
+        }
 
     private:
 
@@ -2298,9 +2352,6 @@ namespace impl
                  typename Ret = std::vector<typename Cont::value_type> >
         Ret operator()(Cont cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
-            cont.rbegin(); //[compilation-error-hint]: Expecting a container.
-
             // TODO: Take Cont as forwarding reference instead of by value
             // such that if it is passed by lvalue-reference we don't need to
             // copy all elements; will only copy the maximal ones.
@@ -2385,6 +2436,53 @@ namespace impl
             // when best-element is moved inside erase-remove loop in fn::where.
 #endif
         }
+
+
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
+
+            if(v.begin() == v.end()) {
+                return v;
+            }
+
+            auto first_best_it = v.begin();
+            auto last_best_it  = v.begin();
+
+            {
+                auto it = v.begin();
+                for(++it; it != v.end(); ++it) {
+                    const int which = impl::compare(key_fn(*it), 
+                                                    key_fn(*first_best_it)) * use_max;
+                    if(which < 0) {
+                        ; // not-best
+                    } else if(which > 0) {
+                        // new-best
+                        first_best_it = last_best_it = it;
+                    } else {
+                        last_best_it = it;
+                    }
+                }
+            }
+
+            v.it_beg = first_best_it;
+            v.it_end = v.it_beg; // NB: last instead of end for now.
+
+            ++first_best_it;
+            ++last_best_it; // convert to end
+
+            for(auto it = first_best_it; it != last_best_it; ++it) 
+                if(impl::compare(key_fn(*it), 
+                                 key_fn(*v.it_end)) * use_max >= 0)
+            {
+                ++v.it_end;
+                *v.it_end = std::move(*it);
+            }
+            ++v.it_end; // convert to end
+
+            return v;
+        }
     };
 
 
@@ -2433,6 +2531,15 @@ namespace impl
         {
             return reversed<Iterable>{ std::move(src) };
         }
+
+        template<typename Iterator>
+        view<std::reverse_iterator<Iterator>> operator()(view<Iterator> v) const
+        {
+            impl::require_iterator_category_at_least<std::bidirectional_iterator_tag>(v);
+
+            //using rev_it_t = std::reverse_iterator<Iterator>;
+            return { { v.end() }, { v.begin() } };
+        }
     };
 
     // NB: sort and reverse have identical signatures for overloads
@@ -2468,6 +2575,9 @@ namespace impl
         template<typename Iterable>
         Iterable operator()(Iterable src) const
         {
+            //impl::require_iterator_category_at_least<std::random_access_iterator_tag>(src);
+
+
             // this will fire if Iterable is std::map, where value_type is std::pair<const Key, Value>,
             // which is not move-assignable because of constness.
             static_assert(std::is_move_assignable<typename Iterable::value_type>::value, "value_type must be move-assignable.");
@@ -3013,8 +3123,6 @@ namespace impl
         template<typename Cont>
         Cont operator()(Cont cont) const
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
-
             cont.erase(
                 std::unique(
                     cont.begin(), cont.end(),
@@ -3026,6 +3134,22 @@ namespace impl
                 cont.end());
 
             return cont;
+        }
+
+
+        template<typename Iterator>
+        view<Iterator> operator()(view<Iterator> v) const
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
+
+            auto it = std::unique(
+                v.begin(), v.end(),
+                [this](const typename Iterator::value_type& x, 
+                       const typename Iterator::value_type& y)
+                {
+                    return impl::eq{}(key_fn(x), key_fn(y));
+                });
+            return { v.begin(), it };
         }
     };
 
