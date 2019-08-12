@@ -184,7 +184,7 @@ namespace impl
    
 #endif
 
-    template<typename Iterable, typename IteratorTag>
+    template<typename IteratorTag, typename Iterable>
     static void require_iterator_category_at_least(const Iterable&)
     {
         static_assert(std::is_base_of<IteratorTag, typename std::iterator_traits<typename Iterable::iterator>::iterator_category>::value, "Iterator category does not meet minimum requirements");
@@ -2575,7 +2575,7 @@ namespace impl
         template<typename Iterable>
         Iterable operator()(Iterable src) const
         {
-            //impl::require_iterator_category_at_least<std::random_access_iterator_tag>(src);
+            impl::require_iterator_category_at_least<std::random_access_iterator_tag>(src);
 
 
             // this will fire if Iterable is std::map, where value_type is std::pair<const Key, Value>,
