@@ -1207,6 +1207,9 @@ namespace impl
         // We want to remove the const because otherwise the vector's
         // functionality is crippled because the value-type is not 
         // move-assigneable, so we can't do anything useful with it.
+        //
+        // TODO: generalize this for sets and arbitrary associative containers,
+        // pre- and post- c++17.
         template<typename Key, 
                  typename Value,
                  typename Vec = std::vector<std::pair<Key, Value>>>
