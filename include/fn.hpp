@@ -1212,29 +1212,25 @@ namespace impl
                  typename Vec = std::vector<std::pair<Key, Value>>>
         Vec operator()(std::map<Key, Value> m) const
         {
-#if 0
             Vec v{};
             v.reserve(m.size());
 
+#if __cplusplus >= 201703L
+            while(!m.empty()) {
+                auto h = m.extract(m.begin());
+                v.emplace_back(std::move(h.key()),
+                               std::move(h.mapped()));
+            }
+#else
             for(auto it = m.begin(), it_end = m.end(); 
                      it != it_end;
                      it = m.erase(it))
             {
-                // v.push_back(std::move(*it));
-                // Does the move only copy the key-type, or the entire 
-                // value_type? In case the latter, move separately:
-                
-                v.emplace_back(std::move(it->first), // can we safely const-cast the key?
+                v.emplace_back(std::move(it->first), // this makes a copy due to const key
                                std::move(it->second));
             }
-            return v;
-
-#else // is above a better approach, since map's destructor will be O(1)?
-
-            return this->operator()( Vec{
-                    std::make_move_iterator(m.begin()),
-                    std::make_move_iterator(m.end()) });
 #endif
+            return v;
         }
     };
 
@@ -4516,6 +4512,7 @@ namespace operators
 #include <set>
 #include <array>
 #include <iostream>
+#include <sstream>
 
 #ifndef VERIFY
 #define VERIFY(expr) if(!(expr)) RANGELESS_FN_THROW("Assertion failed: ( "#expr" ).");
@@ -5421,6 +5418,46 @@ static void run_tests()
         VERIFY(threw);
         VERIFY(res == 22446);
     };
+
+    tests3["most 5 top frequent words"] = [&]
+    {
+        // TODO : for now just testing compilation
+
+        std::istringstream istr{};
+
+        auto my_isalnum = [](const int ch)
+        {
+            return std::isalnum(ch) || ch == '_';
+        };
+
+        fn::move_from(
+            std::istreambuf_iterator<char>(istr.rdbuf()),
+            std::istreambuf_iterator<char>{})
+
+          % fn::transform([](const char ch) { return std::tolower(uint8_t(ch)); })
+
+          % fn::group_adjacent_by(my_isalnum)
+
+            // build word->count map
+          % fn::foldl_d([&](std::map<std::string, size_t> out, const auto& w)
+            {
+                if(my_isalnum(w.front())) {
+                    ++out[ std::string(w.begin(), w.end()) ];
+                }
+                return std::move(out);
+            })
+
+          % fn::group_all_by([](const auto& kv) { return kv.first.size(); })
+          % fn::transform(fn::take_top_n_by(5UL, fn::by::second{}))
+          % fn::concat()
+
+          % fn::for_each([](const auto& kv)
+            {
+                std::cerr << kv.first << "\t" << kv.second << "\n";
+            })
+          ;
+    };
+
 
 #if 0
     // expect a nice(r) compilation-error
