@@ -1832,7 +1832,7 @@ namespace impl
                 {
                     assert(parent);
 
-                    return parent->inp;
+                    return bool(parent->inp);
                 }
             };
 
@@ -3541,26 +3541,28 @@ namespace impl
             });
         };
 
+
         auto my_intersperse = [](auto delim)
         {
+#if 1
             return [delim = std::move(delim)](auto inputs)
             {
                 return std::move(inputs)
-        #if 0
               % fn::transform([delim](auto inp)
                 {
-                    return std::array<decltype(inp), 2>{{ std::move(inp), delim }};
+                    return std::array<decltype(inp), 2>{{ delim, std::move(inp) }};
                 })
               % fn::concat()
-
-        #else  // alternatively:
-              % fn::adapt([delim, flag = false](auto gen) mutable
-                {
-                    return (flag = !flag) ? gen() : delim;
-                })
-        #endif
-              % fn::drop_last(); // drop trailing delim
+              % fn::drop_first(); // drop leading delim
             };
+#else // or
+            return fn::adapt([delim, flag = false](auto gen) mutable
+            {
+                return           !gen ? fn::end_seq() 
+                     : (flag = !flag) ? gen() 
+                     :                  delim;
+            });
+#endif
         };
 
         auto my_inclusive_scan = []
@@ -5435,24 +5437,25 @@ static void run_tests()
 
         auto my_intersperse = [](auto delim)
         {
+#if 1
             return [delim = std::move(delim)](auto inputs)
             {
                 return std::move(inputs)
-        #if 0
               % fn::transform([delim](auto inp)
                 {
-                    return std::array<decltype(inp), 2>{{ std::move(inp), delim }};
+                    return std::array<decltype(inp), 2>{{ delim, std::move(inp) }};
                 })
               % fn::concat()
-
-        #else  // alternatively:
-              % fn::adapt([delim, flag = false](auto gen) mutable
-                {
-                    return (flag = !flag) ? gen() : delim;
-                })
-        #endif
-              % fn::drop_last(); // drop trailing delim
+              % fn::drop_first(); // drop leading delim
             };
+#else // or
+            return fn::adapt([delim, flag = false](auto gen) mutable
+            {
+                return           !gen ? fn::end_seq() 
+                     : (flag = !flag) ? gen() 
+                     :                  delim;
+            });
+#endif
         };
 
         auto my_inclusive_scan = []
