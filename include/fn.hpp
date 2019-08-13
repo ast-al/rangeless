@@ -1058,16 +1058,58 @@ namespace by
     /////////////////////////////////////////////////////////////////////////
     /// @brief A view is just a pair of interators with begin() and end() interface.
     template<typename Iterator>
-    struct view
+    class view
     {
+    private:
         Iterator it_beg;
         Iterator it_end;
+
+    public:
+        view(Iterator b, Iterator e)
+            : it_beg( std::move(b) )
+            , it_end( std::move(e) )
+        {}
+
+        view() = default;
 
         using iterator = Iterator;
         using value_type = typename iterator::value_type;
         
-        constexpr Iterator begin() const noexcept { return it_beg; }
-        constexpr Iterator end()   const noexcept { return it_end; }
+        Iterator begin() const { return it_beg; }
+        Iterator end()   const { return it_end; }
+
+        /// Truncate the view.
+        ///
+        /// Precondition: `b == begin() || e = end()`
+        /// This does not affect the underlying range.
+        void erase(Iterator b, Iterator e)
+        {
+            // We support the erase method to obviate view-specific overloads 
+            // for some hofs, e.g. take_while, take_first, drop_whille, drop_last, etc.
+
+            if(b == it_beg) {
+                // erase at front
+                it_beg = e;
+            } else if(e == it_end) {
+
+                // erase at end
+                impl::require_iterator_category_at_least<std::forward_iterator_tag>(*this);
+
+                it_end = b;
+            } else {
+                RANGELESS_FN_THROW("Can only erase at the head or at the tail of the view");
+            }
+        }
+
+        void clear()
+        {
+            it_beg = it_end;
+        }
+
+        bool empty() const
+        {
+            return it_beg == it_end;
+        }
     };
 
     // Note: we named the methods move_from, such that usage like
@@ -1549,61 +1591,56 @@ namespace impl
         template<typename Iterable>
         struct gen_c
         {
-            using value_type = view<typename Iterable::iterator>;
+            using iterator = typename Iterable::iterator;
+            using value_type = view<iterator>;
 
                 Iterable cont;
-              value_type curr;
+                iterator win_beg;
+                iterator win_end;
                     bool started;
             const size_t win_size;
-
-            // concept-check that iterator is decrementable, and 
-            // Cont is not merely a single-pass input-range.
-            // (we need at least forward-range, but not sure how to test for it
-            // without messing with iterator_traits)
-            // In practice there are not many forward-ranges that are not
-            // bidirectional: std::forward_list, what else?
-            static_assert(sizeof(decltype(--curr.it_beg)) > 0, "Expecting a reversible container or view.");
 
             auto operator()() -> maybe<value_type>
             {                
                 if(!started) {
                     started = true;
 
-                    curr.it_beg = cont.begin();
-                    curr.it_end = cont.begin();
+                    win_beg = cont.begin();
+                    win_end = cont.begin();
 
                     // advance view's it_end by win_size
                     size_t n = 0;
-                    for(size_t i = 0; i < win_size && curr.end() != cont.end(); ++i) {
-                        ++curr.it_end;
+                    for(size_t i = 0; i < win_size && win_end != cont.end(); ++i) {
+                        ++win_end;
                         ++n;
                     }
 
                     if(n < win_size) {
                         return { };
                     } else {
-                        return { curr };
+                        return value_type{ win_beg, win_end };
                     }
                 }
 
-
-                if(curr.it_end == cont.end()) {
+                if(win_end == cont.end()) {
                     return { };
                 }
 
-                ++curr.it_beg;
-                ++curr.it_end;
+                ++win_beg;
+                ++win_end;
 
-                return { curr };
+                return { { win_beg, win_end } };
             }
         };
 
         template<typename Iterable>
-        auto operator()(Iterable src) const -> seq<gen_c<Iterable>>
+        auto operator()(Iterable inps) const -> seq<gen_c<Iterable>>
         {
-            return { { std::move(src), 
-                       {{}, {}}, // curr view
-                       false, 
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
+
+            return { { std::move(inps), 
+                       {}, {}, // iteratos
+                       false,  // started
                        win_size } };
         }
 
@@ -1918,15 +1955,6 @@ namespace impl
             cont.erase(it, cont.end()); 
             return cont;
         }
-
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
-        {
-            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
-
-            auto it = std::find_if_not(v.begin(), v.end(), pred);
-            return { v.begin(), it };
-        }
     };
 
     /////////////////////////////////////////////////////////////////////
@@ -1966,17 +1994,22 @@ namespace impl
             return queue;
         }
 
-        template<typename Cont>
-        Cont operator()(Cont&& cont) const
+        template<typename Iterable>
+        Iterable operator()(Iterable&& inps) const
         {
-            static_assert(std::is_rvalue_reference<Cont&&>::value, "");
+            // Iterable may be a container or view
+            static_assert(std::is_rvalue_reference<Iterable&&>::value, "");
 
-            if(cap < cont.size()) {
-                auto it = cont.begin();
-                std::advance(it, cont.size() - cap);
-                cont.erase(cont.begin(), it);
+            // in case cont is a view:
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
+            const auto size = std::distance(inps.begin(), inps.end());
+
+            if(decltype(size)(cap) < size) {
+                auto it = inps.begin();
+                std::advance(it, size - cap);
+                inps.erase(inps.begin(), it);
             }
-            return std::move(cont);
+            return std::move(inps);
         }
 
         template<typename Cont>
@@ -1990,18 +2023,6 @@ namespace impl
                 ret.insert(ret.end(), it, cont.end());
             }
             return ret;
-        }
-
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
-        {
-            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
-
-            const auto size = std::distance(v.begin(), v.end());
-            if(decltype(size)(cap) < size) {
-                std::advance(v.it_beg, size - cap);
-            }
-            return v;
         }
     };
 
@@ -2051,21 +2072,27 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( n, {}, 0 )
 
-        template<typename Cont>
-        Cont operator()(Cont&& cont) const
+        template<typename Iterable>
+        Iterable operator()(Iterable&& inps) const
         {
-            static_assert(std::is_rvalue_reference<Cont&&>::value, "");
+            // Iterable may be a container or view
+            static_assert(std::is_rvalue_reference<Iterable&&>::value, "");
 
-            if(n < cont.size()) {
-                auto it = cont.begin();
-                std::advance(it, cont.size() - n);
-                cont.erase(it, cont.end());
+            // in case cont is a view:
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
+            const auto size = std::distance(inps.begin(), inps.end());
+
+            if(decltype(size)(n) < size) {
+                auto it = inps.begin();
+                std::advance(it, size - n);
+                inps.erase(it, inps.end());
             } else {
-                cont.clear();
+                inps.clear();
             }
 
-            return std::move(cont);
+            return std::move(inps);
         }
+
 
         template<typename Cont>
         Cont operator()(const Cont& cont) const
@@ -2079,21 +2106,6 @@ namespace impl
             }
 
             return ret;
-        }
-
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
-        {
-            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
-
-            const auto size = std::distance(v.begin(), v.end());
-            if(decltype(size)(n) < size) {
-                v.it_end = v.it_beg;
-                std::advance(v.it_end, size - n);
-            } else {
-                v.it_beg = v.it_end;
-            }
-            return v;
         }
     };
 
@@ -2126,19 +2138,12 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( pred, false )
 
-        template<typename Cont>
-        Cont operator()(Cont cont) const
+        template<typename Iterable>
+        Iterable operator()(Iterable inps) const
         {
-            auto it = std::find_if_not(cont.begin(), cont.end(), pred);
-            cont.erase(cont.begin(), it);
-            return cont;
-        }
-
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
-        {
-            auto it = std::find_if_not(v.begin(), v.end(), pred);
-            return { it, v.end() };
+            auto it = std::find_if_not(inps.begin(), inps.end(), pred);
+            inps.erase(inps.begin(), it);
+            return inps;
         }
     };
 
@@ -2219,24 +2224,34 @@ namespace impl
                                     // (e.g. won't compile otherwise with Cont=std::vector<std::unique_ptr<int>>)
         }
 
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
+    private:
+        template<typename Cont>
+        void x_EraseRemove(Cont& cont) const
         {
-            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
-
             auto pred_copy = pred;
-            auto it = 
+            cont.erase(
                 std::remove_if(
-                    v.begin(), v.end(),
-                    [&pred_copy](const typename Iterator::value_type& x)
+                    cont.begin(), cont.end(),
+                    [&pred_copy](const typename Cont::value_type& x)
                     {
                         return !pred_copy(x);
-                    });
+                    }),
+                cont.end());
 
-            return { v.begin(), it };
+           // Using std::not1(pred) instead of the lambda above won't compile:
+           // error: no type named 'argument_type'...
         }
 
-    private:
+        // for a view I can't tell which idiom to use in SFINAE 
+        // (e.g. is it a view into a map or into a vec?)
+        // So will specialize for view and require random_access_iterator,
+        // so we can be sure erase-remove is viable
+        template<typename Iterator>
+        auto x_EraseFrom(view<Iterator>& v, pr_high) const
+        {
+            impl::require_iterator_category_at_least<std::random_access_iterator_tag>(v);
+            x_EraseRemove(v);
+        }
 
         // High-priority overload for containers where can call remove_if.
         template<typename Cont>
@@ -2265,18 +2280,7 @@ namespace impl
             // Anyway, that's why we're instead feature-testing for SequenceContainer 
             // based the presence of cont.front()
             // https://en.cppreference.com/w/cpp/named_req/SequenceContainer
-            auto pred_copy = pred;
-            cont.erase(
-                std::remove_if(
-                    cont.begin(), cont.end(),
-                    [&pred_copy](const typename Cont::value_type& x)
-                    {
-                        return !pred_copy(x);
-                    }),
-                cont.end());
-
-           // Using std::not1(pred) instead of the lambda above won't compile:
-           // error: no type named 'argument_type'...
+            x_EraseRemove(cont);
         }
 
         // Low-priority overload (requires int64_t->int32_t conversion of the 
@@ -2450,53 +2454,6 @@ namespace impl
             // when best-element is moved inside erase-remove loop in fn::where.
 #endif
         }
-
-
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
-        {
-            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
-
-            if(v.begin() == v.end()) {
-                return v;
-            }
-
-            auto first_best_it = v.begin();
-            auto last_best_it  = v.begin();
-
-            {
-                auto it = v.begin();
-                for(++it; it != v.end(); ++it) {
-                    const int which = impl::compare(key_fn(*it), 
-                                                    key_fn(*first_best_it)) * use_max;
-                    if(which < 0) {
-                        ; // not-best
-                    } else if(which > 0) {
-                        // new-best
-                        first_best_it = last_best_it = it;
-                    } else {
-                        last_best_it = it;
-                    }
-                }
-            }
-
-            v.it_beg = first_best_it;
-            v.it_end = v.it_beg; // NB: last instead of end for now.
-
-            ++first_best_it;
-            ++last_best_it; // convert to end
-
-            for(auto it = first_best_it; it != last_best_it; ++it) 
-                if(impl::compare(key_fn(*it), 
-                                 key_fn(*v.it_end)) * use_max >= 0)
-            {
-                ++v.it_end;
-                *v.it_end = std::move(*it);
-            }
-            ++v.it_end; // convert to end
-
-            return v;
-        }
     };
 
 
@@ -2552,7 +2509,8 @@ namespace impl
             impl::require_iterator_category_at_least<std::bidirectional_iterator_tag>(v);
 
             using rev_it_t = std::reverse_iterator<Iterator>;
-            return { rev_it_t{ v.end() }, rev_it_t{ v.begin() } };
+            return { rev_it_t{ v.end()   }, 
+                     rev_it_t{ v.begin() } };
         }
     };
 
@@ -3136,36 +3094,22 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
 
-        template<typename Cont>
-        Cont operator()(Cont cont) const
+        template<typename Iterable>
+        Iterable operator()(Iterable inps) const
         {
-            cont.erase(
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
+
+            inps.erase(
                 std::unique(
-                    cont.begin(), cont.end(),
-                    [this](const typename Cont::value_type& x, 
-                           const typename Cont::value_type& y)
+                    inps.begin(), inps.end(),
+                    [this](const typename Iterable::value_type& x, 
+                           const typename Iterable::value_type& y)
                     {
                         return impl::eq{}(key_fn(x), key_fn(y));
                     }),
-                cont.end());
+                inps.end());
 
-            return cont;
-        }
-
-
-        template<typename Iterator>
-        view<Iterator> operator()(view<Iterator> v) const
-        {
-            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
-
-            auto it = std::unique(
-                v.begin(), v.end(),
-                [this](const typename Iterator::value_type& x, 
-                       const typename Iterator::value_type& y)
-                {
-                    return impl::eq{}(key_fn(x), key_fn(y));
-                });
-            return { v.begin(), it };
+            return inps;
         }
     };
 
@@ -5125,7 +5069,6 @@ static void run_tests()
     std::map<std::string, std::function<void()>> 
         test_cont{}, test_seq{}, test_view{}, test_other{};
 
-#if 0
     // make battery of tests where input is a container (Xs)
     test_cont = make_tests([](std::initializer_list<int> xs)
     {
@@ -5145,7 +5088,6 @@ static void run_tests()
         }
         return fn::to_seq()(std::move(ret));
     });
-#endif
 
     // make battery of tests where input is a view
     test_view = make_tests([](std::initializer_list<int> xs)
