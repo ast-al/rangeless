@@ -1493,6 +1493,15 @@ namespace impl
     // but GCC-4.9.3 has problems with aggregate initialization in a presence
     // of field-defaults.
 
+
+#define RANGELESS_FN_OVERLOAD_FOR_VIEW(...)                                \
+    template<typename Iterator>                                            \
+    auto operator()(view<Iterator> v) const                                \
+     -> seq<gen<to_seq::gen<view<Iterator>>>>                              \
+    {                                                                      \
+        return { { { std::move(v), { }, false }, __VA_ARGS__ } };          \
+    }    
+
     /////////////////////////////////////////////////////////////////////
     template<typename F>
     struct transform
@@ -1989,7 +1998,7 @@ namespace impl
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
 
             const auto size = std::distance(v.begin(), v.end());
-            if(cap < size) {
+            if(decltype(size)(cap) < size) {
                 std::advance(v.it_beg, size - cap);
             }
             return v;
@@ -2078,11 +2087,11 @@ namespace impl
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
 
             const auto size = std::distance(v.begin(), v.end());
-            if(n < size) {
+            if(decltype(size)(n) < size) {
                 v.it_end = v.it_beg;
-                std::advance(v.end, size - n);
+                std::advance(v.it_end, size - n);
             } else {
-                v.it_begin = v.it_end;
+                v.it_beg = v.it_end;
             }
             return v;
         }
@@ -2542,8 +2551,8 @@ namespace impl
         {
             impl::require_iterator_category_at_least<std::bidirectional_iterator_tag>(v);
 
-            //using rev_it_t = std::reverse_iterator<Iterator>;
-            return { { v.end() }, { v.begin() } };
+            using rev_it_t = std::reverse_iterator<Iterator>;
+            return { rev_it_t{ v.end() }, rev_it_t{ v.begin() } };
         }
     };
 
@@ -2581,7 +2590,6 @@ namespace impl
         Iterable operator()(Iterable src) const
         {
             impl::require_iterator_category_at_least<std::random_access_iterator_tag>(src);
-
 
             // this will fire if Iterable is std::map, where value_type is std::pair<const Key, Value>,
             // which is not move-assignable because of constness.
@@ -2807,6 +2815,9 @@ namespace impl
         };
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, pred2, {}, {} )
+
+        // view may be an InputRange, so treat as seq
+        RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, {} )
 #else
         // Experimental implementation returning non-allocating 
         // seq-of-subseqs instead of seq-of-vectors.
@@ -4720,7 +4731,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
     {
 
     };
-#else
+#else 
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -4771,6 +4782,8 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         VERIFY(res2 == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
 #endif
     };
+
+
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -5095,8 +5108,8 @@ static void run_tests()
 
 #if 0 // single test
 
-    std::map<std::string, std::function<void()>> tests1{}, tests2{}, tests3{};
-    tests3["single"] = [&]
+    std::map<std::string, std::function<void()>> tests1{}, tests2{}, test_other{};
+    test_other["single"] = [&]
     {
         auto res = Xs{}
         % fn::to_seq()
@@ -5109,10 +5122,12 @@ static void run_tests()
 
 #else // all tests
 
-    std::map<std::string, std::function<void()>> tests1{}, tests2{}, tests3{};
+    std::map<std::string, std::function<void()>> 
+        test_cont{}, test_seq{}, test_view{}, test_other{};
 
+#if 0
     // make battery of tests where input is a container (Xs)
-    tests1 = make_tests([](std::initializer_list<int> xs)
+    test_cont = make_tests([](std::initializer_list<int> xs)
     {
         Xs ret;
         for(auto x : xs) {
@@ -5122,7 +5137,7 @@ static void run_tests()
     });
 
     // make battery of tests where input is an input-range
-    tests2 = make_tests([](std::initializer_list<int> xs)
+    test_seq = make_tests([](std::initializer_list<int> xs)
     {
         Xs ret;
         for(auto x : xs) {
@@ -5130,8 +5145,19 @@ static void run_tests()
         }
         return fn::to_seq()(std::move(ret));
     });
+#endif
 
-    // tests3: other
+    // make battery of tests where input is a view
+    test_view = make_tests([](std::initializer_list<int> xs)
+    {
+        static Xs ret; // static, because will return a view into it
+
+        for(auto x : xs) {
+            ret.push_back(X(x));
+        }
+        return fn::move_from(ret);
+    });
+
 
     using vec_t = std::vector<int>;
 
@@ -5140,7 +5166,7 @@ static void run_tests()
 
     /////////////////////////////////////////////////////////////////////////
 
-    tests3["for_each"] = [&]
+    test_other["for_each"] = [&]
     {
         int res = 0;
         vec_t{{1,2,3}} % fn::for_each([&res](int& x)
@@ -5150,7 +5176,7 @@ static void run_tests()
         VERIFY(res == 123);
     };
 
-    tests3["for_adjacent"] = [&]
+    test_other["for_adjacent"] = [&]
     {
         auto res = 0UL;
         for_adjacent(vec_t{{1,2,3,4}},
@@ -5161,7 +5187,7 @@ static void run_tests()
         VERIFY(res == 122334);
     };
 
-    tests3["fold"] = [&]
+    test_other["fold"] = [&]
     {
         const std::string x = 
         vec_t{{1,2,3}} % fn::foldl(std::string{"^"},
@@ -5172,7 +5198,7 @@ static void run_tests()
         VERIFY(x == "^|1|2|3");
     };
 
-    tests3["foldl_d"] = [&]
+    test_other["foldl_d"] = [&]
     {
         const std::string x =
         vec_t{{1,2,3}} % fn::foldl_d( [](std::string s, int x_)
@@ -5183,7 +5209,7 @@ static void run_tests()
         VERIFY(x == "|1|2|3");
     };
 
-    tests3["foldl_1"] = [&]
+    test_other["foldl_1"] = [&]
     {
         const auto min_int = 
             std::vector<std::string>{{ "11", "-333", "22" }}
@@ -5197,7 +5223,7 @@ static void run_tests()
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    tests3["filtering with associative containers"] = [&]
+    test_other["filtering with associative containers"] = [&]
     {
         // verify what filtering works for containers where
         // std::remove_if is not supported (e.g. assotiative)
@@ -5218,7 +5244,7 @@ static void run_tests()
         //*m.begin() = *m.begin();
     };
 
-    tests3["filtering with mutable lambdas"] = [&]
+    test_other["filtering with mutable lambdas"] = [&]
     {
          // must work with mutable lambda
          int i = 0;
@@ -5226,7 +5252,7 @@ static void run_tests()
          VERIFY(( ints2 == vec_t{{2, 3}} ));
     };
 
-    tests3["filtering with const_reference inputs"] = [&]
+    test_other["filtering with const_reference inputs"] = [&]
     {
         // check const-reference overload with non-sequence containers
         const auto ints1 = std::set<int>{1,2,3};
@@ -5237,7 +5263,7 @@ static void run_tests()
     /////////////////////////////////////////////////////////////////////////
 
 
-    tests3["memoized"] = [&]
+    test_other["memoized"] = [&]
     {
         size_t exec_count = 0;
         auto strs = std::vector<std::string>{{ "333", "4444", "22", "1" }};
@@ -5253,7 +5279,7 @@ static void run_tests()
         VERIFY(exec_count == 4);
     };
 
-    tests3["scope_guard"] = [&]
+    test_other["scope_guard"] = [&]
     {
         int i = 0;
         {{
@@ -5272,7 +5298,7 @@ static void run_tests()
         VERIFY(i == 10);
     };
 
-    tests3["operator<<=, operator%="] = [&]
+    test_other["operator<<=, operator%="] = [&]
     {
         using fn::operators::operator<<=;
         using fn::operators::operator%=;
@@ -5290,7 +5316,7 @@ static void run_tests()
         VERIFY((cont == vec_t{{1,3,5,7,9}}));
     };
 
-    tests3["generate and output_iterator"] = []
+    test_other["generate and output_iterator"] = []
     {
         int i = 0;
         auto r = fn::seq([&i]
@@ -5307,7 +5333,7 @@ static void run_tests()
         VERIFY(sum == 1234);
     };
 
-    tests3["get_unique/set_unique"] = [&]
+    test_other["get_unique/set_unique"] = [&]
     {
         vec_t ints{{1,2,3}};
 
@@ -5328,7 +5354,7 @@ static void run_tests()
             && &ints2.back() == &y);
     };
 
-    tests3["group_adjacent_by vector-storage-recycling"] = []
+    test_other["group_adjacent_by vector-storage-recycling"] = []
     {
         // Check that vec_t& passed by reference
         // is reused on subsequent iterations instead 
@@ -5350,7 +5376,7 @@ static void run_tests()
         VERIFY((ptrs.size() <= 2));
     };
 
-    tests3["decreasing"] = [&]
+    test_other["decreasing"] = [&]
     {
         // sort by longest-first, then lexicographically
 
@@ -5386,7 +5412,7 @@ static void run_tests()
         VERIFY(ret4 == expected);
     };
 
-    tests3["by"] = [&]
+    test_other["by"] = [&]
     {
         // make sure first{}, second{}, and dereferenced{} return arg as reference (or reference-wrapper)
         // rather than by value.
@@ -5400,7 +5426,7 @@ static void run_tests()
         fn::sort_by(fn::by::dereferenced{})(std::move(v2));
     };
 
-    tests3["exists_where"] = [&]
+    test_other["exists_where"] = [&]
     { 
          VERIFY(  ( vec_t{{ 1, 2, 3}} %  fn::exists_where([](int x){ return x == 2; }) ));
          VERIFY( !( vec_t{{ 1, 2, 3}} %  fn::exists_where([](int x){ return x == 5; }) ));
@@ -5409,7 +5435,7 @@ static void run_tests()
 
 
 #if __cplusplus >= 201402L
-    tests3["compose"] = []
+    test_other["compose"] = []
     {
         auto my_transform = [](auto fn)
         {
@@ -5503,7 +5529,7 @@ static void run_tests()
 #endif // tests for compose
 
 
-    tests3["cartesian_product_with"] = [&]
+    test_other["cartesian_product_with"] = [&]
     {
         auto res = 
             vec_t{{1,2}}
@@ -5519,7 +5545,7 @@ static void run_tests()
          VERIFY(res == 13014015023024025);
     };
 
-    tests3["guard_against_multiple_iterations_of_input_range"] = [&]
+    test_other["guard_against_multiple_iterations_of_input_range"] = [&]
     {
         auto gen_ints = [](int i, int j)
         {
@@ -5554,7 +5580,7 @@ static void run_tests()
         VERIFY(res == 22446);
     };
 
-    tests3["most 5 top frequent words"] = [&]
+    test_other["most 5 top frequent words"] = [&]
     {
         // TODO : for now just testing compilation
 
@@ -5603,7 +5629,7 @@ static void run_tests()
 #endif
 
 #if 0
-    tests3["one-off"] = [&]
+    test_other["one-off"] = [&]
     {
         using fn::operators::operator%;
         vec_t v{{1,2,3}};
@@ -5616,7 +5642,7 @@ static void run_tests()
     /////////////////////////////////////////////////////////////////////////
     size_t num_failed = 0;
     size_t num_ok = 0;
-    for(auto&& tests : { tests1, tests2, tests3 })
+    for(auto&& tests : { test_cont, test_seq, test_view, test_other })
         for(const auto& kv : tests)
     {
         try{
