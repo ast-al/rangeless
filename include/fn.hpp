@@ -1570,7 +1570,8 @@ namespace impl
 
                 auto ret = map_fn(std::move(*x));
                 impl::recycle(gen, *x, impl::resolve_overload{});
-                return ret;
+                return std::move(ret); // I'd expect copy elision here, but
+                                       // GCC4.9.3 tries to use copy-constructor here
             }
         };
 
@@ -4602,6 +4603,7 @@ namespace operators
 #include <array>
 #include <iostream>
 #include <sstream>
+#include <cctype>
 
 #ifndef VERIFY
 #define VERIFY(expr) if(!(expr)) RANGELESS_FN_THROW("Assertion failed: ( "#expr" ).");
