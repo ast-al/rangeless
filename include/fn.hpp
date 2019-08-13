@@ -5150,7 +5150,12 @@ static void run_tests()
     // make battery of tests where input is a view
     test_view = make_tests([](std::initializer_list<int> xs)
     {
-        static Xs ret; // static, because will return a view into it
+        // will be returning views; will keep the underlying data
+        // in a static vector.
+
+        static std::vector<Xs> vecs{};
+        vecs.push_back(Xs{});
+        auto& ret = vecs.back();
 
         for(auto x : xs) {
             ret.push_back(X(x));
