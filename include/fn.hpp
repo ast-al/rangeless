@@ -720,9 +720,9 @@ namespace impl
         /// This may be suppressed with .resumable(true),
         /// making it explicit that the user-code is aware that begin() will resume
         /// from the current state.
-        seq& resumable(bool resumable = true)
+        seq& resumable(bool res = true)
         {
-            m_resumable = resumable;
+            m_resumable = res;
         }
 
         Gen& get_gen()
