@@ -185,9 +185,9 @@ namespace impl
 #endif
 
     template<typename IteratorTag, typename Iterable>
-    static void require_iterator_category_at_least(const Iterable&)
+    static inline void require_iterator_category_at_least(const Iterable&)
     {
-        static_assert(std::is_base_of<IteratorTag, typename std::iterator_traits<typename Iterable::iterator>::iterator_category>::value, "Iterator category does not meet minimum requirements");
+        static_assert(std::is_base_of<IteratorTag, typename std::iterator_traits<typename Iterable::iterator>::iterator_category>::value, "Iterator category does not meet minimum requirements.");
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -256,20 +256,17 @@ namespace impl
             // Another reason we can't simply move-assign to
             // is that T may be a tuple containing 
             // references, and we want to assign maybe<T> of such tuple
-            // without assigning referenced objects as a side-effect.
-            // See NB[2].
-            //
-            // I.e. for our purposes maybe<T> should behave similarly 
-            // to a unique_ptr, except with stack-storage.
-            // (pointer reassignment does not affect the pointed-to object).
-            //
-            // That is, we do need the assignment to have rebinding semantics
-            // rather than deep-reassignment-via-reference semantics of std::optional:
+            // without assigning referenced objects as a side-effect,
+            // unlike std::optional: (See NB[2])
             //     int x = 42;
             //     int y = 99;
             //     std::optional<std::tuple<int&>> opt_x = std::tie(x);
             //     std::optional<std::tuple<int&>> opt_y = std::tie(y);
             //     opt_x = opt_y; // x is now 99 - Why, c++ standard committee? whyyyy??
+            //
+            // For our purposes maybe<T> should behave similarly 
+            // to a unique_ptr, except with stack-storage, where
+            // reassignment simply transfers ownership.
             //
             // Related:
             // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3527.html#optional_ref.rationale.assign
@@ -1080,12 +1077,13 @@ namespace by
 
         /// Truncate the view.
         ///
-        /// Precondition: `b == begin() || e = end()`
+        /// Precondition: `b == begin() || e = end()`; throws `std::logic_error` otherwise.
         /// This does not affect the underlying range.
         void erase(Iterator b, Iterator e)
         {
             // We support the erase method to obviate view-specific overloads 
-            // for some hofs, e.g. take_while, take_first, drop_whille, drop_last, etc.
+            // for some hofs, e.g. take_while, take_first, drop_whille, drop_last, etc -
+            // the container-specific overloads will work for views as well.
 
             if(b == it_beg) {
                 // erase at front
@@ -2267,6 +2265,7 @@ namespace impl
             //
             // B) Or simplifying, iterator's reference_type is non-const (assigneable),
             //     -> decltype(void( *cont.begin() = std::move(*cont.begin()) ))
+            //  or -> decltype(std::swap(*cont.begin(), *cont.begin()))
             //
             // However, SFINAE still considers this overload viable for std::map
             // even though map's value_type is not move-assignable, (due to key being const);
