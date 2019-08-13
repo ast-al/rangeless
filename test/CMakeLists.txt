@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
     -g -pthread \
-    -ftemplate-backtrace-limit=1 \
+    -ftemplate-backtrace-limit=1 -Wfatal-errors \
     -Wall -Wextra \
     -Wconversion -Wdeprecated-declarations -Wstrict-aliasing \
     -Wlogical-op -Wmissing-declarations -Wpedantic -Wshadow \
