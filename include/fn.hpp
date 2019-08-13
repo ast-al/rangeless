@@ -1913,6 +1913,8 @@ namespace impl
         template<typename Iterator>
         view<Iterator> operator()(view<Iterator> v) const
         {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(v);
+
             auto it = std::find_if_not(v.begin(), v.end(), pred);
             return { v.begin(), it };
         }
@@ -2388,18 +2390,21 @@ namespace impl
             auto last_best_it  = cont.begin();
             size_t n = 1; // count of max-elements
 
-            for(auto it = cont.begin(); it != cont.end(); ++it) {
-                const int which = impl::compare(key_fn(*it), 
-                                                key_fn(*first_best_it)) * use_max;
-                if(which < 0) {
-                    ; // not-best
-                } else if(which > 0) {
-                    // new-best
-                    first_best_it = last_best_it = it;
-                    n = 1;
-                } else {
-                    last_best_it = it;
-                    n++;
+            {
+                auto it = cont.begin();
+                for(++it; it != cont.end(); ++it) {
+                    const int which = impl::compare(key_fn(*it), 
+                                                    key_fn(*first_best_it)) * use_max;
+                    if(which < 0) {
+                        ; // not-best
+                    } else if(which > 0) {
+                        // new-best
+                        first_best_it = last_best_it = it;
+                        n = 1;
+                    } else {
+                        last_best_it = it;
+                        n++;
+                    }
                 }
             }
 
