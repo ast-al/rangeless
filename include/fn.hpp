@@ -1110,20 +1110,20 @@ namespace by
         }
     };
 
-    // Note: we named the methods move_from, such that usage like
-    //     auto sorted_vec = fn::move_from(it_beg, it_end) % fn::sort();
+    // Note: we named the methods make_move_view, such that usage like
+    //     auto sorted_vec = fn::make_move_view(it_beg, it_end) % fn::sort();
     // communicates that the range will be moved-from.
 
     /// @brief Create a range-view from a pair of iterators.
     template<typename Iterator>
-    constexpr view<Iterator> move_from(Iterator it_beg, Iterator it_end) noexcept
+    constexpr view<Iterator> make_move_view(Iterator it_beg, Iterator it_end) noexcept
     {
         return { std::move(it_beg), std::move(it_end) };
     }
 
     /// To enable composability of APIs returning a pair of iterators, e.g. std::equal_range
     template<typename Iterator>
-    constexpr view<Iterator> move_from(std::pair<Iterator, Iterator> p) noexcept
+    constexpr view<Iterator> make_move_view(std::pair<Iterator, Iterator> p) noexcept
     {
         return { std::move(p.first), std::move(p.second) };
     }
@@ -1131,7 +1131,7 @@ namespace by
     /// Create a range-view for a container, or an iterable that has `begin` and `end` as free functions rather than methods.
     template<typename Iterable,
              typename Iterator = typename Iterable::iterator>
-    constexpr view<Iterator> move_from(Iterable& src) noexcept
+    constexpr view<Iterator> make_move_view(Iterable& src) noexcept
     {
         using std::begin;
         using std::end;
@@ -2241,16 +2241,6 @@ namespace impl
            // error: no type named 'argument_type'...
         }
 
-        // for a view I can't tell which idiom to use in SFINAE 
-        // (e.g. is it a view into a map or into a vec?)
-        // So will specialize for view and require random_access_iterator,
-        // so we can be sure erase-remove is viable
-        template<typename Iterator>
-        auto x_EraseFrom(view<Iterator>& v, pr_high) const
-        {
-            impl::require_iterator_category_at_least<std::random_access_iterator_tag>(v);
-            x_EraseRemove(v);
-        }
 
         // High-priority overload for containers where can call remove_if.
         template<typename Cont>
@@ -2263,13 +2253,13 @@ namespace impl
             // A) Can call std::remove:
             //     -> decltype(void( std::remove(cont.begin(), cont.end(), *cont.begin()) ))
             //
-            // B) Or simplifying, iterator's reference_type is non-const (assigneable),
+            // B) Or simplifying, iterator's reference_type is non-const (assignable),
             //     -> decltype(void( *cont.begin() = std::move(*cont.begin()) ))
             //  or -> decltype(std::swap(*cont.begin(), *cont.begin()))
             //
             // However, SFINAE still considers this overload viable for std::map
             // even though map's value_type is not move-assignable, (due to key being const);
-            // the lines below would not compile.
+            // i.e. the lines below should not and would not compile.
             //
             //     std::remove(cont.begin(), cont.end(), *cont.begin());
             //     *cont.begin() = std::move(*cont.begin());
@@ -2280,19 +2270,28 @@ namespace impl
             // Anyway, that's why we're instead feature-testing for SequenceContainer 
             // based the presence of cont.front()
             // https://en.cppreference.com/w/cpp/named_req/SequenceContainer
-            x_EraseRemove(cont);
+            //
+            // Update: This is no longer an issue with newer compilers, so this must have been
+            // a compiler bug. However, Leaving the cont.front() check in place for now.
+
+            x_EraseRemove(cont); 
         }
 
-        // Low-priority overload (requires int64_t->int32_t conversion of the 
-        // the dummy parameter) where remove_if is not viable, but
-        // the container having equal_range method, implying that 
-        // cont.erase(iterator) should be efficient.
-        // (E.g. sets and associative containers).
-        //
-        // It is not generally expected that a container type 
-        // would match both overloads and cause ambiguous resolution
-        // compilation error, but we formally guard against it
-        // using dummy parameters that SFINAE can use to prioritize.
+        // for a view I can't tell which idiom to use in SFINAE 
+        // (e.g. is it a view into a map or into a vec?)
+        // So will specialize for view and require random_access_iterator,
+        // so we can be sure erase-remove is viable
+        template<typename Iterator>
+        auto x_EraseFrom(view<Iterator>& v, pr_high) const
+        {
+            impl::require_iterator_category_at_least<std::random_access_iterator_tag>(v);
+            x_EraseRemove(v);
+        }
+
+        // Low-priority overload where remove_if is not viable, but
+        // the container has equal_range method (e.g. set and associative
+        // containers) so it is reasonable to expect that iterate-erase
+        // idiom is applicable.
         template<typename Cont>
         auto x_EraseFrom(Cont& cont, pr_low) const
           -> decltype(void(
@@ -5103,7 +5102,7 @@ static void run_tests()
         for(auto x : xs) {
             ret.push_back(X(x));
         }
-        return fn::move_from(ret);
+        return fn::make_move_view(ret);
     });
 
 
@@ -5539,7 +5538,7 @@ static void run_tests()
             return std::isalnum(ch) || ch == '_';
         };
 
-        fn::move_from(
+        fn::make_move_view(
             std::istreambuf_iterator<char>(istr.rdbuf()),
             std::istreambuf_iterator<char>{})
 
@@ -5572,7 +5571,7 @@ static void run_tests()
     // expect a nice(r) compilation-error
     {
         auto vec = vec_t{};
-        fn::move_from(vec) % fn::take_while([](int) { return true; });
+        fn::make_move_view(vec) % fn::take_while([](int) { return true; });
     }
 #endif
 

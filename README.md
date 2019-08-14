@@ -40,9 +40,9 @@ employees = std::move(employees)
         return std::isalnum(ch) || ch == '_';
     };
 
-    fn::move_from(
+    fn::make_move_view(
         std::istreambuf_iterator<char>(std::cin.rdbuf()),
-        std::istreambuf_iterator<char>{})
+        std::istreambuf_iterator<char>{ /* end */ })
 
       % fn::transform([](const char ch) { return std::tolower(uint8_t(ch)); })
 
@@ -54,7 +54,7 @@ employees = std::move(employees)
             if(my_isalnum(w.front())) {
                 ++out[ std::string(w.begin(), w.end()) ];
             }
-            return std::move(out);
+            return std::move(out); // NB: no copies of the map are made here.
         })
 
       % fn::group_all_by([](const auto& kv) { return kv.first.size(); })
