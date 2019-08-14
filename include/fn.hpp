@@ -717,7 +717,7 @@ namespace impl
         /// This may be suppressed with .resumable(true),
         /// making it explicit that the user-code is aware that begin() will resume
         /// from the current state.
-        seq& resumable(bool res = true)
+        seq& set_resumable(bool res = true)
         {
             m_resumable = res;
         }
@@ -1153,7 +1153,7 @@ namespace impl
     struct to_seq
     {
         /////////////////////////////////////////////////////////////////////////
-        // We compose the lazy adapters by yanking m_Gen from the input seq,
+        // We compose seqs by yanking m_gen from the input seq,
         // wrapping it into a nullary callable (see gen) that will do the
         // additional work (e.g. filter, transform, etc) and wrapping back as seq. 
         // I.e. we're doing the monadic "burrito" technique.
@@ -2282,7 +2282,7 @@ namespace impl
         // So will specialize for view and require random_access_iterator,
         // so we can be sure erase-remove is viable
         template<typename Iterator>
-        auto x_EraseFrom(view<Iterator>& v, pr_high) const
+        void x_EraseFrom(view<Iterator>& v, pr_high) const
         {
             impl::require_iterator_category_at_least<std::random_access_iterator_tag>(v);
             x_EraseRemove(v);
