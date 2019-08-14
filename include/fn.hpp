@@ -2883,7 +2883,7 @@ namespace impl
         auto operator()(seq<Gen> range) const -> 
             seq<
                 typename group_adjacent_by_t::template gen<
-                    typename to_seq::gen<
+                    to_seq::gen<
                         std::vector<typename seq<Gen>::value_type>>>>
         {
             return 
