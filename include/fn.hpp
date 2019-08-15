@@ -635,7 +635,7 @@ namespace impl
             using   difference_type = void;
             using        value_type = seq::value_type;
             using           pointer = value_type*;
-            using         reference = value_type&&;
+            using         reference = value_type&&; // NB: rvalue-reference
 
             iterator(seq* p = nullptr) : m_parent{ p }
             {}
@@ -673,9 +673,11 @@ namespace impl
 #pragma GCC diagnostic pop
 
 
-            reference operator*(){ return std::move(*m_parent->m_current); }
+            reference operator*() const { return static_cast<reference>(*m_parent->m_current); }
+            // Why do we need static_cast<reference> instead of simply std::move ?
+            // See https://en.cppreference.com/w/cpp/iterator/move_iterator/operator*
 
-            //pointer operator->() { return &*m_parent->m_current; }
+            pointer operator->() const { return &*m_parent->m_current; }
 
             bool operator==(const iterator& other) const
             {
