@@ -3211,14 +3211,13 @@ namespace impl
         template<typename InputRange1>
         struct gen
         {
-                               InputRange1 range1;
-                               InputRange2 range2;
+                               InputRange1 inps1;
+                               InputRange2 inps2;
             typename InputRange1::iterator it1;
             typename InputRange2::iterator it2;
                                        int which; // 0: not-started; 
                                                   // 1: in range1
                                                   // 2: in range2
-                                                  // 3: ended
             using value_type = 
                 typename std::common_type<
                     typename InputRange1::value_type,
@@ -3227,37 +3226,11 @@ namespace impl
 
             auto operator()() -> maybe<value_type>
             {
-                // common case #1
-                if(which == 1 && it1 != range1.end()) {
-                    auto ret = std::move(*it1);
-                    ++it1;
-                    return { std::move(ret) }; 
-                }
-
-                // common case #2
-                if(which == 2 && it2 != range2.end()) {
-                    auto ret = std::move(*it2);
-                    ++it2;
-                    return { std::move(ret) };
-                }
-
-                if(which == 0) {
-                    which = 1;
-                    it1 = range1.begin();
-                    return this->operator()();
-                } else if(which == 1 && it1 == range1.end()) {
-                    which = 2;
-                    it2 = range2.begin();
-                    return this->operator()();
-                } else if(which == 2 && it2 == range2.end()) {
-                    which = 3;
-                    return { };
-                } else if(which == 3) {
-                    return { };
-                } else {
-                    assert(false);
-                    return { };
-                }
+                return which == 1 && it1 != inps1.end() ? std::move(*it1++)
+                     : which == 2 && it2 != inps2.end() ? std::move(*it2++)
+                     : which == 0 ? (which = 1, it1 = inps1.begin(), (*this)())
+                     : which == 1 ? (which = 2, it2 = inps2.begin(), (*this)())
+                     :              maybe<value_type>{ };
             }
         };
 
