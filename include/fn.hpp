@@ -622,11 +622,11 @@ namespace impl
             : m_gen( std::move(gen) ) // NB: must use parentheses here!
         {}
 
-        seq(           const seq&) = delete;
+                   seq(const seq&) = delete;
         seq& operator=(const seq&) = delete;
 
-        seq           (seq&&) = default;
-        seq& operator=(seq&&) = default;
+                        seq(seq&&) = default;
+             seq& operator=(seq&&) = default;
 
         class iterator
         {
@@ -662,7 +662,16 @@ namespace impl
                 return *this;
             }
 
-            iterator operator++(int) = delete; // return-copy invalidated after increment
+#pragma GCC diagnostic push 
+#pragma GCC diagnostic ignored "-Weffc++" // insists operator++(int) should be returning iterator
+            maybe<value_type> operator++(int) // to support *it++ usage
+            {
+                auto ret = std::move(m_parent->m_current);
+                this->operator++();
+                return ret;
+            }
+#pragma GCC diagnostic pop
+
 
             reference operator*(){ return std::move(*m_parent->m_current); }
 
@@ -679,6 +688,7 @@ namespace impl
             }
 
         private:
+
             friend seq;
            
             seq* m_parent;
@@ -3500,10 +3510,29 @@ namespace impl
             });
         };
 
-
         auto my_intersperse = [](auto delim)
         {
 #if 1
+            return [delim = std::move(delim)](auto inputs)
+            {
+                return fn::seq([  delim, 
+                                 inputs = std::move(inputs), 
+                                     it = inputs.end(), 
+                                started = false, 
+                                   flag = false]() mutable
+                {
+                    if(!started) {
+                        started = true;
+                        it = inputs.begin();
+                    }
+                    return it == inputs.end() ? fn::end_seq()
+                         :     (flag = !flag) ? std::move(*it++)
+                         :                      delim;
+                });
+            };
+            
+#elif 0 // or
+
             return [delim = std::move(delim)](auto inputs)
             {
                 return std::move(inputs)
@@ -3514,7 +3543,9 @@ namespace impl
               % fn::concat()
               % fn::drop_first(); // drop leading delim
             };
+
 #else // or
+
             return fn::adapt([delim, flag = false](auto gen) mutable
             {
                 return           !gen ? fn::end_seq() 
@@ -3523,6 +3554,7 @@ namespace impl
             });
 #endif
         };
+
 
         auto my_inclusive_scan = []
         {
@@ -5418,6 +5450,26 @@ static void run_tests()
 #if 1
             return [delim = std::move(delim)](auto inputs)
             {
+                return fn::seq([  delim, 
+                                 inputs = std::move(inputs), 
+                                     it = inputs.end(), 
+                                started = false, 
+                                   flag = false]() mutable
+                {
+                    if(!started) {
+                        started = true;
+                        it = inputs.begin();
+                    }
+                    return it == inputs.end() ? fn::end_seq()
+                         :     (flag = !flag) ? std::move(*it++)
+                         :                      delim;
+                });
+            };
+            
+#elif 0 // or
+
+            return [delim = std::move(delim)](auto inputs)
+            {
                 return std::move(inputs)
               % fn::transform([delim](auto inp)
                 {
@@ -5426,7 +5478,9 @@ static void run_tests()
               % fn::concat()
               % fn::drop_first(); // drop leading delim
             };
+
 #else // or
+
             return fn::adapt([delim, flag = false](auto gen) mutable
             {
                 return           !gen ? fn::end_seq() 
