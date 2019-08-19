@@ -40,13 +40,19 @@ employees = std::move(employees)
         return std::isalnum(ch) || ch == '_';
     };
 
-    fn::make_move_view(
+    fn::from(
         std::istreambuf_iterator<char>(std::cin.rdbuf()),
         std::istreambuf_iterator<char>{ /* end */ })
 
+        // v3: how to create a view from a pair of iterators?
+
       % fn::transform([](const char ch) { return std::tolower(uint8_t(ch)); })
 
+        // v3: group-by does not compose with an input-range
+
       % fn::group_adjacent_by(my_isalnum)
+
+        // v3: where's left-fold?
 
         // build word->count map
       % fn::foldl_d([&](std::map<std::string, size_t> out, const auto& w)
@@ -57,9 +63,12 @@ employees = std::move(employees)
             return std::move(out); // NB: no copies of the map are made here.
         })
 
+        // v3: foldl returns map by value - can't compose rvalue with a view.
+
       % fn::group_all_by([](const auto& kv) { return kv.first.size(); })
 
-      % fn::transform(fn::take_top_n_by(5UL, fn::by::second{}))
+      % fn::transform(
+            fn::take_top_n_by(5UL, fn::by::second{}))
 
       % fn::concat()
 

@@ -1123,20 +1123,20 @@ namespace by
         }
     };
 
-    // Note: we named the methods make_move_view, such that usage like
-    //     auto sorted_vec = fn::make_move_view(it_beg, it_end) % fn::sort();
+    // Note: we named the methods from, such that usage like
+    //     auto sorted_vec = fn::from(it_beg, it_end) % fn::sort();
     // communicates that the range will be moved-from.
 
     /// @brief Create a range-view from a pair of iterators.
     template<typename Iterator>
-    constexpr view<Iterator> make_move_view(Iterator it_beg, Iterator it_end) noexcept
+    constexpr view<Iterator> from(Iterator it_beg, Iterator it_end) noexcept
     {
         return { std::move(it_beg), std::move(it_end) };
     }
 
     /// To enable composability of APIs returning a pair of iterators, e.g. std::equal_range
     template<typename Iterator>
-    constexpr view<Iterator> make_move_view(std::pair<Iterator, Iterator> p) noexcept
+    constexpr view<Iterator> from(std::pair<Iterator, Iterator> p) noexcept
     {
         return { std::move(p.first), std::move(p.second) };
     }
@@ -1144,7 +1144,7 @@ namespace by
     /// Create a range-view for a container, or an iterable that has `begin` and `end` as free functions rather than methods.
     template<typename Iterable,
              typename Iterator = typename Iterable::iterator>
-    constexpr view<Iterator> make_move_view(Iterable& src) noexcept
+    constexpr view<Iterator> from(Iterable& src) noexcept
     {
         using std::begin;
         using std::end;
@@ -5110,7 +5110,7 @@ static void run_tests()
         for(auto x : xs) {
             ret.push_back(X(x));
         }
-        return fn::make_move_view(ret);
+        return fn::from(ret);
     });
 
 
@@ -5568,7 +5568,7 @@ static void run_tests()
             return std::isalnum(ch) || ch == '_';
         };
 
-        fn::make_move_view(
+        fn::from(
             std::istreambuf_iterator<char>(istr.rdbuf()),
             std::istreambuf_iterator<char>{})
 
@@ -5601,7 +5601,7 @@ static void run_tests()
     // expect a nice(r) compilation-error
     {
         auto vec = vec_t{};
-        fn::make_move_view(vec) % fn::take_while([](int) { return true; });
+        fn::from(vec) % fn::take_while([](int) { return true; });
     }
 #endif
 
