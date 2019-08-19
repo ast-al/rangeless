@@ -25,7 +25,8 @@
   Author: Alex Astashyn
 
 */
-#pragma once
+#ifndef RANGELESS_FN_HPP_
+#define RANGELESS_FN_HPP_
 
 #include <stdexcept> // to include std::logic_error for MSVC
 #include <algorithm>
@@ -3513,10 +3514,10 @@ namespace impl
                 return std::move(inputs)
               % fn::transform([delim](auto inp)
                 {
-                    return std::array<decltype(inp), 2>{{ delim, std::move(inp) }};
+                    return std::array<decltype(inp), 2>{{ std::move(inp), delim }};
                 })
               % fn::concat()
-              % fn::drop_first(); // drop leading delim
+              % fn::drop_last(); // drop trailing delim
             };
 
 #else // or
@@ -5642,3 +5643,5 @@ static void run_tests()
 
 
 #endif //RANGELESS_FN_ENABLE_RUN_TESTS
+
+#endif // #ifndef RANGELESS_FN_HPP_
