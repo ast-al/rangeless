@@ -4525,8 +4525,13 @@ namespace operators
     // Because many other libraries overload >> or | for various purposes,
     // so in case of compilation errors involving those 
     // you get an honorable mention of every possible overload in TU.
+    //
+    // Also, in range-v3 it is used for composition of views 
+    // rather than a function application, so we want to avoid possible confusion.
 
     /// @brief `return std::forward<F>(fn)(std::forward<Arg>(arg))`
+    ///  
+    /// This is similar to Haskell's operator `(&) :: a -> (a -> b) -> b |infix 1|` or F#'s operator `|>`.
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)(std::forward<Arg>(arg)) )
     {
