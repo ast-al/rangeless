@@ -1061,7 +1061,49 @@ namespace by
         return { std::move(key_fn) };
     }
 }   // namespace by
-   
+
+/// Common transform-functions that can be used as param to fn::transform
+namespace get
+{
+    struct dereferenced
+    {
+        template<typename P> // any dereferenceable type
+        auto operator()(P ptr) const -> typename std::remove_reference<decltype(std::move(*ptr))>::type
+        {
+            return std::move(*ptr);
+        }
+    };
+
+    struct first
+    {
+        template<typename T>
+        auto operator()(T x) const -> typename T::first_type
+        {
+            return std::move(x.first);
+        }
+    };
+
+    struct second
+    {
+        template<typename T>
+        auto operator()(T x) const -> typename T::second_type
+        {
+            return std::move(x.second);
+        }
+    };
+
+    struct enumerated
+    {
+        size_t i = 0UL;
+
+        template<typename T>
+        auto operator()(T x) -> std::pair<size_t, T>
+        {
+            return { i++, std::move(x) };
+        }
+    };
+}
+
     /// @defgroup view Views
     /// @{
 
@@ -1692,34 +1734,6 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( {}, {{}, {}}, win_size )
     };
-
-
-    /////////////////////////////////////////////////////////////////////////
-    struct enumerate
-    {
-        template<typename InGen>
-        struct gen
-        {
-            InGen gen;
-            size_t i;
-
-            using value_type = std::pair<size_t, typename InGen::value_type>;
-
-            auto operator()() -> maybe<value_type>
-            {
-                auto x = gen();
-                if(!x) {
-                    return { };
-                } else {
-                    return std::make_pair(i++, std::move(*x));
-                }
-            }
-        };
-
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( 0UL )
-        RANGELESS_FN_OVERLOAD_FOR_CONT( 0UL )
-    };
-
 
 #if RANGELESS_FN_ENABLE_PARALLEL 
 
@@ -3781,14 +3795,6 @@ namespace impl
     }
 #endif
 
-    /// @brief `transform: x -> (count++, x)`
-    ///
-    /// as if `fn::transform([i = 0UL](auto&& x) mutable { return std::make_pair(i++, (decltype(x))x); })`
-    inline impl::enumerate enumerate()
-    {
-        return {};
-    }
-
     /// @}
     /// @defgroup folding Folds and Loops
     /// @{
@@ -4526,12 +4532,12 @@ namespace operators
     // so in case of compilation errors involving those 
     // you get an honorable mention of every possible overload in TU.
     //
-    // Also, in range-v3 it is used for composition of views 
+    // Also, in range-v3 it is used for composition of views
     // rather than a function application, so we want to avoid possible confusion.
 
     /// @brief `return std::forward<F>(fn)(std::forward<Arg>(arg))`
-    ///  
-    /// This is similar to Haskell's operator `(&) :: a -> (a -> b) -> b |infix 1|` or F#'s operator `|>`.
+    ///
+    /// This is similar to Haskell's operator `(&) :: a -> (a -> b) -> b |infix 1|` or F#'s operator `|>`
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)(std::forward<Arg>(arg)) )
     {
@@ -4915,7 +4921,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
     tests["enumerate"] = [&]
     {
         auto res = make_inputs({4,5,6})
-        % fn::enumerate() 
+        % fn::transform(fn::get::enumerated{})
         % fn::transform([](std::pair<size_t, int> p)
         {
             return std::array<int, 2>{{p.second, int(p.first)}};
@@ -4924,6 +4930,24 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % fold;
 
         VERIFY(res == 405162);
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+    
+    tests["values"] = [&]
+    {
+        auto inps = make_inputs({1,2,3});
+
+        auto m = std::map<int, decltype(inps) >{};
+        m.emplace(1, std::move(inps));
+        m.emplace(2, make_inputs({4,5,6}));
+
+        auto res = std::move(m) 
+                 % fn::transform(fn::get::second{})
+                 % fn::concat() 
+                 % fold;
+
+        VERIFY(res == 123456);
     };
 
     /////////////////////////////////////////////////////////////////////////
