@@ -1193,6 +1193,19 @@ namespace get
         return { begin(src), end(src) };
     }
 
+    template<typename Iterable,
+             typename Iterator = typename Iterable::const_iterator>
+    constexpr view<Iterator> from(const Iterable& src) noexcept
+    {
+        // need a separate overload for const, because without it
+        // begin(src) yields const_iterator that is not convertible
+        // to normal iterator that's in the signature.
+
+        using std::begin; // cbegin/cend here instead?
+        using std::end;
+        return { begin(src), end(src) };
+    }
+
     /// @}
 
 
