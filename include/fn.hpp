@@ -4591,14 +4591,25 @@ namespace operators
     auto operator<<=(Container1& cont1, 
                     Container2&& cont2) -> decltype(void(cont1.insert(cont1.end(), std::move(*cont2.begin()))))
     {
-        // Could also take Container2 by value, but taking by rvalue-reference instead
-        // will preserve the internal storage of the container (instead of it being 
-        // freed here when going out of scope if we took it by value). In some cases
-        // this may be desirable.
-        static_assert(std::is_rvalue_reference<Container2&&>::value, "Expecting rvalue-reference for second arg - elements will be moved-from");
+        static_assert(std::is_rvalue_reference<Container2&&>::value, "");
         cont1.insert(cont1.end(),
                      std::make_move_iterator(cont2.begin()),
                      std::make_move_iterator(cont2.end()));
+    }
+
+    // Could also take Container2 by value, but taking by rvalue-reference instead
+    // will preserve the internal storage of the container (instead of it being 
+    // freed here when going out of scope if we took it by value). In some cases
+    // this may be desirable. So instead having separate overloads for 
+    // Container2&& and const Container2& that will copy elements.
+
+    template<class Container1, class Container2>
+    auto operator<<=(Container1& cont1, 
+               const Container2& cont2) -> decltype(void(cont1.insert(cont1.end(), *cont2.begin())))
+    {
+        cont1.insert(cont1.end(),
+                     cont2.begin(),
+                     cont2.end());
     }
 
     // I would have expected that seq-based input would work with the above overload as well,
@@ -5300,8 +5311,11 @@ static void run_tests()
         using fn::operators::operator<<=;
         using fn::operators::operator%=;
 
-        auto cont = vec_t{{1,2,3}};
-        cont <<= std::set<int>{{4,5,6}};
+        auto cont = vec_t{{1,2}};
+        cont <<= std::set<int>{{3,4}}; // excerising rvalue-based overload
+
+        const auto const_set = std::set<int>{{5,6}};
+        cont <<= const_set; // excercising conts-reference overload.
 
         int i = 0;
         cont <<= fn::seq([&i]{ return i++ < 1 ? 7 : fn::end_seq(); }); // should also work for seq rhs
