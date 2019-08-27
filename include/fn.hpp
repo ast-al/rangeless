@@ -4135,8 +4135,8 @@ namespace impl
     /// returns a `std::vector<Cont>` where each container
     /// contains adjacently-equal elements having same value of key.
     ///
-    /// If arg is a `seq<In>`, composes a `seq<Out>`
-    /// that shall yield `vector<Cont>`s having same value of key.
+    /// If arg is a `seq<...>`, composes a `seq<...>`
+    /// that shall yield `vector<value_type>`s having same value of key.
     ///
     /// Buffering space requirements for `seq`: `O(max-groupsize)`.
     template<typename F>
