@@ -274,7 +274,15 @@ namespace impl
             // https://www.fluentcpp.com/2018/10/05/pros-cons-optional-references/
 
             reset();
-            new (&m_value) T(std::move(val));
+            
+            const auto ret_ptr = new (&m_value) T(std::move(val));
+            
+            // https://stackoverflow.com/questions/40897533/return-value-of-placement-new
+            // https://github.com/ned14/outcome/issues/185
+            assert(ret_ptr == &m_value); 
+            (void)ret_ptr;               
+
+
             m_empty = false;
         }
 
