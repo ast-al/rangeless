@@ -232,7 +232,7 @@ c++ -specific (in no particular order):
 - [soheilhy/fn](https://github.com/soheilhy/fn)
 - [LoopPerfect/conduit](https://github.com/LoopPerfect/conduit)
 - [k06a/boolinq](https://github.com/k06a/boolinq)
-- [pfultz2/lin](https://github.com/pfultz2/linq)
+- [pfultz2/linq](https://github.com/pfultz2/linq)
 - [boost.range](https://www.boost.org/doc/libs/1_67_0/libs/range/doc/html/index.html)
 - [cpplinq](https://archive.codeplex.com/?p=cpplinq)
 
