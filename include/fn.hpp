@@ -2364,6 +2364,18 @@ namespace impl
         }
     };
 
+    /////////////////////////////////////////////////////////////////////
+    template<typename SortedRange>
+    struct in_sorted
+    {
+        const SortedRange& r;
+                const bool is_subtract; // subtract or intersect r
+
+        bool operator()(const typename SortedRange::value_type& x) const
+        {
+            return is_subtract ^ std::binary_search(r.begin(), r.end(), x);
+        }
+    };
 
     /////////////////////////////////////////////////////////////////////
     template<typename F>
@@ -4036,6 +4048,26 @@ namespace impl
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    /// @brief Intersect with a sorted range.
+    ///
+    /// `elems %= fn::where_in_sorted(whitelist);`
+    template<typename ForwardRange> 
+    impl::where<impl::in_sorted<ForwardRange> > where_in_sorted(const ForwardRange& r)
+    {
+        return { { r, false } };
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    /// @brief Subtract a sorted range.
+    ///
+    /// `elems %= fn::where_not_in_sorted(blacklist);`
+    template<typename ForwardRange> 
+    impl::where<impl::in_sorted<ForwardRange> > where_not_in_sorted(const ForwardRange& r)
+    {
+        return { { r, true } };
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     /// @brief Filter elements to those having maximum value of fn.
     ///
     /*!
@@ -4815,6 +4847,23 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         VERIFY(ret == 13);
 
         //123 % fn::where([](int x) { return x == 2; }); 
+    };
+
+
+    tests["where_in_sorted"] = [&]
+    {
+        auto ret = make_inputs({1,2,3,4})
+           % fn::where_in_sorted(std::vector<int>{{ 1, 3}})
+           % fold;
+        VERIFY(ret == 13);
+    };
+
+    tests["where_not_in_sorted"] = [&]
+    {
+        auto ret = make_inputs({1,2,3,4})
+           % fn::where_not_in_sorted(std::vector<int>{{1, 3}})
+           % fold;
+        VERIFY(ret == 24);
     };
 
     tests["where_max_by"] = [&]
@@ -5621,6 +5670,8 @@ static void run_tests()
         VERIFY(res == 22446);
     };
 
+
+#if __cplusplus >= 201402L
     test_other["most 5 top frequent words"] = [&]
     {
         // TODO : for now just testing compilation
@@ -5659,6 +5710,7 @@ static void run_tests()
             })
           ;
     };
+#endif
 
 
 #if 0
