@@ -521,7 +521,7 @@ namespace impl
          * Update: Switched the internals to monadic end-of-seq signaling by passing values
          * via maybe-wrapper everywhere. To allow easy usage to user-code if they
          * can tolerate exception-handling overhead, the user-code gen-function is wrapped 
-         * in nothrow callable that will catch the end_seq::exception and will return
+         * in catch_end callable that will catch the end_seq::exception and will return
          * empty-maybe, adapting the gen-function from exception-based to empty-maybe representation.
          */
 
@@ -563,7 +563,7 @@ namespace impl
     // not throw end_seq::exception ourselves (except in adapt,
     // if user-code calls gen() past-the-end) to allow nonthrowing functionality.
     template<typename Gen>
-    struct nothrow
+    struct catch_end
     {
         Gen gen;
         bool ended; // after first end_seq::exception
@@ -834,7 +834,7 @@ namespace impl
     @endcode
     */
     template<typename GenFn>
-    impl::seq<impl::nothrow<GenFn>> seq(GenFn gen_fn)
+    impl::seq<impl::catch_end<GenFn>> seq(GenFn gen_fn)
     {
         static_assert(!std::is_reference<decltype(gen_fn())>::value, "The type returned by gen_fn must be a value-type.");
         static_assert(!std::is_same<decltype(gen_fn()), void>::value, "You forgot a return-statement in your gen-function.");
@@ -1990,7 +1990,7 @@ namespace impl
                 // either explicitly or by invoking gen after
                 // its conversion to bool equals false. We
                 // catch it here and return empty-maybe exactly
-                // as we do in nothrow-wrapper.
+                // as we do in catch_end-wrapper.
                 try { 
                     return { fn(gen_wr{ this }) };
 
