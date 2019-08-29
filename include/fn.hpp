@@ -540,12 +540,11 @@ namespace impl
         }
 
         template<typename T>
-        operator T() const
+        
+            
+        [[ noreturn ]] operator T() const
         {
             throw exception{};
-
-            //return T{}; - can't do this - T might not be default-constructible
-            return std::move(*impl::maybe<T>{}); // this line is never executed/
         }
     };
 
