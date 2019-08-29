@@ -833,8 +833,8 @@ namespace impl
         VERIFY(sum == 45);
     @endcode
     */
-    template<typename GenFn>
-    impl::seq<impl::catch_end<GenFn>> seq(GenFn gen_fn)
+    template<typename NullaryInvokable>
+    impl::seq<impl::catch_end<NullaryInvokable>> seq(NullaryInvokable gen_fn)
     {
         static_assert(!std::is_reference<decltype(gen_fn())>::value, "The type returned by gen_fn must be a value-type.");
         static_assert(!std::is_same<decltype(gen_fn()), void>::value, "You forgot a return-statement in your gen-function.");
