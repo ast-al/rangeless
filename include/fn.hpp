@@ -847,6 +847,13 @@ namespace impl
     /// An rvalue of `seq` is implicitly convertible to `any_seq_t`,
     /// wrapping the underlying `NullaryInvokable` as `std::function`.
     ///
+    /// This may be useful when you want to declare a function or a method
+    /// returning a seq, but don't want to define it with all the gory details
+    /// in the header.
+    ///
+    /// NB: wrappnig a callable in a `std::function` carries a virtual 
+    /// function call overhead, so there are performance implications.
+    /// 
     /// Precondition: seq's `::begin()` has not been called.
     /*!
     @code
