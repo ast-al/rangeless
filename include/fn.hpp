@@ -603,6 +603,19 @@ namespace impl
         // no-op
     }
 
+    /////////////////////////////////////////////////////////////////////////
+    template<typename Gen>
+    struct get_value_type
+    {
+        using type = typename Gen::value_type;
+    };
+
+    template<typename T>
+    struct get_value_type<std::function<impl::maybe<T>()>>
+    {
+        using type = T;
+    };
+
 
     /////////////////////////////////////////////////////////////////////////
     /// Single-pass InputRange-adapter for nullary generators.
@@ -624,7 +637,7 @@ namespace impl
         // need to deal with iterators directly.
     
     public:
-        using value_type = typename Gen::value_type;
+        using value_type = typename get_value_type<Gen>::type;
         static_assert(!std::is_reference<value_type>::value, "The type returned by the generator-function must be a value-type. Use std::ref if necessary.");
 
         seq(Gen gen) 
@@ -774,6 +787,13 @@ namespace impl
 
             return ret;
         }
+    
+        // conversion to any_seq_t
+        operator impl::seq<std::function<impl::maybe<value_type>()>>() &&
+        {
+            assert(!m_started);
+            return { { std::move(m_gen) } };
+        }
 
    private: 
        friend class iterator;
@@ -783,7 +803,7 @@ namespace impl
                              // Can't be simply T because T
                              // might not be default-constructible.
 
-            Gen m_gen;            // nullary generator
+            Gen m_gen;               // nullary generator
            bool m_started   = false; // false iff did not advance to begin()
            bool m_ended     = false;
            bool m_resumable = false; // if true, do not throw if called begin() more than once.
@@ -821,7 +841,30 @@ namespace impl
         return { { std::move(gen_fn), false } };
     }
 
+    /////////////////////////////////////////////////////////////////////////
+    /// @brief Type-erase a `seq`.
+    ///
+    /// An rvalue of `seq` is implicitly convertible to `any_seq_t`,
+    /// wrapping the underlying `NullaryInvokable` as `std::function`.
+    ///
+    /// Precondition: seq's `::begin()` has not been called.
+    /*!
+    @code
+    fn::any_seq_t<size_t> myseq = 
+        fn::seq([i = 0UL]() mutable
+        {
+            return i < 10 ? i++ : fn::end_seq();
+        })
+      % fn::where([](size_t x)
+        {
+            return x % 2 == 0;
+        });
+    @endcode
+    */
+    template<typename T>
+    using any_seq_t = impl::seq<std::function<impl::maybe<T>()>>;
     /// @}
+   
     
 namespace impl
 {
@@ -5230,6 +5273,27 @@ static void run_tests()
 
 
     /////////////////////////////////////////////////////////////////////////
+
+    test_other["any_seq_t"] = [&]
+    {
+        fn::any_seq_t<size_t> myseq = 
+            fn::seq([i = 0UL]() mutable
+            {
+                return i < 10 ? i++ : fn::end_seq();
+            })
+          % fn::where([](size_t x)
+            {
+                return x % 2 == 0;
+            });
+
+        size_t res = 0;
+        for(const auto& x : myseq) {
+            res = res*10 + x;
+        }
+       
+        VERIFY(res == 2468);
+    };
+
 
     test_other["for_each"] = [&]
     {
