@@ -1584,7 +1584,7 @@ namespace impl
         F fold_op;
 
         template<typename Iterable>
-        auto operator()(Iterable&& src) const -> decltype(fold_op(*src.begin(), *src.begin()))
+        auto operator()(Iterable&& src) const -> decltype(fold_op(std::move(*src.begin()), *src.begin()))
         {
             auto it = src.begin();
             auto it_end = src.end();
@@ -1604,7 +1604,7 @@ namespace impl
 
         // See NB[3]
         template<typename Gen>
-        auto operator()(seq<Gen> src) const -> decltype(fold_op(src.get_gen(), std::move(*src.get_gen()())))
+        auto operator()(seq<Gen> src) const -> decltype(fold_op(std::move(*src.get_gen()()), std::move(*src.get_gen()())))
         {
             auto x1 = src.get_gen()();
 
