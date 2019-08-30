@@ -976,11 +976,11 @@ namespace impl
 /// @endcode
 namespace by
 {
-    // sort() / unique() are simply sort_by<identity> and unique_adjacent_by<identit>
+    // sort() / unique() are simply sort_by<identity> and unique_adjacent_by<identity>
     struct identity 
     {
         template<typename T>
-        const T& operator()(const T& x) const
+        auto operator()(const T& x) const -> const T&
         {
             return x;
         }
@@ -989,27 +989,27 @@ namespace by
     struct dereferenced
     {
         template<typename P> // any dereferenceable type
-        auto operator()(const P& ptr) const -> decltype(std::cref(*ptr))
+        auto operator()(const P& ptr) const -> decltype(*ptr)
         {
-            return { *ptr };
+            return *ptr;
         }
     };
 
     struct first
     {
         template<typename T>
-        auto operator()(const T& x) const -> decltype(std::cref(x.first))
+        auto operator()(const T& x) const -> decltype(*&x.first) // *& so that decltype computes a reference
         {
-            return { x.first };
+            return x.first;
         }
     };
 
     struct second
     {
         template<typename T>
-        auto operator()(const T& x) const -> decltype(std::cref(x.second))
+        auto operator()(const T& x) const -> decltype(*&x.second)
         {
-            return { x.second };
+            return x.second;
         }
     };
 
@@ -1018,7 +1018,7 @@ namespace by
     struct get
     {
         template<typename T>
-        const U& operator()(const T& x) const
+        auto operator()(const T& x) const -> const U&
         {
             return std::get<U>(x);
         }
@@ -5553,6 +5553,10 @@ static void run_tests()
         
         fn::sort_by(fn::by::first{})(std::move(v));
         fn::sort_by(fn::by::second{})(std::move(v));
+
+        const auto xy = std::make_pair(10, 20);
+        const auto& x = fn::by::first{}(xy);
+        VERIFY(&x == &xy.first);
 
         std::vector<std::unique_ptr<int> > v2{};
         fn::sort_by(fn::by::dereferenced{})(std::move(v2));
