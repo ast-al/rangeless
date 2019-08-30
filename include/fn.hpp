@@ -781,15 +781,36 @@ namespace impl
             return ret;
         }
     
-        // conversion to any_seq_t
-        operator impl::seq<std::function<impl::maybe<value_type>()>>() &&
+        using any_seq_t = seq<std::function<impl::maybe<value_type>()>>;
+        operator any_seq_t() &&
         {
+#if 0
             assert(!m_started);
             return { { std::move(m_gen) } };
+#else
+            // Even though with normal use it's not generally expected
+            // that a seq will be type-erased after it is started,
+            // will formally allow it.
+            auto ret = any_seq_t{ { std::move(m_gen) } };
+
+            ret.m_current   = std::move(m_current);
+            ret.m_started   = m_started;
+            ret.m_ended     = m_ended;
+            ret.m_resumable = m_resumable;
+
+            m_started = true;
+            m_ended   = true;
+
+            return ret;
+#endif
         }
 
    private: 
        friend class iterator;
+
+       // so that we can access private fields in implicit conversion to any_seq_t.
+       template<typename U>
+       friend class seq;
 
        impl::maybe<value_type> m_current = {};  
                              // Last value returned by m_gen.
@@ -845,7 +866,7 @@ namespace impl
     /// in the header.
     ///
     /// NB: wrappnig a callable in a `std::function` carries a virtual 
-    /// function call overhead, so there are performance implications.
+    /// function call overhead, so there may be performance implications.
     /// 
     /// Precondition: seq's `::begin()` has not been called.
     /*!
@@ -1265,9 +1286,6 @@ namespace get
 /// @brief Implementations for corresponding static functions in fn::
 namespace impl
 {   
-    template<typename T> struct is_view          : std::false_type {};
-    template<typename T> struct is_view<view<T>> : std::true_type  {};
-
     // Wrap an Iterable as gen-callable, yielding elements by move.
     struct to_seq
     {
@@ -2876,7 +2894,7 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, pred2, {}, {} )
 
-        // view may be an InputRange, so treat as seq
+        // view may be an InputRange, so treat as seq.
         RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, {} )
 #else
         // Experimental implementation returning non-allocating 
@@ -2911,7 +2929,6 @@ namespace impl
         template<typename Cont>
         auto operator()(Cont cont) const -> std::vector<Cont>
         {
-            static_assert(!is_view<Cont>::value, "Convert view to fn::to_vector() or fn::to_seq()");
             // NB: number of calls to key_fn shall be max(0, 2*(n-1))
             // (see chunker)
 
