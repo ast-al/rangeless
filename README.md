@@ -35,46 +35,49 @@ employees = std::move(employees)
     // 
     // Top-5 most frequent words among the words of the same length.
     //
-    auto my_isalnum = [](const int ch)
-    {
-        return std::isalnum(ch) || ch == '_';
-    };
 
-    fn::from(
-        std::istreambuf_iterator<char>(std::cin.rdbuf()),
-        std::istreambuf_iterator<char>{ /* end */ })
+	auto my_isalnum = [](const int ch)
+	{    
+		return std::isalnum(ch) || ch == '_'; 
+	};   
 
-      % fn::transform([](const char ch)
-        {
-            return std::tolower(uint8_t(ch)); 
-        })
+	using counts_t = std::map<std::string, size_t>;
 
-      % fn::group_adjacent_by(my_isalnum)
+	fn::from(
+		std::istreambuf_iterator<char>(istr.rdbuf()),
+		std::istreambuf_iterator<char>{})
 
-        // build word->count map
-      % fn::foldl_d([&](std::map<std::string, size_t> out, const auto& w)
-        {
-            if(my_isalnum(w.front())) {
-                ++out[ std::string(w.begin(), w.end()) ];
-            }
-            return std::move(out); // NB: no copies of the map are made here.
-        })
+	  % fn::transform([](const char c) // tolower
+		{    
+			return ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c; 
+		})   
 
-      % fn::group_all_by([](const auto& kv)
-        {
-            return kv.first.size();
-        })
+	  % fn::group_adjacent_by(my_isalnum)
 
-      % fn::transform(
-            fn::take_top_n_by(5UL, fn::by::second{}))
+		// build word->count map
+	  % fn::foldl_d([&](counts_t out, const std::string& in)
+		{    
+			if(my_isalnum(in.front())) {
+				++out[ in ];
+			}    
+			return std::move(out);
+		})   
 
-      % fn::concat()
+	  % fn::group_all_by([](const counts_t::value_type kv)
+		{    
+			return kv.first.size(); // by word-size
+		})   
 
-      % fn::for_each([](const auto& kv)
-        {
-            std::cerr << kv.first << "\t" << kv.second << "\n";
-        })
-      ;
+	  % fn::transform(
+			  fn::take_top_n_by(5UL, fn::by::second{}))
+
+	  % fn::concat()
+
+	  % fn::for_each([](const counts_t::value_type& kv)
+		{    
+			std::cerr << kv.first << "\t" << kv.second << "\n";
+		})   
+	  ;    
 
     // compilation time:
     // >>time g++ -I ../include/ -std=c++14 -o test.o -c test.cpp

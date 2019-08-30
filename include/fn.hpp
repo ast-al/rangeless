@@ -2849,7 +2849,11 @@ namespace impl
                const BinaryPred pred2;
 
             using inp_t      = typename InGen::value_type;
-            using value_type = std::vector<inp_t>; // TODO: string if value_type is char?
+
+            using value_type = typename std::conditional<
+                                    std::is_same<inp_t, char>::value, 
+                                        std::string, 
+                                        std::vector<inp_t> >::type;
 
             static_assert(std::is_move_assignable<value_type>::value, "value_type must be move-assignable.");
 
@@ -5772,7 +5776,6 @@ static void run_tests()
     };
 
 
-#if __cplusplus >= 201402L
     test_other["most 5 top frequent words"] = [&]
     {
         // TODO : for now just testing compilation
@@ -5784,52 +5787,44 @@ static void run_tests()
             return std::isalnum(ch) || ch == '_';
         };
 
+        using counts_t = std::map<std::string, size_t>;
+
         fn::from(
             std::istreambuf_iterator<char>(istr.rdbuf()),
             std::istreambuf_iterator<char>{})
 
-          % fn::transform([](const char ch) { return std::tolower(uint8_t(ch)); })
+          % fn::transform([](const char c) // tolower
+            {
+                return ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c;
+            })
 
           % fn::group_adjacent_by(my_isalnum)
 
             // build word->count map
-          % fn::foldl_d([&](std::map<std::string, size_t> out, const auto& w)
+          % fn::foldl_d([&](counts_t out, const std::string& in)
             {
-                if(my_isalnum(w.front())) {
-                    ++out[ std::string(w.begin(), w.end()) ];
+                if(my_isalnum(in.front())) {
+                    ++out[ in ];
                 }
                 return std::move(out);
             })
 
-          % fn::group_all_by([](const auto& kv) { return kv.first.size(); })
-          % fn::transform(fn::take_top_n_by(5UL, fn::by::second{}))
+          % fn::group_all_by([](const counts_t::value_type kv)
+            {
+                return kv.first.size(); // by word-size
+            })
+
+          % fn::transform(
+                  fn::take_top_n_by(5UL, fn::by::second{}))
+
           % fn::concat()
 
-          % fn::for_each([](const auto& kv)
+          % fn::for_each([](const counts_t::value_type& kv)
             {
                 std::cerr << kv.first << "\t" << kv.second << "\n";
             })
           ;
     };
-#endif
-
-
-#if 0
-    // expect a nice(r) compilation-error
-    {
-        auto vec = vec_t{};
-        fn::from(vec) % fn::take_while([](int) { return true; });
-    }
-#endif
-
-#if 0
-    test_other["one-off"] = [&]
-    {
-        using fn::operators::operator%;
-        vec_t v{{1,2,3}};
-        fn::make_view(v) % fn::to_vector();
-    };
-#endif
 
 #endif // single-test vs all
 
