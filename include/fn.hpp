@@ -3242,15 +3242,20 @@ namespace impl
             const F key_fn; // lifetime of returned key shall be independent of arg.
 
             using value_type = typename InGen::value_type;
-            using key_t = decltype(key_fn(*gen())); 
+
+            using key_t = typename std::decay<decltype(key_fn(*gen()))>::type; 
+            // key_fn normally yields a const-reference, but we'll be storing 
+            // keys in a map, so need to decay the type (remove_cvref would do).
 
             static_assert(std::is_default_constructible<key_t>::value, "The type returned by key_fn in unique_all_by must be default-constructible and have the lifetime independent of arg.");
+            // In case key_fn returns a reference-wrapper or a tie-tuple containing
+            // a reference, these will become invalidated as keys in the map
+            // when the referenced object goes out of scope, so we guard against
+            // these by requiring default-constructible on key_t.
 
             using seen_t = std::map<key_t, bool>; 
-            // might as well have used std::set,
-            // but to #include fewer things will
-            // repurpose std::map that's already
-            // included for other things.
+            // might as well have used std::set, but to #include fewer things will
+            // repurpose std::map that's already included for other things.
 
             seen_t seen;
 
@@ -5149,7 +5154,18 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         // NB: key-function requires copy-constructible in this use-case.
         // see unique_all_by::gen::operator()()
         auto res = make_inputs({1,2,2,3,3,3,2,2,1})
-        % fn::unique_all_by([](const X& x)->int { return x; })
+#if 0
+        % fn::unique_all()
+        // Normally this would work, but we've made our type X not default-constructible,
+        // so when using identity key-fn, the type X returned by it cannot be 
+        // used as key-type to store seen elements. Instead, will use modified key-fn below.
+#elif 1
+        % fn::unique_all_by([](const X& x) -> const int& { return x; })
+#elif 0
+        % fn::unique_all_by([](const X& x) { const int& r = x; return std::tie(r); })
+        // This is not expected to work because returned reference-wrapper is
+        // not default-constructible.
+#endif
         % fold;
         VERIFY(res == 123);
     };
