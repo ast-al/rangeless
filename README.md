@@ -36,54 +36,54 @@ employees = std::move(employees)
     // Top-5 most frequent words among the words of the same length.
     //
 
-	auto my_isalnum = [](const int ch)
-	{    
-		return std::isalnum(ch) || ch == '_'; 
-	};   
+    auto my_isalnum = [](const int ch)
+    {    
+        return std::isalnum(ch) || ch == '_'; 
+    };   
 
-	using counts_t = std::map<std::string, size_t>;
+    using counts_t = std::map<std::string, size_t>;
 
-	fn::from(
-		std::istreambuf_iterator<char>(istr.rdbuf()),
-		std::istreambuf_iterator<char>{})
+    fn::from(
+        std::istreambuf_iterator<char>(istr.rdbuf()),
+        std::istreambuf_iterator<char>{})
 
-	  % fn::transform([](const char c) // tolower
-		{    
-			return ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c; 
-		})   
+      % fn::transform([](const char c) // tolower
+        {    
+            return ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c; 
+        })   
 
-	  % fn::group_adjacent_by(my_isalnum)
+      % fn::group_adjacent_by(my_isalnum)
 
-		// build word->count map
-	  % fn::foldl_d([&](counts_t out, const std::string& in)
-		{    
-			if(my_isalnum(in.front())) {
-				++out[ in ];
-			}    
-			return std::move(out);
-		})   
+        // build word->count map
+      % fn::foldl_d([&](counts_t out, const std::string& in)
+        {    
+            if(my_isalnum(in.front())) {
+                ++out[ in ];
+            }    
+            return std::move(out);
+        })   
 
-	  % fn::group_all_by([](const counts_t::value_type kv)
-		{    
-			return kv.first.size(); // by word-size
-		})   
+      % fn::group_all_by([](const counts_t::value_type kv)
+        {    
+            return kv.first.size(); // by word-size
+        })   
 
-	  % fn::transform(
-			  fn::take_top_n_by(5UL, fn::by::second{}))
+      % fn::transform(
+              fn::take_top_n_by(5UL, fn::by::second{}))
 
-	  % fn::concat()
+      % fn::concat()
 
-	  % fn::for_each([](const counts_t::value_type& kv)
-		{    
-			std::cerr << kv.first << "\t" << kv.second << "\n";
-		})   
-	  ;    
+      % fn::for_each([](const counts_t::value_type& kv)
+        {    
+            std::cerr << kv.first << "\t" << kv.second << "\n";
+        })   
+      ;    
 
     // compilation time:
     // >>time g++ -I ../include/ -std=c++14 -o test.o -c test.cpp
-    // real	0m1.176s
-    // user	0m1.051s
-    // sys	0m0.097s
+    // real   0m1.176s
+    // user   0m1.051s
+    // sys    0m0.097s
 ```
 
 See [calendar.cpp](test/calendar.cpp) vs. [Haskell](https://github.com/BartoszMilewski/Calendar/blob/master/Main.hs) vs. [range-v3 implementation](https://github.com/ericniebler/range-v3/blob/master/example/calendar.cpp).
