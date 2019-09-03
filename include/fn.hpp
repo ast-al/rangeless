@@ -51,7 +51,7 @@
 
 #define RANGELESS_FN_THROW(msg) throw std::logic_error( std::string{} + __FILE__ + ":" + std::to_string(__LINE__) + ": "#msg );
 
-namespace rangeless // TODO: move out of namespace rangeless?
+namespace rangeless
 {
 
 /// @brief LINQ -like library of higher-order functions for data manipulation.
@@ -1956,7 +1956,7 @@ namespace impl
         struct gen
         {
                    InGen in_gen; // upstream nullary generator
-                       F fn;   // unary user-function taking the generator (NOT the result)
+                       F fn;     // unary user-function taking the generator (NOT the result)
 
             using inp_t = typename InGen::value_type;
 
@@ -2504,11 +2504,11 @@ namespace impl
             //    as this will assign the internal reference (if non-const)
             //    or will not compile (if reference is const).
             //
-            // 2) the value of key may become invalidated if referenced
-            // element is assigned or moved from (explicitly, or under the hood, 
-            // e.g. while reallocating when a std::vector is resized in push_back,
-            // or when the element is moved to a different position by erase-remove
-            // algorithm.
+            // 2) The value of key may become invalidated if referenced
+            //    element is assigned or moved from (explicitly, or under the hood, 
+            //    e.g. while reallocating when a std::vector is resized in push_back,
+            //    or when the element is moved to a different position by erase-remove
+            //    algorithm.
            
             // NB: we could reuse the same logic for both input and Cont use-cases,
             // but having multi-pass capability with Cont allows us to do less
@@ -2596,22 +2596,32 @@ namespace impl
             using iterator       = typename Iterable::reverse_iterator;
             using const_iterator = typename Iterable::const_reverse_iterator;
 
-            auto begin() -> decltype(src.rbegin())
+            iterator begin()
             {
                 return src.rbegin();
             }
 
-            auto end() -> decltype(src.rend())
+            iterator end()
             {
                 return src.rend();
             }
 
-            auto cbegin() const -> decltype(src.crbegin())
+            const_iterator begin() const
+            {
+                return src.rbegin();
+            }
+
+            const_iterator end() const
+            {
+                return src.rend();
+            }
+
+            const_iterator cbegin() const
             {
                 return src.crbegin();
             }
 
-            auto cend() const -> decltype(src.crend())
+            auto cend() const
             {
                 return src.crend();
             }
@@ -4246,6 +4256,7 @@ namespace impl
     ///
     /// If arg is a `seq<...>`, composes a `seq<...>`
     /// that shall yield `vector<value_type>`s having same value of key.
+    /// (NB: if the value_type is a char, the group-type is std::string).
     ///
     /// Buffering space requirements for `seq`: `O(max-groupsize)`.
     template<typename F>
