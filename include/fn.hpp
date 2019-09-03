@@ -102,7 +102,6 @@ namespace impl
           , fn::unique_adjacent_by(key_fn));
     };
 
-
     Similarly, we could make fn::transform(...) variadic, e.g.
 
     // before
@@ -167,6 +166,26 @@ namespace impl
         }
     };
 
+    /////////////////////////////////////////////////////////////////////////
+
+    template<typename... T>
+    struct composed_type_builder;
+
+    template<typename F, typename G>
+    struct composed_type_builder<F, G>
+    {
+        using type = impl::composed<F, G>;
+    };
+
+    template<typename F, typename G, typename... Rest>
+    struct composed_type_builder<F, G, Rest...>
+    {
+        using type = typename composed_type_builder<impl::composed<F, G>, Rest...>::type;
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+}
+
     template<typename F, typename G>
     auto compose(F f, G g) -> impl::composed<F, G>
     {
@@ -174,7 +193,17 @@ namespace impl
     }
 
     template<typename F, typename G, typename... Rest>
-    auto compose(F f, G g, Rest... fns) -> decltype(compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...))
+    auto compose(F f, G g, Rest... fns)
+#if __cplusplus >= 201406L
+      // in c++14 return-type is auto-deduced
+#elif 0 
+      // This produces compilation error with 4 or more args 
+      // (e.g. my::where_min_by in aln_filter.cpp). Not sure why.
+      -> decltype(compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...))
+#else
+      // As a work-around, will compute the type manually using composed_type_builder metafunction
+      -> typename impl::composed_type_builder<F, G, Rest...>::type
+#endif
     {
         return compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...);
     }
@@ -182,7 +211,11 @@ namespace impl
     // Related: https://github.com/Dobiasd/FunctionalPlus/blob/master/include/fplus/internal/composition.hpp
     // Related: https://github.com/boostorg/hof/blob/develop/include/boost/hof/flow.hpp
     // (no idea what's going on there).
-   
+
+namespace impl
+{
+
+
 #endif
 
     template<typename IteratorTag, typename Iterable>
