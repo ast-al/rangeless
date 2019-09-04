@@ -2351,6 +2351,15 @@ namespace impl
             return ret;
         }
 
+        // Why the above overload won't bind to non-const-reference args,
+        // necessitating this overload?
+        template<typename Cont>
+        Cont operator()(Cont& cont) const
+        {
+            const Cont& const_cont = cont;
+            return this->operator()(const_cont);
+        }
+
         // If cont is passed as rvalue-reference,
         // erase elements not satisfying predicate.
         // (this also supports the case of container
@@ -5433,7 +5442,7 @@ static void run_tests()
     /////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////
-    test_other["filtering with associative containers"] = [&]
+    test_other["fn::where with associative containers"] = [&]
     {
         // verify what filtering works for containers where
         // std::remove_if is not supported (e.g. assotiative)
@@ -5454,7 +5463,7 @@ static void run_tests()
         //*m.begin() = *m.begin();
     };
 
-    test_other["filtering with mutable lambdas"] = [&]
+    test_other["fn::where with mutable lambdas"] = [&]
     {
          // must work with mutable lambda
          int i = 0;
@@ -5462,11 +5471,21 @@ static void run_tests()
          VERIFY(( ints2 == vec_t{{2, 3}} ));
     };
 
-    test_other["filtering with const_reference inputs"] = [&]
+    test_other["fn::where with const_reference inputs"] = [&]
     {
         // check const-reference overload with non-sequence containers
         const auto ints1 = std::set<int>{1,2,3};
         auto ints2 = ints1 % fn::where([](int x_) { return x_ > 1; });
+        VERIFY(( ints2.size() == 2 ));
+    };
+
+    test_other["fn::where with non-const reference inputs"] = [&]
+    {
+        // check const-reference overload with non-sequence containers
+        auto ints1 = std::set<int>{1,2,3};
+        auto ints2 = ints1 % fn::where([](int x_) { return x_ > 1; });
+
+        VERIFY(( ints1.size() == 3 ));
         VERIFY(( ints2.size() == 2 ));
     };
 
