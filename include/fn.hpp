@@ -689,12 +689,36 @@ namespace impl
             : m_gen( std::move(gen) ) // NB: must use parentheses here!
         {}
 
+        // To support conversion to any_seq_t.
+        // (i.e. Gen is a std::function, and OtherGen is some-lambda-type)
+        //
+        // Used to implement as rvalue-specific implicit conversion,
+        //      using any_seq_t = seq<std::function<impl::maybe<value_type>()>>;
+        //      operator any_seq_t() && { ... }
+        //
+        // but can't do this because of MSVC bug
+        // causing ambiguous overload resolution vs.
+        //      operator std::vector<value_type>() &&
+        template<typename OtherGen>
+        seq(seq<OtherGen> other)
+            :   m_current{ std::move(other.m_current) }
+            ,       m_gen{ std::move(other.m_gen) }
+            ,   m_started{ other.m_started }
+            ,     m_ended{ other.m_ended }
+            , m_resumable{ other.m_resumable }
+
+        {
+            other.m_started = true;
+            other.m_ended   = true;
+        }   
+
                    seq(const seq&) = delete;
         seq& operator=(const seq&) = delete;
 
                         seq(seq&&) = default;
              seq& operator=(seq&&) = default;
 
+        /////////////////////////////////////////////////////////////////////
         class iterator
         {
         public:
@@ -832,35 +856,12 @@ namespace impl
 
             return ret;
         }
-    
-        using any_seq_t = seq<std::function<impl::maybe<value_type>()>>;
-        operator any_seq_t() &&
-        {
-#if 0
-            assert(!m_started);
-            return { { std::move(m_gen) } };
-#else
-            // Even though with normal use it's not generally expected
-            // that a seq will be type-erased after it is started,
-            // will formally allow it.
-            auto ret = any_seq_t{ { std::move(m_gen) } };
 
-            ret.m_current   = std::move(m_current);
-            ret.m_started   = m_started;
-            ret.m_ended     = m_ended;
-            ret.m_resumable = m_resumable;
 
-            m_started = true;
-            m_ended   = true;
-
-            return ret;
-#endif
-        }
-
-   private: 
+    private: 
        friend class iterator;
 
-       // so that we can access private fields in implicit conversion to any_seq_t.
+       // so that we can access private fields in constructor taking seq<OtherGen>
        template<typename U>
        friend class seq;
 
