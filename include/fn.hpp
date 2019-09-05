@@ -583,13 +583,21 @@ namespace impl
             throw exception{};
         }
 
-        template<typename T>
-        
-            
+#if 0 // MSVC 19.15 does not support noreturn
+        template<typename T>            
         [[ noreturn ]] operator T() const
         {
             throw exception{};
         }
+#else
+        template<typename T>
+        operator T() const
+        {
+            throw exception{};
+            return std::move(*impl::maybe<T>{});
+        }
+#endif
+
     };
 
     
