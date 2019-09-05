@@ -1311,6 +1311,16 @@ namespace get
         return { begin(src), end(src) };
     }
 
+
+    template<typename Iterable,
+             typename Iterator = typename Iterable::const_iterator>
+    constexpr view<Iterator> cfrom(const Iterable& src) noexcept
+    {
+        using std::begin;
+        using std::end;
+        return { begin(src), end(src) };
+    }
+
     /// @}
 
 
