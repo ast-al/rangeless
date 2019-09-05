@@ -482,6 +482,17 @@ namespace impl
 
 
     /// @defgroup io Inputs and Outputs
+    ///
+    /*!
+    @code
+      fn::seq([]{ ... }) % ... // as input-range from a nullary invokable
+          std::move(vec) % ... // pass by-move
+                    vec  % ... // pass by-copy
+           fn::from(vec) % ... // as view yielding elements by-move (or copy-view, if vec is const)
+          fn::cfrom(vec) % ... // as const view yielding elements by-copy (regardless of whether vec is const)
+           fn::refs(vec) % ... // as seq yielding reference-wrappers
+    @endcode
+    */
     /// @{
 
     /////////////////////////////////////////////////////////////////////////
@@ -856,10 +867,31 @@ namespace impl
            bool m_resumable = false; // if true, do not throw if called begin() more than once.
     };
 
+    /////////////////////////////////////////////////////////////////////
+    template<typename Iterable>
+    struct refs_gen
+    {    
+        Iterable& cont; // maybe const
+
+        using value_type = decltype(std::ref(*cont.begin()));
+        // std::reference_wrapper< maybe-const Iterable::value_type>
+
+        decltype(cont.begin()) it; // may be iterator or const_iterator
+
+        auto operator()() -> maybe<value_type>
+        {    
+            if(it == cont.end()) {
+                return { }; 
+            } else {
+                return { *it++ };
+            }    
+        }    
+    };   
+
 }   // namespace impl
 
     /////////////////////////////////////////////////////////////////////////
-    /// @brief Adapt a generator function as InputRange.
+    /// @brief Adapt a generator function as `InputRange`.
     /*!
     @code
         int i = 0;
@@ -886,6 +918,15 @@ namespace impl
         static_assert(!std::is_reference<decltype(gen_fn())>::value, "The type returned by gen_fn must be a value-type.");
         static_assert(!std::is_same<decltype(gen_fn()), void>::value, "You forgot a return-statement in your gen-function.");
         return { { std::move(gen_fn), false } };
+    }
+ 
+    /////////////////////////////////////////////////////////////////////////
+    /// @brief Adapt a reference to `Iterable` as seq yielding reference-wrappers
+    template<typename Iterable>
+    impl::seq<impl::refs_gen<Iterable>> refs(Iterable& src)
+    {
+        auto ret = impl::refs_gen<Iterable>{ src, src.begin() };
+        return { std::move(ret) };
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -4885,12 +4926,14 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         return out*10 + in;
     });
 
+
 #if 0
     tests["single test of interest"] = [&]
     {
 
     };
 #else 
+
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -5306,6 +5349,9 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
     return tests;
 }
 
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 static void run_tests()
 {
@@ -5498,6 +5544,33 @@ static void run_tests()
         VERIFY(( ints1.size() == 3 ));
         VERIFY(( ints2.size() == 2 ));
     };
+
+
+    test_other["refs"] = [&]
+    {
+        auto inps = vec_t({1,2,3});
+
+        auto res = fn::refs(inps)
+           % fn::foldl_d([](int64_t out, int& in)
+             {
+                ++in;
+                // NB: taking in by non-const reference to verify
+                // that it binds to non-const reference-wrapper
+                return out*10 + in;
+             });
+        VERIFY(res == 234);
+
+        // check with const inputs
+        const auto& const_inps = inps;
+        res = fn::refs(const_inps)
+           % fn::foldl_d([](int64_t out, const int& in)
+             {
+                return out*10 + in;
+             });
+        VERIFY(res == 234);
+
+    };
+
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -5898,6 +5971,7 @@ static void run_tests()
             })
           ;
     };
+
 
 #endif // single-test vs all
 
