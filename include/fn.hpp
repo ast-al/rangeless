@@ -954,12 +954,12 @@ namespace impl
     /// Precondition: seq's `::begin()` has not been called.
     /*!
     @code
-    fn::any_seq_t<size_t> myseq = 
-        fn::seq([i = 0UL]() mutable
+    fn::any_seq_t<int> myseq = 
+        fn::seq([i = 0]() mutable
         {
             return i < 10 ? i++ : fn::end_seq();
         })
-      % fn::where([](size_t x)
+      % fn::where([](int x)
         {
             return x % 2 == 0;
         });
@@ -5431,17 +5431,17 @@ static void run_tests()
 
     test_other["any_seq_t"] = [&]
     {
-        fn::any_seq_t<size_t> myseq = 
-            fn::seq([i = 0UL]() mutable
+        fn::any_seq_t<int> myseq = 
+            fn::seq([i = 0]() mutable
             {
                 return i < 10 ? i++ : fn::end_seq();
             })
-          % fn::where([](size_t x)
+          % fn::where([](int x)
             {
                 return x % 2 == 0;
             });
 
-        size_t res = 0;
+        int res = 0;
         for(const auto& x : myseq) {
             res = res*10 + x;
         }
