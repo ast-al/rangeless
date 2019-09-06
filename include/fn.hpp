@@ -808,11 +808,15 @@ namespace impl
             return {};
         }
 
+#if 0
+        // not providing this because begin() may be once-callable
+
         bool empty() // nb: non-const because begin() is non-const.
         {            // should this be made const (make fields mutable) ?
             //return m_ended; // can't do that - may be empty, but m_Advanced==fase
             return begin() == end();
         }
+#endif
 
         /// By default, calling begin() a second time will throw, because
         /// the default expectation is that begin() will restart from the beginning,
