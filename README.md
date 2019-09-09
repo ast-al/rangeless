@@ -131,6 +131,40 @@ Some functions in this library internally buffer elements, as appropriate, with 
 | `fn::where_max_by`, `fn::where_min_by` | buffer maximal/minimal elements as seen so-far | eager |
 | `fn::take_top_n_by` | buffer top `n` elements as seen so-far | eager |
 
+
+### Signaling `end-of-sequence` from a generator-function
+
+More often than not a generator-function that yields a sequence of values will not be an infinite Fibonacci sequence, but rather some bounded sequence of objects, either from a file, a socket, a database query, etc, so we need to be able to signal end-of-sequence. On way to do it is to yield elements wrapped in `std::unique_ptr` or `std::optional`:
+```cpp
+  fn::seq([]() -> std::unique_ptr<...> { ... })
+% fn::take_while([](const auto& x) { return bool(x); })
+% fn::transform(fn::get::dereferenced{})
+% ...
+```
+If your value-type has an "empty" state interpretable as end-of-inputs, you can use the value-type directly without wrapping.
+
+If you don't care about incurring an exception-handling overhead once per whole seq, there's a simpler way of doing it: just return `fn::end_seq()` from the generator function (e.g. see my_intersperse example). This throws end-of-sequence exception that is caught under the hood (python-style). If you are in `-fno-exceptions` land, then this method is not for you.
+
+
+### Summary of different ways of passing inputs
+
+```cpp
+      fn::seq([]{ ... }) % ... // as input-range from a nullary invokable
+
+          std::move(vec) % ... // pass a container by-move
+                    vec  % ... // pass by-copy
+
+           fn::from(vec) % ... // as move-view yielding elements by-move (std::move will make copies iff vec is const)
+          fn::cfrom(vec) % ... // as above, except always take as const-reference / yield by copy
+           fn::refs(vec) % ... // as seq taking vec by reference and yielding reference-wrappers
+
+fn::from(it_beg, it_end) % ... // as a move-view into range (std::move will make copies iff const_iterator)
+  fn::from(beg_end_pair) % ... // as above, as std::pair of iterators
+```
+Note: `fn::from` can also be used to adapt an lvalue-reference to an `Iterable` that implements
+`begin()` and `end()` as free-functions rather than methods.
+
+
 ### Discussion
 There seems to be a lot of misunderstanding about the intended use-cases for this style of coding.
 
