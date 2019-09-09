@@ -338,6 +338,8 @@ namespace impl
             return m_value; // need std::launder?
         }
 
+#if 0
+        // this causes internal compiler error in MSVC
         template<typename F>
         auto transform(F fn) && -> maybe<decltype(fn(std::move(**this)))>
         {
@@ -347,6 +349,7 @@ namespace impl
 
             return { fn(std::move(**this)) };
         }
+#endif
      
         ~maybe() 
         {
@@ -1961,7 +1964,12 @@ namespace impl
                 // behave like a plain impl::transform in in-this-thread mode
                 if(queue_cap == 0) {
                     assert(queue.empty());
-                    return gen().transform(std::ref(map_fn));
+                    auto x = gen();
+                    if(!x) {
+                        return { };
+                    } else {
+                        return map_fn(std::move(*x));
+                    }
                 }
 
                 struct job_t // wrapper for passing inp to fn by-move
@@ -5108,11 +5116,9 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
             % fold;
         VERIFY(ret == 123);
 
-
         const auto inputs = std::vector<int>{{1,2,3}};
         ret = inputs % fn::take_last(2) % fold;
         VERIFY(ret == 23);
-
     };
 
     tests["drop_last"] = [&]
@@ -5139,7 +5145,6 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         const auto inputs = std::vector<int>{{1,2,3}};
         ret = inputs % fn::drop_last(2) % fold;
         VERIFY(ret == 1);
-
     };
 
     tests["take_first"] = [&]
