@@ -329,14 +329,40 @@ namespace impl
         T& operator*() noexcept
         {
             assert(!m_empty);
-            return m_value; // need std::launder?
+
+#if __cplusplus >= 201703L
+            return std::launder(m_value);
+#else
+            return m_value;
+#endif
         }
+
+        // I believe technically we need std::launder here, yet I couldn't
+        // find a single implementation of `optional` that launders 
+        // memory after placement-new, or side-steps the issue.
+        //
+        //      https://en.cppreference.com/w/cpp/types/aligned_storage (static_vector example)
+        //      https://github.com/ericniebler/range-v3
+        //      https://github.com/mpark/base
+        //      https://github.com/akrzemi1/Optional
+        //      https://github.com/TartanLlama/optional
+        //      https://github.com/ned14/outcome (MVP for discussing the issue in the documentation)
+        //
+        // We'll formally test for expected behavior in a unit-test.
 
         const T& operator*() const noexcept
         {
             assert(!m_empty);
-            return m_value; // need std::launder?
+            
+#if __cplusplus >= 201703L
+            return std::launder(m_value);
+#else
+            return m_value;
+#endif
         }
+
+
+
 
 #if 0
         // this causes internal compiler error in MSVC
@@ -5989,6 +6015,27 @@ static void run_tests()
                 std::cerr << kv.first << "\t" << kv.second << "\n";
             })
           ;
+    };
+
+    test_other["placement-new without std::launder"] = [&]
+    {
+        struct S
+        {
+            const int n;
+            const int& r;
+        };
+        const int x1 = 1;
+        const int x2 = 2;
+
+        impl::maybe<S> m{};
+
+        m.reset(S{42, x1});
+        VERIFY((*m).n == 42);
+        VERIFY((*m).r == 1);
+
+        m.reset(S{420, x2});
+        VERIFY((*m).n == 420);
+        VERIFY((*m).r == 2);
     };
 
 
