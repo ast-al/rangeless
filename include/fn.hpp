@@ -963,12 +963,14 @@ namespace impl
     }
  
     /////////////////////////////////////////////////////////////////////////
-    /// @brief Adapt a reference to `Iterable` as seq yielding reference-wrappers
+    /// @brief Adapt a reference to `Iterable` as `seq` yielding reference-wrappers.
     template<typename Iterable>
     impl::seq<impl::refs_gen<Iterable>> refs(Iterable& src)
     {
-        auto ret = impl::refs_gen<Iterable>{ src, src.begin() };
-        return { std::move(ret) };
+        // Prevent usage with input-ranges, since reference-wrappers will become dangling
+        impl::require_iterator_category_at_least<std::forward_iterator_tag>(src);
+
+        return { { src, src.begin() } };
     }
 
     /////////////////////////////////////////////////////////////////////////
