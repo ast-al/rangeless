@@ -983,17 +983,18 @@ namespace impl
 
     struct lt
     {
+
         template<typename T>
         bool operator()(const T& a, const T& b) const
         {
-            return a < b;
+            return std::less<T>{}(a, b);
         }
 
-        template<typename A>
-        bool operator()(const std::reference_wrapper<A>& a, 
-                        const std::reference_wrapper<A>& b) const
+        template<typename T>
+        bool operator()(const std::reference_wrapper<T>& a, 
+                        const std::reference_wrapper<T>& b) const
         {
-            return a.get() < b.get();
+            return std::less<T>{}(a.get(), b.get());
         }
     };
 
