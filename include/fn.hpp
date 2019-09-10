@@ -598,6 +598,10 @@ namespace impl
         // TODO: can we preallocate exception with std::make_exception_ptr
         // and then reuse it with std::rethrow_exception, which would avoid 
         // allocation? This doesn't seem to make any difference on throughput, however.
+        //
+        // Related article on performance of exceptions:
+        // http://nibblestew.blogspot.com/2017/01/measuring-execution-performance-of-c.html
+
 
         // throw on construction or in conversion? 
         // There are pros and cons, i.e.
@@ -2567,15 +2571,16 @@ namespace impl
     };
 
     /////////////////////////////////////////////////////////////////////
-    template<typename SortedRange>
-    struct in_sorted
+    template<typename SortedRange, typename F>
+    struct in_sorted_by
     {
-        const SortedRange& r;
-                const bool is_subtract; // subtract or intersect r
+         const SortedRange& r;
+                 const bool is_subtract; // subtract or intersect r
+        const impl::comp<F> comp;
 
         bool operator()(const typename SortedRange::value_type& x) const
         {
-            return is_subtract ^ std::binary_search(r.begin(), r.end(), x);
+            return is_subtract ^ std::binary_search(r.begin(), r.end(), x, comp);
         }
     };
 
@@ -4267,25 +4272,41 @@ namespace impl
         return { std::move(pred) };
     }
 
+    /// @see `where_in_sorted`
+    template<typename SortedForwardRange, typename F> 
+    impl::where<impl::in_sorted_by<SortedForwardRange, F> > where_in_sorted_by(const SortedForwardRange& r, F key_fn)
+    {
+        return { { r, false, { std::move(key_fn) } } };
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     /// @brief Intersect with a sorted range.
     ///
     /// `elems %= fn::where_in_sorted(whitelist);`
-    template<typename ForwardRange> 
-    impl::where<impl::in_sorted<ForwardRange> > where_in_sorted(const ForwardRange& r)
+    template<typename SortedForwardRange> 
+    impl::where<impl::in_sorted_by<SortedForwardRange, by::identity> > where_in_sorted(const SortedForwardRange& r)
     {
-        return { { r, false } };
+        return { { r, false, { { } } } };
+    }
+
+    /// @see `where_not_in_sorted`
+    template<typename SortedForwardRange, typename F> 
+    impl::where<impl::in_sorted_by<SortedForwardRange, F> > where_not_in_sorted_by(const SortedForwardRange& r, F key_fn)
+    {
+        return { { r, true, { std::move(key_fn) } } };
     }
 
     ///////////////////////////////////////////////////////////////////////////
     /// @brief Subtract a sorted range.
     ///
     /// `elems %= fn::where_not_in_sorted(blacklist);`
-    template<typename ForwardRange> 
-    impl::where<impl::in_sorted<ForwardRange> > where_not_in_sorted(const ForwardRange& r)
+    template<typename SortedForwardRange> 
+    impl::where<impl::in_sorted_by<SortedForwardRange, by::identity> > where_not_in_sorted(const SortedForwardRange& r)
     {
-        return { { r, true } };
+        return { { r, true, { { } } } };
     }
+
+
 
     ///////////////////////////////////////////////////////////////////////////
     /// @brief Filter elements to those having maximum value of fn.
