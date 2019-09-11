@@ -529,6 +529,12 @@ namespace impl
     */
     /// @{
 
+
+#if 0
+    // Disabling for now until I think this through and decide whether we need it at all.
+    //
+    // Related: https://www.fluentcpp.com/2017/11/24/how-to-use-the-stl-in-legacy-code/
+
     /////////////////////////////////////////////////////////////////////////
     // adapter for unary sink-functions
     template<typename SinkFn>
@@ -541,8 +547,8 @@ namespace impl
         using           pointer = void;
         using         reference = void;
         
-        output_iterator& operator++(){ return *this; }
-        output_iterator& operator*(){ return *this; }
+        output_iterator& operator++() { return *this; }
+        output_iterator& operator*()  { return *this; }
 
         template<typename T>
         output_iterator& operator=(T&& inp)
@@ -550,26 +556,53 @@ namespace impl
             (*sink)(std::forward<T>(inp));
             return *this;
         }
-        const SinkFn* sink; // used to take SinkFn by value, but MSVC objected.
-                            // changed to reference - but MSVC objected still.
-                            // (deletes copy-constructor, which is then used
-                            // in the unit-test)
+
+#if 0
+        // In MSVC lambdas are copy-constructible but not copy-assignable,
+        // so copy-assignment is implicitly deleted because of SinkFn field.
+        //
+        // std::copy in MSVC relies on output-iterator being copy-assignable
+        // under the hood, so we need to implement copy-assignment via 
+        // placement-new. I'm not 100% sure this is legit, however.
+        output_iterator& operator=(const output_iterator& other)
+        {
+            if(this != &other) {
+                sink.~sink();
+                new (&sink) SinkFn(other.sink);
+            }
+            return *this;
+        }
+        output_iterator(const output_iterator&) = default;
+
+                   output_iterator(output_iterator&&) = default;
+        output_iterator& operator=(output_iterator&&) = default;
+
+        // By the way, I looked at <boost/function_output_iterator.hpp>.
+        // It just holds SinkFn by value and suffers from the same issue,
+        // (since 2001) https://godbolt.org/z/-5ORiK
+#else
+        // Thinking more about it, I think just holding sink_fn by
+        // shared_ptr is a better approach, having all copies 
+        // of the output_iterator refer to the same sink object.
+        // 
+        // requires #include <memory>, adding 0.05s to #includes-overhead,
+        // which is heavy-ish.
+
+        std::shared_ptr<SinkFn> sink;
+#endif
     };
 
     /// Adapt unary sink-function as output iterator. @see generate
     template<typename SinkFn>
-    static output_iterator<SinkFn> make_output_iterator(const SinkFn& sink_fn)
+    static output_iterator<SinkFn> make_output_iterator(SinkFn sink_fn)
     {
-        // NB: taking by reference rather than by value and passing by move because
-        // resulting output_iterator must be copyable and SinkFn might not be.
-        // (test will compile with clang and gcc but not MSVC)
-        //
-        // Taking by const-reference so that can bind to an rvalue 
-        // (e.g. inplace lambda)
-
-        return output_iterator<SinkFn>{ &sink_fn };
+        return { std::make_shared<SinkFn>( std::move(sink_fn) ) };
     }
-   
+#endif
+
+
+
+
     /////////////////////////////////////////////////////////////////////////
     /// @brief Return fn::end_seq() from input-range generator function to signal end-of-inputs.
     ///
@@ -946,20 +979,27 @@ namespace impl
     /*!
     @code
         int i = 0;
-        auto r = fn::seq([&i]
-        {
-            return i < 5 ? x++ : fn::end_seq();
-        }) % fn::where([](int x) { return x > 2; }) // 3, 4
-           % fn::transform([](int x) { return x + 1; }); // 4, 5
+        int sum =
+            fn::seq([&i]
+            {
+                return i < 5 ? x++ : fn::end_seq();
+            })
 
-        // NB: the above steps are lazy O(1)
+          % fn::where([](int x)
+            {
+                return x > 2;
+            }) // 3, 4
 
-        int sum = 0;
-        std::copy(r.begin(), r.end(), fn::make_output_iterator([&](int x)
-        {
-            sum = sum * 10 + x;
-        }));
+          % fn::transform([](int x)
+            {
+                return x + 1;
+            }) // 4, 5
 
+          % fn::foldl_d([](int out, int in)
+            {
+                return out * 10 + in;
+            });
+                
         VERIFY(sum == 45);
     @endcode
     */
@@ -5710,6 +5750,7 @@ static void run_tests()
         VERIFY((cont == vec_t{{1,3,5,7,9}}));
     };
 
+#if 0
     test_other["generate and output_iterator"] = []
     {
         int i = 0;
@@ -5726,6 +5767,7 @@ static void run_tests()
 
         VERIFY(sum == 1234);
     };
+#endif
 
     test_other["get_unique/set_unique"] = [&]
     {
