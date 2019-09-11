@@ -48,6 +48,11 @@
 #    include <thread>
 #endif
 
+#if defined(_MSC_VER)
+#   pragma warning(push)
+#   pragma warning(disable: 4068) // unknown pragmas (for GCC diagnostic push)
+#endif
+
 
 #define RANGELESS_FN_THROW(msg) throw std::logic_error( std::string{} + __FILE__ + ":" + std::to_string(__LINE__) + ": "#msg );
 
@@ -6089,5 +6094,9 @@ static void run_tests()
 
 
 #endif //RANGELESS_FN_ENABLE_RUN_TESTS
+
+#if defined(_MSC_VER)
+#   pragma warning(pop)
+#endif
 
 #endif // #ifndef RANGELESS_FN_HPP_
