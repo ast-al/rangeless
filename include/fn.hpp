@@ -1829,6 +1829,8 @@ namespace impl
 
             using value_type = decltype(map_fn(std::move(*gen())));
 
+            static_assert(!std::is_same<value_type, void>::value, "You forgot a return-statement in your transform-function.");
+
             auto operator()() -> maybe<value_type>
             {
                 // NB: passing map_fn as ref, as it may be stateful (e.g. counting)
@@ -2428,6 +2430,12 @@ namespace impl
              Pred pred;
 
             using value_type = typename InGen::value_type;
+
+            static_assert(std::is_same<decltype(pred(*gen())), bool>::value, "The return value of predicate must be convertible to bool.");
+            // is_convertible<..., bool> would suffice, but if it's not bool there's
+            // a good chance that the user code is inadvertently doing something
+            // the programmer did not intend, so we'll be a little more stringent
+            // to guard against this.
 
             auto operator()() -> maybe<value_type>
             {
