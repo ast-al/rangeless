@@ -54,19 +54,23 @@ employees = std::move(employees)
 
       % fn::group_adjacent_by(my_isalnum)
 
+#if 0
         // build word->count map
       % fn::foldl_d([&](counts_t out, const std::string& in)
-        {    
+        {
             if(my_isalnum(in.front())) {
                 ++out[ in ];
-            }    
+            }
             return std::move(out);
-        })   
-
-      % fn::group_all_by([](const counts_t::value_type kv)
-        {    
-            return kv.first.size(); // by word-size
-        })   
+        })
+#else
+        // alternatively:
+      % fn::where([&](const std::string& s)
+        {
+            return my_isalnum(s.front());
+        })
+      % fn::counts() // map:word->count
+#endif
 
       % fn::transform(
               fn::take_top_n_by(5UL, fn::by::second{}))

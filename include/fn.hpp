@@ -1619,6 +1619,20 @@ namespace impl
         }
     };
 
+
+    struct counts
+    {
+        template<typename Iterable>
+        std::map<typename Iterable::value_type, size_t> operator()(Iterable&& xs) const
+        {
+            auto ret = std::map<typename Iterable::value_type, size_t>{};
+            for(auto&& x : xs) {
+                ++ret[x];
+            }
+            return ret;
+        }
+    };
+
     /////////////////////////////////////////////////////////////////////
     template<typename Pred>
     struct exists_where
@@ -3764,6 +3778,12 @@ namespace impl
     impl::to<Container> to(Container dest)
     {
         return { std::move(dest) };
+    }
+
+    /// @brief return map: value_type -> size_t
+    inline impl::counts counts()
+    {
+        return {};
     }
 
 
@@ -6066,6 +6086,7 @@ static void run_tests()
 
           % fn::group_adjacent_by(my_isalnum)
 
+#if 0
             // build word->count map
           % fn::foldl_d([&](counts_t out, const std::string& in)
             {
@@ -6074,6 +6095,13 @@ static void run_tests()
                 }
                 return std::move(out);
             })
+#else
+          % fn::where([&](const std::string& s)
+            {
+                return my_isalnum(s.front());
+            })
+          % fn::counts() // map:word->count
+#endif
 
           % fn::group_all_by([](const counts_t::value_type kv)
             {
@@ -6111,6 +6139,20 @@ static void run_tests()
         m.reset(S{420, x2});
         VERIFY((*m).n == 420);
         VERIFY((*m).r == 2);
+    };
+
+    test_other["counts"] = [&]
+    {
+        auto res = 
+            vec_t{{ 1, 1,2, 1,2,3 }} 
+          % fn::counts()
+          % fn::transform([](const auto& kv)
+            {
+                return kv.first * 10 + int(kv.second);
+            })
+          % fn::to_vector();
+        
+        VERIFY((res == vec_t{{13, 22, 31}}));
     };
 
 
