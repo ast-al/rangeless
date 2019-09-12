@@ -1,0 +1,4 @@
+var structrangeless_1_1fn_1_1impl_1_1get__value__type_3_01std_1_1function_3_01impl_1_1maybe_3_01T_01_4_07_08_4_01_4 =
+[
+    [ "type", "structrangeless_1_1fn_1_1impl_1_1get__value__type_3_01std_1_1function_3_01impl_1_1maybe_3_01T_01_4_07_08_4_01_4.html#aa801076a76759b70bc80f3a14d761437", null ]
+];
