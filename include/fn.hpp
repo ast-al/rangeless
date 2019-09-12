@@ -5605,7 +5605,6 @@ static void run_tests()
         VERIFY(res == 2468);
     };
 
-
     test_other["for_each"] = [&]
     {
         int res = 0;
@@ -5614,17 +5613,6 @@ static void run_tests()
             res = res*10 + x;
         });
         VERIFY(res == 123);
-    };
-
-    test_other["for_adjacent"] = [&]
-    {
-        auto res = 0UL;
-        for_adjacent(vec_t{{1,2,3,4}},
-                [&res](int& x1, int& x2)  // making sure non-const reference binds
-                {
-                    res = res*100 + x1*10 + x2;
-                });
-        VERIFY(res == 122334);
     };
 
     test_other["zip_adjacent"] = [&]
@@ -5639,8 +5627,6 @@ static void run_tests()
 
         VERIFY(( res == std::vector<int>{{12,23,34}} ));
     };
-
-
 
     test_other["fold"] = [&]
     {
