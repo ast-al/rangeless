@@ -3628,6 +3628,47 @@ namespace impl
     };
 
     /////////////////////////////////////////////////////////////////////////
+    template<typename BinaryFn>
+    struct zip_adjacent
+    {    
+        BinaryFn fn;
+
+        template<typename Iterable>
+        struct gen
+        {    
+                                BinaryFn fn;
+                                Iterable src; 
+             typename Iterable::iterator it;
+                                    bool started;
+
+            using value_type = decltype(fn(*it, *it));
+
+            auto operator()() -> maybe<value_type>
+            {    
+                if(!started) {
+                    it = src.begin();
+                    started = true;
+                }    
+
+                auto prev_it = it == src.end() ? it : it++;
+
+                if(it != src.end()) {
+                    return { fn(*prev_it, *it) };
+                } else {
+                    return { }; 
+                }    
+            }    
+        };   
+
+        template<typename Iterable>
+        auto operator()(Iterable src) && -> seq<gen<Iterable>>
+        {    
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(src);
+            return { { std::move(fn), std::move(src), {}, false } }; 
+        }    
+    };
+
+    /////////////////////////////////////////////////////////////////////////
     template<typename Iterable2, typename BinaryFn>
     struct cartesian_product_with
     {
@@ -4241,27 +4282,6 @@ namespace impl
         return { std::move(fn) };
     }
 
-    /// Invoke fn each adjacent pairs of elements.
-    template<class Cont, typename F>
-    auto for_adjacent(Cont&& cont, F fn) -> decltype(void(fn(*cont.begin(), *cont.begin())))
-    {
-        impl::require_iterator_category_at_least<std::forward_iterator_tag>(cont);
-
-        auto it   = cont.begin();
-        auto it_end = cont.end();
-        
-        if(it == it_end) {
-            return;
-        }
-
-        auto it_prev = it++;
-
-        for(; it != it_end; it_prev = it++) {
-            fn(*it_prev, *it);
-        }
-    }
-
-
     /// @}
     /// @defgroup filtering Filtering
     /// @{
@@ -4712,6 +4732,13 @@ namespace impl
         // If necessary, the transform-function can simply yield std::make_pair.
 
         return { std::move(second), std::move(fn) };
+    }
+
+    // @brief Yield invocations of `fn` over pairs of adjacent inputs.
+    template<typename BinaryFn>
+    impl::zip_adjacent<BinaryFn> zip_adjacent(BinaryFn fn)
+    {
+        return { std::move(fn) };
     }
 
     // @brief Outer zip_with.
@@ -5599,6 +5626,21 @@ static void run_tests()
                 });
         VERIFY(res == 122334);
     };
+
+    test_other["zip_adjacent"] = [&]
+    {
+        auto res =
+            vec_t{{1,2,3,4}}
+          % fn::zip_adjacent([](int& x1, int& x2) // making sure non-const-reference binds
+            {
+                return x1*10 + x2;
+            })
+          % fn::to_vector();
+
+        VERIFY(( res == std::vector<int>{{12,23,34}} ));
+    };
+
+
 
     test_other["fold"] = [&]
     {
