@@ -3528,26 +3528,26 @@ namespace impl
 
 
     /////////////////////////////////////////////////////////////////////
-    // Concat a pair of (possibly heterogeous) ranges.
-    template<typename InputRange2>
+    // Concat a pair of (possibly heterogeous) `Iterables`.
+    template<typename Iterable2>
     struct append
     {
-        InputRange2 range2;
+        Iterable2 src2;
 
-        template<typename InputRange1>
+        template<typename Iterable1>
         struct gen
         {
-                               InputRange1 inps1;
-                               InputRange2 inps2;
-            typename InputRange1::iterator it1;
-            typename InputRange2::iterator it2;
-                                       int which; // 0: not-started; 
-                                                  // 1: in range1
-                                                  // 2: in range2
+                               Iterable1 inps1;
+                               Iterable2 inps2;
+            typename Iterable1::iterator it1;
+            typename Iterable2::iterator it2;
+                                     int which; // 0: not-started; 
+                                                // 1: in range1
+                                                // 2: in range2
             using value_type = 
                 typename std::common_type<
-                    typename InputRange1::value_type,
-                    typename InputRange2::value_type
+                    typename Iterable1::value_type,
+                    typename Iterable2::value_type
                                          >::type;
 
             auto operator()() -> maybe<value_type>
@@ -3560,10 +3560,10 @@ namespace impl
             }
         };
 
-        template<typename InputRange1>
-        auto operator()(InputRange1 r1) && -> seq<gen<InputRange1>> // rvalue-specific because range2 is moved-from
+        template<typename Iterable1>
+        auto operator()(Iterable1 src1) && -> seq<gen<Iterable1>> // rvalue-specific because src2 is moved-from
         {
-            return { { std::move(r1), std::move(range2), {}, {}, 0 } };
+            return { { std::move(src1), std::move(src2), {}, {}, 0 } };
         }
     };
 
@@ -3607,7 +3607,7 @@ namespace impl
         };
 
         template<typename Iterable1>
-        auto operator()(Iterable1 src1) && -> seq<gen<Iterable1>> // rvalue-specific because range2 is moved-from
+        auto operator()(Iterable1 src1) && -> seq<gen<Iterable1>> // rvalue-specific because src2 is moved-from
         {
             return { { std::move(fn), std::move(src1), std::move(src2), {}, {}, false } };
         }
@@ -4225,6 +4225,8 @@ namespace impl
     template<class Cont, typename F>
     auto for_adjacent(Cont&& cont, F fn) -> decltype(void(fn(*cont.begin(), *cont.begin())))
     {
+        impl::require_iterator_category_at_least<std::forward_iterator_tag>(cont);
+
         auto it   = cont.begin();
         auto it_end = cont.end();
         
@@ -4233,9 +4235,6 @@ namespace impl
         }
 
         auto it_prev = it++;
-
-        // Verify that this is not just an input-range
-        static_assert(sizeof(decltype(--it)) > 0, "Expected operator--() to exist");
 
         for(; it != it_end; it_prev = it++) {
             fn(*it_prev, *it);
