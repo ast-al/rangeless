@@ -1116,7 +1116,7 @@ namespace impl
 
         bool operator<(const gt& other) const
         {
-            return other.val < this->val;
+            return std::less<T>{}(other.val, this->val);
         }
 
         // operator== in case it will be used with group_adjacent_by or unique_adjacent_by
@@ -3636,10 +3636,10 @@ namespace impl
         template<typename Iterable>
         struct gen
         {    
-                                BinaryFn fn;
-                                Iterable src; 
-             typename Iterable::iterator it;
-                                    bool started;
+                              BinaryFn fn;
+                              Iterable src; 
+           typename Iterable::iterator it;
+                                  bool started;
 
             using value_type = decltype(fn(*it, *it));
 
@@ -4734,7 +4734,7 @@ namespace impl
         return { std::move(second), std::move(fn) };
     }
 
-    // @brief Yield invocations of `fn` over pairs of adjacent inputs.
+    /// @brief Yield invocations of `fn` over pairs of adjacent inputs.
     template<typename BinaryFn>
     impl::zip_adjacent<BinaryFn> zip_adjacent(BinaryFn fn)
     {
