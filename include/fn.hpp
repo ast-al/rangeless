@@ -246,6 +246,8 @@ namespace impl
     public:
         using value_type = T;
 
+        static_assert(!std::is_same<value_type, void>::value, "Can't have void as value_type - did you perhaps forget a return-statement in your transform-function?");
+
         maybe() : m_sentinel{}
         {}
 
