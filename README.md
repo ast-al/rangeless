@@ -72,6 +72,11 @@ employees = std::move(employees)
       % fn::counts() // map:word->count
 #endif
 
+      % fn::group_all_by([](const counts_t::value_type kv)
+        {
+            return kv.first.size(); // by word-size
+        })
+
       % fn::transform(
               fn::take_top_n_by(5UL, fn::by::second{}))
 
@@ -168,6 +173,57 @@ fn::from(it_beg, it_end) % ... // as a move-view into range (std::move will make
 Note: `fn::from` can also be used to adapt an lvalue-reference to an `Iterable` that implements
 `begin()` and `end()` as free-functions rather than methods.
 
+### `#include` and compilation-time overhead
+
+Despite packing a lot of functionality, `#include <fn.hpp>` adds only a tiny sliver (~0.03s) of compilation-time overhead in addition to the few common standard library include-s that it relies upon:
+
+"In God we trust, all others bring data":
+```cpp
+// tmp.cpp
+
+#if defined(STD_INCLUDES)
+#   include <stdexcept>
+#   include <algorithm>
+#   include <functional>
+#   include <vector>
+#   include <map>
+#   include <deque>
+#   include <string>
+#   include <cassert>
+#elif defined(INCLUDE_FN)
+#    include "fn.hpp"
+#elif defined(INCLUDE_RANGE_ALL)
+#    include <range/v3/all.hpp>
+#endif
+
+int main()
+{
+    return 0;
+}
+```
+
+```sh
+# just std-includes used by fn.hpp
+>>time for i in {1..10}; do g++ -std=c++14 -DSTD_INCLUDES=1 -o tmp.o -c tmp.cpp; done
+real    0m3.682s
+user    0m3.106s
+sys     0m0.499s
+
+# fn.hpp
+>>time for i in {1..10}; do g++ -std=c++14 -DINCLUDE_FN=1 -o tmp.o -c tmp.cpp; done
+real    0m3.887s
+user    0m3.268s
+sys     0m0.546s
+
+# range/v3/all.hpp, for comparison
+>>time for i in {1..10}; do g++ -std=c++14 -DINCLUDE_RANGE_ALL=1 -I. -o tmp.o -c tmp.cpp; done
+real    0m22.687s
+user    0m20.412s
+sys     0m2.043s
+```
+
+There are not many compiler-torturing metaprogramming techniques used by the library, so the template-instantiation overhead is reasonable as well (see the Top-5 most frequent word example; leaving it as an excercise to the reader to compare with raw-STL-based implementation).
+
 
 ### Discussion
 There seems to be a lot of misunderstanding about the intended use-cases for this style of coding.
@@ -251,6 +307,15 @@ If you feel that the idiomatic way of filtering a container is an abomination th
 
 The most useful use-case is the scenarios for writing a function or an expression
 where the input is an infinite stream that you want to manipulate lazily, like a UNIX pipeline, e.g. the above-mentioned [aln_filter.cpp](test/aln_filter.cpp).
+
+
+### Downsides.
+Compilation errors related to templates are completely gnarly.
+For this reason the library has many `static_asserts` to help you figure things out. If you encounter a compilation error that could benefit from adding a `static_assert`, please open an issue.
+
+
+Sometimes it may be difficult to reason about the complexity space and time requirements of some operations. There are two ways to approach this: 1) Peek into documentation where I discuss space and time big-O for cases that are not obvious (e.g. how `lazy_sort_by` differs from regular `sort_by`, or how `unique_all_by` operates in single-pass for `seq`s). 2) Feel free to peek under the hood of the library. Most of the code is intermediate-level c++ that should be within the ability to grasp by someone familiar with STL and `<algorithm>`.
+
 
 ### References:
 - [Haskell Data.List](https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-List.html)
