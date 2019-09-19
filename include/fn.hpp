@@ -338,7 +338,7 @@ namespace impl
             assert(!m_empty);
 
 #if __cplusplus >= 201703L
-            return std::launder(m_value);
+            return *std::launder(&m_value);
 #else
             return m_value;
 #endif
@@ -362,7 +362,7 @@ namespace impl
             assert(!m_empty);
             
 #if __cplusplus >= 201703L
-            return std::launder(m_value);
+            return *std::launder(&m_value);
 #else
             return m_value;
 #endif
