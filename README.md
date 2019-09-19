@@ -309,13 +309,21 @@ The most useful use-case is the scenarios for writing a function or an expressio
 where the input is an infinite stream that you want to manipulate lazily, like a UNIX pipeline, e.g. the above-mentioned [aln_filter.cpp](test/aln_filter.cpp).
 
 
-### Downsides.
+### Downsides and Caveats.
 Compilation errors related to templates are completely gnarly.
 For this reason the library has many `static_asserts` to help you figure things out. If you encounter a compilation error that could benefit from adding a `static_assert`, please open an issue.
 
 
 Sometimes it may be difficult to reason about the complexity space and time requirements of some operations. There are two ways to approach this: 1) Peek into documentation where I discuss space and time big-O for cases that are not obvious (e.g. how `lazy_sort_by` differs from regular `sort_by`, or how `unique_all_by` operates in single-pass for `seq`s). 2) Feel free to peek under the hood of the library. Most of the code is intermediate-level c++ that should be within the ability to grasp by someone familiar with STL and `<algorithm>`.
 
+
+There's a possibility that a user may instantiate a `seq` and then forget to actually iterate over it, e.g.
+```cpp
+    std::move(inputs) % fn::transform(...); // creates and immediately destroys a lazy-seq.
+
+    // whereas the user code probably intended:
+    std::move(inputs) % fn::transform(...) % fn::for_each(...);
+```
 
 ### References:
 - [Haskell Data.List](https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-List.html)
