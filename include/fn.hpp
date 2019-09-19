@@ -4937,14 +4937,14 @@ namespace operators
     
 #if 0 && (defined(__GNUC__) || defined(__clang__))
     __attribute__ ((warn_unused_result))
-	// A user may forget to iterate over the sequence, e.g.
-    // 		std::move(inputs) % fn::transform(...); // creates and immediately destroys a lazy-seq.
+    // A user may forget to iterate over the sequence, e.g.
+    //         std::move(inputs) % fn::transform(...); // creates and immediately destroys a lazy-seq.
     // whereas the user code probably intended:
-    // 		std::move(inputs) % fn::transform(...) % fn::for_each(...);
-	// 
-	// To deal with this we could make operator% nodiscard / warn_unused_result,
-	// but disabling for now because I can't figure out how to suppress the 
-	// warning from the final % for_each(...).
+    //         std::move(inputs) % fn::transform(...) % fn::for_each(...);
+    // 
+    // To deal with this we could make operator% nodiscard / warn_unused_result,
+    // but disabling for now because I can't figure out how to suppress the 
+    // warning from the final % for_each(...).
 #endif 
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)(std::forward<Arg>(arg)) )
