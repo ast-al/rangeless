@@ -37,6 +37,8 @@
 #include <chrono>
 #include <cassert>
 
+#include <fn.hpp>
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -124,7 +126,13 @@ class synchronized_queue_base
 {
 public:
     enum class status { success, closed, timeout };
-    class queue_closed : public std::exception{};
+
+    // deriving from end_seq::exception to enable
+    // adapting queue as input-seq: fn::seq(my_queue.pop) % fn::for_each(...)
+    // (push will throw queue_closed, which will terminate the seq).
+
+    class queue_closed : public rangeless::fn::end_seq::exception
+    {};
 
     // NB: Core guideline T.62: Place non-dependent class template members in a non-templated base class
 };
@@ -186,8 +194,8 @@ public:
 
     ///@{ 
 
-    synchronized_queue(size_t capacity_ = size_t(-1))
-        : m_capacity{ capacity_ == 0 ? 1 : capacity_ }
+    synchronized_queue(size_t cap = size_t(-1))
+      : m_capacity{ cap == 0 ? 1 : cap }
     {}
 
     /// NB: destructor closes the queue (non-blocking)
@@ -203,47 +211,22 @@ public:
     // A synchronized_queue can be thought of buffered mutex
     // (i.e. a synchronization primitive rather than just a 
     // data structure), and mutexes are not movable.
-    //
-    // Problem: If a queue is moved while it is being actively used,
-    // this will more than likely be unintentional and cause problems.
-    //
-    // Problem: In operator= we need to simultaneously lock
-    // both mutexes; it will block if there's a blocked try_pop
-    // call holding a lock on m_pop_mutex while waiting on 
-    // m_can_swap.
-    //
-    // Problem: a closed queue may become reopened when moved-to.
-    //    
-    // Perhaps instead of moving the internals invasively,
-    // move-assignment should be implemented by the other's
-    // elements are inserted normally into `this`:
-    //
-    //    other.x_close();
-    //    other >>= [this](value_type x) { *this <<= std::move(x); };
-    //
-    // Problems * Will throw if `this` is closed.
-    //          * Will block if at capacity and there are no active poppers.
-    //          * Modify capacity or keep original?
-    //          * If the pipeline is inactive and non-empty,
-    //            the user may expect the existing elements 
-    //            to be erased rather than appended to.
-    //
-    // NB: boost::fiber::buffered_channel and boost::sync_bounded_queue
-    // don't provide copy/move semantics either.
-
+    
     ///@}
-
     ///@{
 
-    // push and pop are implemented as callable function-objects
+    // push and pop are implemented as callable function-objects fields
     // rather than plain methods to enable usage like:
     //
-    // Adapt as input-range:
+    // Adapt queue as input-range:
     // fn::seq(synchronized_queue.pop) % fn::for_each(...)
     //
-    // Adapt as sink-function:
+    // Adapt queue as sink-function:
     // std::move(inputs) % fn::for_each(my_queue.push);
-
+    //
+    // Adapt queue as output-iterator:
+    // std::copy(inputs.begin(), inputs.end(), my_queue.push);
+    //
 
     /////////////////////////////////////////////////////////////////////////
     // Implements insert_iterator and unary-invokable
@@ -289,7 +272,9 @@ public:
             // APIs allow pushing by const-or-forwarding-references, 
             // so we have allow the same for the sake of consistency.
 
-            const status st = queue_.try_push(std::move(val), s_max_timeout());
+            const status st = 
+                queue_.try_push( std::move(val), 
+                                 queue_.s_max_timeout());
 
             assert(st != status::timeout);
 
@@ -320,6 +305,8 @@ public:
     pop_t pop = { *this };
 
 
+    //rangeless::fn::impl::seq<pop_t> seq = fn::seq(this->pop);
+
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -346,9 +333,9 @@ public:
             } catch(queue_closed&) {
 
                 if(threw_in_pop) {
-                    break; // threw in pop() - ours
+                    break; // threw in pop()
                 } else {
-                    throw; // threw in sink() - not ours - rethrow;
+                    throw; // threw in sink() - not our business - rethrow;
                     //
                     // This could be an unhandled exception from
                     // sink that is from some different queue that we
@@ -474,7 +461,6 @@ public:
     }
 
     ///@}
-    
     ///@{ 
 
     /////////////////////////////////////////////////////////////////////////
@@ -507,6 +493,9 @@ public:
     public:
         close_guard(synchronized_queue& queue) : ptr{ &queue }
         {}
+
+        close_guard(const close_guard&) = default; // -Weffc++ warning
+        close_guard& operator=(const close_guard&) = default;
 
         void reset()
         {
@@ -667,24 +656,24 @@ private:
             std::condition_variable,
             std::condition_variable_any        >::type;
 
-                 size_t m_capacity; // protected by push_mutex
-     std::atomic_size_t m_size = { 0 };
-       std::atomic_bool m_closed = { false };
+                 size_t m_capacity       = size_t(-1); // protected by push_mutex
+     std::atomic_size_t m_size           = { 0 };
+       std::atomic_bool m_closed         = { false };
 
-             const char padding1[128] = {}; // avoid false-sharing
+             const char padding1[128]    = {}; // avoid false-sharing
 
-                queue_t m_push_queue;
-          BasicLockable m_push_mutex;
-          BasicLockable m_push_mutex_aux;
-              condvar_t m_can_swap;
+                queue_t m_push_queue     = {};
+          BasicLockable m_push_mutex     = {};
+          BasicLockable m_push_mutex_aux = {};
+              condvar_t m_can_swap       = {};
 
-             const char padding2[128] = {};
+             const char padding2[128]    = {};
 
-                queue_t m_pop_queue;
-          BasicLockable m_pop_mutex;
-              condvar_t m_can_push;   
+                queue_t m_pop_queue      = {};
+          BasicLockable m_pop_mutex      = {};
+              condvar_t m_can_push       = {};   
 
-             const char padding3[128] = {};
+             const char padding3[128]    = {};
 
 
     // Notes: 
@@ -710,8 +699,295 @@ private:
 
 }; // synchronized_queue
 
-
 } // namespace mt
 } // namespace rangeless
+
+
+#if RANGELESS_MT_ENABLE_RUN_TESTS
+#include <string>
+#include <iostream>
+#include <cctype>
+
+#ifndef VERIFY
+#define VERIFY(expr) if(!(expr)) RANGELESS_FN_THROW("Assertion failed: ( "#expr" ).");
+#endif
+
+namespace rangeless
+{
+namespace mt
+{
+namespace impl
+{
+
+static void run_tests()
+{
+    // test that queue works with non-default-constructible types
+    {{ 
+        int x = 10;
+        mt::synchronized_queue<std::reference_wrapper<int> > queue;
+        queue.push( std::ref(x));
+        queue.push( std::ref(x));
+        queue.close();
+
+        auto y = queue.pop();
+        queue >>= [&](int& x_) { x_ = 20; };
+        assert(x == 20);
+        assert(y == 20);
+    }}
+
+    {{
+        synchronized_queue<std::string> q{1};
+        std::string s1 = "1";
+        std::string s2 = "2";
+
+        auto st1 = q.try_push(std::move(s1), std::chrono::milliseconds(10));
+        auto st2 = q.try_push(std::move(s2), std::chrono::milliseconds(10));
+
+        assert(st1 == decltype(q)::status::success);
+        assert(s1 == "");
+
+        assert(st2 == decltype(q)::status::timeout);
+        assert(s2 == "2");
+    }}
+
+    {{
+        std::cerr << "Testing queue...\n";
+        using queue_t = mt::synchronized_queue<long, mt::atomic_lock<>>;
+
+        // test duration/timeout with try_pop
+        {{
+            queue_t q{ 10 };
+            auto task = std::async(std::launch::async, [&] {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(100));
+                q.push(1);
+                q.close();
+            });
+            long x = 0;
+            
+            auto res = q.try_pop(x, std::chrono::milliseconds(90));
+            assert(res == queue_t::status::timeout);
+
+            auto res2 = q.try_pop(x, std::chrono::milliseconds(20)); // 110 milliseconds passed
+            assert(res2 == queue_t::status::success);
+            assert(x == 1);
+
+            assert(q.try_pop(x) == queue_t::status::closed);
+            assert(q.try_push(42) == queue_t::status::closed);
+        }}
+
+        // test duration/timeout with try_push
+        {{
+            queue_t q{ 1 };
+            q.push(1); // make full.
+
+            auto task = std::async(std::launch::async, [&] {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(100));
+                q.pop();
+            });
+
+            auto res = q.try_push(42, std::chrono::milliseconds(90));
+            assert(res == queue_t::status::timeout);
+
+            auto res2 = q.try_push(42, std::chrono::milliseconds(20)); // 110 milliseconds passed
+            assert(res2 == queue_t::status::success);
+            assert(q.pop() == 42);
+        }}
+
+
+        {{ // test move, insert_iterator
+            queue_t q1{ 10 };
+
+            //*q1.inserter()++ = 123;
+            q1.push(123);
+            
+            //auto q2 = std::move(q1);
+            //assert(q1.empty());
+            auto& q2 = q1;
+
+            assert(q2.size() == 1);
+            assert(q2.pop() == 123);
+        }}
+
+        queue_t queue{ 1000 };
+
+        mt::timer timer;
+
+        std::vector<std::future<void>> pushers;
+        std::vector<std::future<long>> poppers; 
+
+        const size_t num_jobs = std::thread::hardware_concurrency();
+        const int64_t num = 100000;
+
+        // using 16 push-jobs and 16 pop-jobs:
+        // In each pop-job accumulate partial sum.
+        for(size_t i = 0; i < num_jobs; i++) {
+            
+            // Using blocking push/pop
+            /////////////////////////////////////////////////////////////////
+
+            pushers.emplace_back(
+                std::async(std::launch::async, [&]
+                {
+                    for(long j = 0; j < num; j++) {
+                        queue.push(1);
+                    }
+                }));
+
+            poppers.emplace_back(
+                std::async(std::launch::async, [&]
+                {
+                    //return std::accumulate(queue.begin(), queue.end(), 0L);
+                    long acc = 0;
+                    queue >>= [&acc](long x){ acc += x; };
+                    return acc;
+                }));
+        }
+
+        // wait for all push-jobs to finish, and 
+        // close the queue, unblocking the poppers.
+        for(auto& fut : pushers) {
+            fut.wait();
+        }
+
+        std::cerr << "Closing queue...\n";
+        queue.close(); // non-blocking; queue may still be non-empty
+        std::cerr << "Size after close:" << queue.size() << "\n";
+
+        // pushing should now be prohibited,
+        // even if the queue is not empty
+        try {
+            long x = 0;
+            assert(queue.try_push(std::move(x)) == queue_t::status::closed);
+            queue.push(std::move(x));
+            assert(false);
+        } catch(queue_t::queue_closed&) {}
+
+        // collect subtotals accumulated from each pop-job.
+        int64_t total = 0;
+        std::cerr << "subtotals:";
+        for(auto& fut : poppers) {
+            const auto x = fut.get();
+            std::cerr << " " << x;
+            total += x;
+        }
+        std::cerr << "\n";
+
+
+        assert(queue.empty());
+
+#if 0
+        auto queue2 = std::move(queue); // test move-semantics
+        try {
+            long x = 0;
+            assert(queue2.try_pop(x) == queue_t::status::closed);
+            queue2.pop();
+            assert(false);
+        } catch(queue_t::closed&) {}
+#endif
+
+        const auto n = int64_t(num_jobs) * num;
+
+        assert(total == n);
+
+        // of async-tasks (blocking and non-blocking versions)
+        std::cerr << "Throughput: "  <<  double(total)/timer << "/s.\n";
+    }}
+
+#if 0
+    // with 64 pushers and poppers on 32-CPU dev host:
+    //                       CSyncQueue: 90k/s
+    // synchronized_queue with mutex   : 1.5M/s
+    // synchronized_queue with atomic_lock: 5.5M/s
+
+    {{
+        LOG("Testing CSyncQueue...");
+        //CSyncQueue<long> queue{ 10000 };
+        basic_synchronized_queue<long, mt::atomic_lock<> > queue{1000};
+
+        const CTimeSpan timeout{ 2.9 }; // NB: must use explicit timeouts
+
+        mt::timer timer;
+
+        std::vector<std::future<void>> pushers;
+        std::vector<std::future<long>> poppers; 
+
+        const size_t num_jobs = std::thread::hardware_concurrency();
+        const int64_t num = 100000;
+
+        // using 16 push-jobs and 16 pop-jobs:
+        // In each pop-job accumulate partial sum.
+        for(size_t i = 0; i < num_jobs; i++) {
+            
+            // Using blocking push/pop
+            /////////////////////////////////////////////////////////////////
+
+            pushers.emplace_back(
+                std::async(std::launch::async, [&]
+                {
+                    for(long j = 0; j < num; j++) {
+                        //queue.Push(1, &timeout);
+                        queue.push(1);
+                    }
+                }));
+
+            poppers.emplace_back(
+                std::async(std::launch::async, [&]
+                {
+                    long acc = 0;
+                    for(long j = 0; j < num; j++) {
+                        //acc += queue.Pop(&timeout);
+                        acc += queue.pop();
+                    }
+                    return acc;
+                }));
+        }
+
+        // wait for all push-jobs to finish, and 
+        // close the queue, unblocking the poppers.
+        for(auto& fut : pushers) {
+            fut.wait();
+        }
+
+        int64_t total = 0;
+        std::cerr << "subtotals:";
+        for(auto& fut : poppers) {
+            const auto x = fut.get();
+            std::cerr << " " << x;
+            total += x;
+        }
+        std::cerr << "\n";
+
+        const auto n = (int64_t)num_jobs * num;
+        assert(total == n);
+
+        // of async-tasks (blocking and non-blocking versions)
+        LOG("Throughput: "  <<  double(total)/timer << "/s.");
+    }}
+#endif
+
+
+    {{
+        // test timeout;
+        using queue_t = synchronized_queue<int>;
+        queue_t queue{ 1 };
+
+        int x = 5;
+        auto res = queue.try_pop(x, std::chrono::milliseconds(10));
+        assert(res == queue_t::status::timeout);
+        assert(x == 5);
+
+        queue.push(10);
+        res = queue.try_push(10, std::chrono::milliseconds(10));
+        assert(res == queue_t::status::timeout);
+    }}
+} // run_tests()
+
+} // namespace impl
+} // namespace mt
+} // namespace rangeless
+
+#endif // RANGELESS_MT_ENABLE_RUN_TESTS
 
 #endif // RANGELESS_MT_HPP_ 
