@@ -40,38 +40,11 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-namespace rangeless { 
+namespace rangeless
+{ 
    
-// Defining fn::end_seq here because that's all we need - 
-// don't need to #include whole "fn.hpp".
-//
-// NB: definition shall be the same as in fn.hpp
-#ifndef RANGELESS_FN_HPP_END_SEQ_EXCEPTION
-#define RANGELESS_FN_HPP_END_SEQ_EXCEPTION
-namespace fn
-{
-    struct end_seq
-    {
-        struct exception
-        {};
-
-        end_seq()
-        {
-            throw exception{};
-        }
-
-        template<typename T>
-        operator T() const
-        {
-            throw exception{};
-            return std::move(*static_cast<T*>(nullptr));
-        }
-    };
-}
-#endif
-
-
-namespace mt { 
+namespace mt
+{ 
 
 /////////////////////////////////////////////////////////////////////////////
 /// \brief A simple timer.
@@ -81,8 +54,8 @@ struct timer
     /// To reset: `my_timer = mt::timer{}`.
     operator double() const
     {
-        return (double)std::chrono::duration_cast<std::chrono::nanoseconds>(
-            clock_t::now() - start_timepoint).count() * 1e-9;
+        return double(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            clock_t::now() - start_timepoint).count()) * 1e-9;
     }
 private:
     using clock_t = std::chrono::steady_clock;
@@ -262,135 +235,96 @@ public:
 
     ///@{
 
-#if 0    
-    /*
-    Not sure if we need the inserter. Can instead use boost's iterator-adapter
+    // push and pop are implemented as callable function-objects
+    // rather than plain methods to enable usage like:
+    //
+    // Adapt as input-range:
+    // fn::seq(synchronized_queue.pop) % fn::for_each(...)
+    //
+    // Adapt as sink-function:
+    // std::move(inputs) % fn::for_each(my_queue.push);
 
-    {{
-        mt::synchronized_queue<long> queue;
-        std::vector<long> vec{1,2,3,4,5};
-
-        std::copy(vec.begin(), vec.end(),
-                  boost::make_function_output_iterator(
-                      [&queue](long x) { queue <<= x; }));
-     }}
-    */
 
     /////////////////////////////////////////////////////////////////////////
-    struct insert_iterator //: public std::insert_iterator<synchronized_queue>
+    // Implements insert_iterator and unary-invokable
+    struct push_t
     {
-        synchronized_queue& queue;
+        using iterator_category = std::output_iterator_tag;
+        using   difference_type = void;
+        using        value_type = synchronized_queue::value_type;
+        using           pointer = void;
+        using         reference = void;
 
-        insert_iterator& operator=(value_type val)
+        synchronized_queue& queue_;
+
+        push_t& operator=(value_type val)
         {
-            queue <<= std::move(val);
+            this->operator()(std::move(val));
             return *this;
         }
 
-        insert_iterator& operator*()     { return *this; }
-        insert_iterator& operator++()    { return *this; }
-        insert_iterator  operator++(int) { return *this; }
+        push_t& operator*()     { return *this; }
+        push_t& operator++()    { return *this; }
+        push_t  operator++(int) { return *this; }
+
+        /// Blocking push. May throw `queue_closed`
+        void operator()(value_type val) noexcept(false)
+        {
+            // NB: if this throws, val is gone. If the user needs 
+            // to preserve it in case of failure (strong exception
+            // guarantee), it should be using try_push which takes 
+            // value by rvalue-reference and moves it only in case of success.
+            //
+            // We could do the same here, but that would mean
+            // that the user must always pass as rvalue, and 
+            // to pass by copy it would have to do so explicitly, e.g.
+            //
+            // void operator()(value_type&& val);
+            // queue.push(std::move(my_value));
+            // queue.push(my_const_ref); // won't compile.
+            // queue.push(queueue_t::value_type( my_const_ref )); // explicit copy
+            //
+            // I think this would actually be a good thing, as it 
+            // makes the copying visible, but all other synchronied-queue
+            // APIs allow pushing by const-or-forwarding-references, 
+            // so we have allow the same for the sake of consistency.
+
+            const status st = queue_.try_push(std::move(val), s_max_timeout());
+
+            assert(st != status::timeout);
+
+            if(st == status::closed) {
+                throw queue_closed{};
+            }
+
+            assert(st == status::success);
+        }
+    };
+    friend struct push_t;
+    push_t push = { *this };
+
+
+    struct pop_t
+    {
+        synchronized_queue& queue_;
+
+        /////////////////////////////////////////////////////////////////////////
+        /// Blocking pop. May throw `queue_closed`
+        value_type operator()()
+        {
+            return queue_.x_blocking_pop();
+        }
     };
 
-    /// \brief `std::copy(it_begin, it_end, queue.inserter())`
-    insert_iterator inserter()
-    {
-        return { *this };
-    }
-#endif
+    friend struct pop_t;
+    pop_t pop = { *this };
+
+
 
     /////////////////////////////////////////////////////////////////////////
 
     ///@}
     ///@{
-
-    // NB: we're using operator<<= to represent 'enqueue' operation 
-    // in synchronized_queue<...>, synchronized<...>, pool<...>, and pipeline<...>.
-    //
-    // boost/thread/concurrent_queues use operator<< and operator>>,
-    // but when reading the code that uses '<<', especially when it 
-    // involves dealing with iostreams, it may get a bit confusing
-    // as to what's going on.
-    //
-    // Additionally, as << is heavily overloaded, type-error generate
-    // insanely-long compiler errors, so I'd rather avoid using 
-    // operators at all, than touch '<<'.
-    //
-    // '<<=' is right-associative so it's of no use returning 
-    // *this from it. However right-associativity in our context
-    // makes more sense, e.g. queue <<= pool <<= []{ ... };
-
-    /// \brief Blocking push. May throw `queue_closed`
-    void operator<<=(value_type val) noexcept(false)
-    {
-        // NB: if this throws, val is gone. If the user needs 
-        // to preserve it in case of failure (strong exception
-        // guarantee), it should be using try_push which takes 
-        // value by rvalue-reference and moves it only in case of success.
-        //
-        // We could do the same here, but that would mean
-        // that the user must always pass as rvalue, and 
-        // to pass by copy it would have to do so explicitly, e.g.
-        //
-        // void operator<<=(value_type&& val);
-        // queue <<= std::move(my_value);
-        // queue <<= my_const_ref; // won't compile.
-        // queue <<= queueue_t::value_type( my_const_ref ); // explicit copy
-        //
-        // I think this would actually be a good thing, as it 
-        // makes the copying visible, but all other synchronied-queue
-        // APIs allow pushing by const-or-forwarding-references, 
-        // so we have allow the same for the sake of consistency.
-        //
-        // (could also accomplish the same by taking as forwarding
-        // reference: template<typename U> operator<<=(U&& val);
-
-        const status st = try_push(std::move(val), s_max_timeout());
-
-        assert(st != status::timeout);
-
-        if(st == status::closed) {
-            throw queue_closed{};
-        }
-
-        assert(st == status::success);
-    }
-
-    void push(value_type val) noexcept(false)
-    {
-        this->operator<<=(std::move(val));
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    /// Blocking pop. May throw `queue_closed`
-    value_type pop() noexcept(false)
-    {
-        guard_t g{ m_pop_mutex };
-
-        if(!m_pop_queue.empty()) {
-            return x_pop();
-        }
-
-        const status st = x_swap_queues(s_max_timeout());
-
-        assert(st != status::timeout);
-        
-        if(st == status::closed) {
-            throw queue_closed{};
-        } 
-        
-        assert(st == status::success);
-        return x_pop();
-    }
-
-#if 0 // this is redundant - just use x = queue.pop();
-
-    /// Blocking pop into an lvalue-reference. May throw `queue_closed`.
-    void operator>>=(value_type& val) noexcept(false)
-    {
-        val = this->pop();
-    }
-#endif
 
     /// \brief pop() the values into the provided sink-function until closed and empty.
     ///
@@ -430,24 +364,7 @@ public:
         assert(closed() && empty());
     }
 
-#if 0
-    // implemented as overload of pipeline::invoke(...) instead
-    
-    /// \brief pop() the values into the pipeline until close and empty, then flush the pipeline.
-    template<typename Pipeline>
-    auto operator>>=(Pipeline&& pipeline)
-      -> decltype((void)(pipeline <<= this->pop()))
-    {
-        this->operator>>=(
-                [&](value_type x){ 
-                    pipeline <<= std::move(x);
-                });
-        impl::flush_if_can(pipeline);
-    }
-#endif
-
     ///@}
-
     ///@{ 
 
     /////////////////////////////////////////////////////////////////////////
@@ -636,6 +553,27 @@ private:
         // 200 years ought to be enough for everyone
     }
 
+
+    value_type x_blocking_pop() noexcept(false)
+    {
+        guard_t g{ m_pop_mutex };
+
+        if(!m_pop_queue.empty()) {
+            return x_pop();
+        }
+
+        const status st = x_swap_queues(s_max_timeout());
+
+        assert(st != status::timeout);
+        
+        if(st == status::closed) {
+            throw queue_closed{};
+        } 
+        
+        assert(st == status::success);
+        return x_pop();
+    }
+
     // precondition: m_pop_queue is not empty and m_pop_mutex is locked
     value_type x_pop()
     {
@@ -747,6 +685,7 @@ private:
               condvar_t m_can_push;   
 
              const char padding3[128] = {};
+
 
     // Notes: 
     //
