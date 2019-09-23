@@ -2836,7 +2836,7 @@ namespace impl
                 return src.crbegin();
             }
 
-            auto cend() const
+            const_iterator cend() const
             {
                 return src.crend();
             }

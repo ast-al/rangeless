@@ -11,11 +11,11 @@ add_compile_options(
     -Wmissing-include-dirs -Winvalid-pch -Wmissing-format-attribute 
     -Wfloat-equal -Wdouble-promotion -Winit-self -Weffc++ 
     -Woverloaded-virtual -Wsign-promo -Wvla -Wredundant-decls 
-    -Wcast-align -Wcast-qual -Wold-style-cast 
-    -fprofile-arcs -ftest-coverage 
+    -Wcast-align -Wcast-qual -Wold-style-cast
+    -fprofile-arcs -ftest-coverage
     -fsanitize=address -fsanitize=undefined)
     
-link_libraries("-static-libasan -fsanitize=address -fsanitize=undefined -fprofile-arcs -ftest-coverage")
+link_libraries("-pthread -static-libasan -fsanitize=address -fsanitize=undefined -fprofile-arcs -ftest-coverage")
 
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 
