@@ -393,8 +393,7 @@ public:
              return status::closed;
         }
 
-        assert(m_size < m_capacity);
-
+        assert(m_size <= m_capacity); // may be equal in case m_push_queue is empty
 
         // if push throws, is the value moved-from?
         // No. std::move is just an rvalue_cast - no-op
