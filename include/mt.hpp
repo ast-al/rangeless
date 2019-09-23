@@ -661,14 +661,14 @@ private:
 
              const char padding1[128]    = {}; // avoid false-sharing
 
-                queue_t m_push_queue     = {};
+                queue_t m_push_queue     = queue_t{};
           BasicLockable m_push_mutex     = {};
           BasicLockable m_push_mutex_aux = {};
               condvar_t m_can_swap       = {};
 
              const char padding2[128]    = {};
 
-                queue_t m_pop_queue      = {};
+                queue_t m_pop_queue      = queue_t{};
           BasicLockable m_pop_mutex      = {};
               condvar_t m_can_push       = {};   
 
