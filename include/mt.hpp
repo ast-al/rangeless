@@ -229,7 +229,7 @@ public:
     //
 
     /////////////////////////////////////////////////////////////////////////
-    // Implements insert_iterator and unary-invokable
+    /// Implements insert_iterator and unary-invokable.
     struct push_t
     {
         using iterator_category = std::output_iterator_tag;
@@ -238,7 +238,7 @@ public:
         using           pointer = void;
         using         reference = void;
 
-        synchronized_queue& queue_;
+        synchronized_queue& m_queue;
 
         push_t& operator=(value_type val)
         {
@@ -273,7 +273,7 @@ public:
             // so we have allow the same for the sake of consistency.
 
             const status st = 
-                queue_.try_push(std::move(val), no_timeout_sentinel_t{});
+                m_queue.try_push(std::move(val), no_timeout_sentinel_t{});
 
             assert(st != status::timeout);
 
@@ -285,26 +285,29 @@ public:
         }
     };
     friend struct push_t;
+
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Blocking push. May throw `queue_closed`.
     push_t push = { *this };
 
 
+    /////////////////////////////////////////////////////////////////////////
     struct pop_t
     {
-        synchronized_queue& queue_;
+        synchronized_queue& m_queue;
 
-        /////////////////////////////////////////////////////////////////////////
-        /// Blocking pop. May throw `queue_closed`
         value_type operator()()
         {
-            return queue_.blocking_pop();
+            return m_queue.x_blocking_pop();
         }
     };
 
     friend struct pop_t;
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Blocking pop. May throw `queue_closed`.
     pop_t pop = { *this };
-
-
-    //rangeless::fn::impl::seq<pop_t> seq = fn::seq(this->pop);
 
 
     /////////////////////////////////////////////////////////////////////////
@@ -354,7 +357,6 @@ public:
     ///@{ 
 
 
-
     /////////////////////////////////////////////////////////////////////////
     /// In case of success, the value will be moved-from.
     template <typename Duration = std::chrono::milliseconds>
@@ -372,7 +374,10 @@ public:
         guard_t push_guard{ m_push_mutex };
         lock_t queue_lock{ m_queue_mutex };
         
-        const bool ok = x_wait_for_can_push(queue_lock, timeout);
+        const bool ok = x_wait_until([this]
+    	{
+    		return m_queue.size() < m_capacity || !m_capacity;
+    	}, m_can_push, queue_lock, timeout);
 
         if(!ok) {
             return status::timeout;
@@ -418,7 +423,7 @@ public:
 
         if(!m_queue.empty()) {
             ;
-        } else if(m_capacity) {
+        } else if(!m_capacity) {
             return status::closed;
         } else {
             assert(false);
@@ -433,30 +438,6 @@ public:
         return status::success;
     }
 
-    value_type blocking_pop()
-    {
-        guard_t pop_guard{ m_pop_mutex };
-        lock_t queue_lock{ m_queue_mutex };
-
-        m_can_pop.wait(
-            queue_lock,
-            [this]
-            {
-                return !m_queue.empty() || !m_capacity;
-            });
-
-        if(m_queue.empty()) {
-            throw queue_closed{};
-        }
-
-        value_type ret = std::move(m_queue.front());
-        m_queue.pop();
-
-        queue_lock.unlock();
-        m_can_push.notify_one();
-
-        return ret;
-    }
 
 
     ///@}
@@ -527,41 +508,52 @@ public:
 private:
     using guard_t = std::lock_guard<BasicLockable>;
     using  lock_t = std::unique_lock<BasicLockable>;
+    using queue_t = std::queue<value_type>;
 
+    using condvar_t = typename std::conditional<
+        std::is_same<BasicLockable, std::mutex>::value,
+            std::condition_variable,
+            std::condition_variable_any        >::type;
 
     struct no_timeout_sentinel_t
     {};
 
-    template<typename Duration>
-    bool x_wait_for_can_push(lock_t& lock, Duration timeout)
-    {
-        return m_can_push.wait_for(
-            lock,
-            timeout,
-            [this]
-            {
-                return m_queue.size() < m_capacity || !m_capacity;
-            });
-    }
-
-    bool x_wait_for_can_push(lock_t& lock, no_timeout_sentinel_t)
-    {
-        m_can_push.wait(
-            lock,
-            [this]
-            {
-                return m_queue.size() < m_capacity || !m_capacity;
-            });
+    template<typename F>
+    bool x_wait_until(F condition, condvar_t& cv, lock_t& lock, no_timeout_sentinel_t)
+    {    
+        cv.wait(lock, std::move(condition));
         return true;
-    }
+    }    
 
+    template<typename Duration, typename F>
+    bool x_wait_until(F condition, condvar_t& cv, lock_t& lock, Duration duration)
+    {    
+        return cv.wait_for(lock, duration, std::move(condition));
+    } 
 
-    // NB: can't use chrono::seconds::max() for timeout, because
-    // now() + max() within wait_for will overflow.
-    static constexpr std::chrono::hours s_max_timeout() 
+    value_type x_blocking_pop()
     {
-        return std::chrono::hours(24*365*200); 
-        // 200 years ought to be enough for everyone
+        guard_t pop_guard{ m_pop_mutex };
+        lock_t queue_lock{ m_queue_mutex };
+
+        m_can_pop.wait(
+            queue_lock,
+            [this]
+            {
+                return !m_queue.empty() || !m_capacity;
+            });
+
+        if(m_queue.empty()) {
+            throw queue_closed{};
+        }
+
+        value_type ret = std::move(m_queue.front());
+        m_queue.pop();
+
+        queue_lock.unlock();
+        m_can_push.notify_one();
+
+        return ret;
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -587,18 +579,13 @@ private:
     // we're using separate queues for pushing and popping,
     // and lock them both and swap as necessary.
 
-    using queue_t = std::queue<value_type>;
-
-    using condvar_t = typename std::conditional<
-        std::is_same<BasicLockable, std::mutex>::value,
-            std::condition_variable,
-            std::condition_variable_any        >::type;
-
                  size_t m_capacity       = size_t(-1); // 0 means closed
                 queue_t m_queue          = queue_t{};
           BasicLockable m_queue_mutex    = {};
-          BasicLockable m_push_mutex     = {};
-          BasicLockable m_pop_mutex      = {};
+
+          BasicLockable m_push_mutex     = {}; // these are to manage contention
+          BasicLockable m_pop_mutex      = {}; // in MPSC/SPMC use-cases.
+
               condvar_t m_can_push       = {};   
               condvar_t m_can_pop        = {};
 
