@@ -69,10 +69,10 @@ private:
 ///
 /// It is faster than std::mutex, yet does not aggressively max-out the CPUs.
 /// NB: may cause thread starvation
-template<uint64_t SleepMicrosec = 20>
 class atomic_lock
 {    
-    std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
+    alignas(128) std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
+    // alignas to avoid false-sharing
 
     // todo: could we implement exponential-backoff algorithm that prevents
     // thread-starvation in mpsc spmc scenarios?
@@ -96,24 +96,22 @@ public:
 
     void lock() noexcept
     {   
-        static_assert(SleepMicrosec > 0, "");
         while(m_flag.test_and_set(std::memory_order_acquire)) { 
-            
             std::this_thread::sleep_for(
-                std::chrono::microseconds(SleepMicrosec));
+                std::chrono::nanoseconds(1)); // the actual time is greater, depends on scheduler
+        }
 
-            // Related:
-            // https://stackoverflow.com/questions/7868235/why-is-sleeping-not-allowed-while-holding-a-spinlock
-            //
-            // Note that here we are sleepining while NOT holding 
-            // the lock, but while trying to acquire it.
-            // 
-            // If we did NOT sleep here, the polling
-            // thread would deadlock on a single-core system
-            // if the thread holding the lock goes to sleep.
-            //
-            // Caveat emptor.
-        }    
+        // Related:
+        // https://stackoverflow.com/questions/7868235/why-is-sleeping-not-allowed-while-holding-a-spinlock
+        //
+        // Note that here we are sleepining while NOT holding 
+        // the lock, but while trying to acquire it.
+        // 
+        // If we did NOT sleep here, the polling
+        // thread would deadlock on a single-core system
+        // if the thread holding the lock goes to sleep.
+        //
+        // Caveat emptor.
     }    
 
     void unlock() noexcept
@@ -198,10 +196,19 @@ public:
       : m_capacity{ cap == 0 ? 1 : cap }
     {}
 
-    /// NB: destructor closes the queue (non-blocking)
     ~synchronized_queue()
     {
-        x_close();
+        // What if there are elements in the queue? 
+        // If there are active poppers, we ought to 
+        // let them finish, but if there aren't any,
+        // this will block indefinitely, so we'll 
+        // leave it to the user code to manage the
+        // lifetime across multiple threads.
+        //
+        // Should we call x_close() ?
+        // No point - we're already destructing.
+        // (it also grabs the m_queue_mutex, which 
+        // theoretically may throw).
     }
 
     // After careful consideration, decided not to provide 
@@ -666,7 +673,7 @@ static void run_tests()
 
     {{
         std::cerr << "Testing queue...\n";
-        using queue_t = mt::synchronized_queue<long, mt::atomic_lock<>>;
+        using queue_t = mt::synchronized_queue<long, mt::atomic_lock>;
 
         // test duration/timeout with try_pop
         {{
@@ -818,7 +825,7 @@ static void run_tests()
     {{
         LOG("Testing CSyncQueue...");
         //CSyncQueue<long> queue{ 10000 };
-        basic_synchronized_queue<long, mt::atomic_lock<> > queue{1000};
+        basic_synchronized_queue<long, mt::atomic_lock> queue{1000};
 
         const CTimeSpan timeout{ 2.9 }; // NB: must use explicit timeouts
 
