@@ -273,8 +273,7 @@ public:
             // so we have allow the same for the sake of consistency.
 
             const status st = 
-                queue_.try_push( std::move(val), 
-                                 queue_.s_max_timeout());
+                queue_.try_push(std::move(val), no_timeout_sentinel_t{});
 
             assert(st != status::timeout);
 
@@ -297,7 +296,7 @@ public:
         /// Blocking pop. May throw `queue_closed`
         value_type operator()()
         {
-            return queue_.x_blocking_pop();
+            return queue_.blocking_pop();
         }
     };
 
@@ -348,11 +347,13 @@ public:
             }
         }
         
-        assert(closed() && empty());
+        assert(closed() && m_queue.empty());
     }
 
     ///@}
     ///@{ 
+
+
 
     /////////////////////////////////////////////////////////////////////////
     /// In case of success, the value will be moved-from.
@@ -368,109 +369,103 @@ public:
         //
         // making the move explicitly visible.
 
-        lock_t lock{ m_push_mutex };
+        guard_t push_guard{ m_push_mutex };
+        lock_t queue_lock{ m_queue_mutex };
         
-        const bool ok = m_can_push.wait_for( 
-                lock,
-                timeout,
-                [this]{ return m_size < m_capacity
-                            || m_push_queue.empty()
-                            || m_closed; 
-                        // NB: m_size is non-increasing here.
-                        // We're also allowing push if empty,
-                        // in case (m_size<m_capacity) evaluated to `false`
-                        // above and just became `true` before we return,
-                        // causing us to block until cv is notified again.
-                        // We want to push-queue to not be emty so that
-                        // x_swap_queues() will not block.
-                      });
+        const bool ok = x_wait_for_can_push(queue_lock, timeout);
 
         if(!ok) {
             return status::timeout;
         }
 
-        if(m_closed) {
+        if(!m_capacity) {
              return status::closed;
         }
 
-        assert(m_size <= m_capacity); // may be equal in case m_push_queue is empty
+        assert(m_queue.size() < m_capacity); 
 
         // if push throws, is the value moved-from?
         // No. std::move is just an rvalue_cast - no-op
         // if the move-assignment never happens.
-        m_push_queue.push(std::move(value));
+        m_queue.push(std::move(value));
 
-        ++m_size;
-        m_can_swap.notify_one();
+        queue_lock.unlock();
 
-        // This guard is not formally necessary, but it's a preformance
-        // optimization for heavy-contention case, e.g. 128 pushers
-        // and 128 poppers on a 32-core host. There's a single thread
-        // waiting on m_can_swap trying to get a lock vs. 128 pushers, 
-        // resulting in starvation of the thread trying to x_swap_queues().
-        //
-        // When we call unlock below, it will unblock another try_push
-        // that will do its thing up to this point, but it will not be
-        // able to call unlock() until this thread aux_guard releases.
-        // This throttles the pushing threads, allowing the swapping 
-        // thread to grab the lock.
-        /*
-            pushers throughput
-            /popper (M/s)
-                
-        without this guard:
-            1/1     4.869   *************************************************
-            1/32    1.437   ***************
-            32/1    0.7439  ********
-            16/16   0.8658  *********
-            128/128 0.3944  ****
-
-        with this guard:
-            1/1     2.292   ***********************
-            1/32    1.469   ***************
-            32/1    1.337   **************
-            16/16   1.176   ************
-            128/128 1.816   *******************
-        */
-        guard_t aux_guard{ m_push_mutex_aux };
-
-        lock.unlock();
+        m_can_pop.notify_one();
         return status::success;
     }
+
 
     /////////////////////////////////////////////////////////////////////////
     /// In case of success, the value will be move-assigned.
     template <typename Duration = std::chrono::milliseconds>
     status try_pop(value_type& value, Duration timeout = {})
     {
-        guard_t g{ m_pop_mutex };
+        guard_t pop_guard{ m_pop_mutex };
+        lock_t queue_lock{ m_queue_mutex };
 
-        if(!m_pop_queue.empty()) {
-            value = x_pop();
-            return status::success;
+        bool ok = m_can_pop.wait_for(
+            queue_lock,
+            timeout,
+            [this]
+            {
+                return !m_queue.empty() || !m_capacity;
+            });
+
+        if(!ok) {
+            return status::timeout;
         }
 
-        const status st = x_swap_queues(timeout);
-        
-        if(st == status::success) {
-            value = x_pop();
+        if(!m_queue.empty()) {
+            ;
+        } else if(m_capacity) {
+            return status::closed;
+        } else {
+            assert(false);
         }
 
-        return st;
+        value = std::move(m_queue.front());
+        m_queue.pop();
+
+        queue_lock.unlock();
+        m_can_push.notify_one();
+
+        return status::success;
     }
+
+    value_type blocking_pop()
+    {
+        guard_t pop_guard{ m_pop_mutex };
+        lock_t queue_lock{ m_queue_mutex };
+
+        m_can_pop.wait(
+            queue_lock,
+            [this]
+            {
+                return !m_queue.empty() || !m_capacity;
+            });
+
+        if(m_queue.empty()) {
+            throw queue_closed{};
+        }
+
+        value_type ret = std::move(m_queue.front());
+        m_queue.pop();
+
+        queue_lock.unlock();
+        m_can_push.notify_one();
+
+        return ret;
+    }
+
 
     ///@}
     ///@{ 
 
     /////////////////////////////////////////////////////////////////////////
-    size_t size() const noexcept
+    size_t approx_size() const noexcept
     {
-        return m_size;
-    }
-
-    bool empty() const noexcept
-    {
-        return m_size == 0;
+        return m_queue.size();
     }
 
     size_t capacity() const noexcept
@@ -480,7 +475,7 @@ public:
 
     bool closed() const noexcept
     {
-        return m_closed;
+        return !m_capacity;
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -533,6 +528,34 @@ private:
     using guard_t = std::lock_guard<BasicLockable>;
     using  lock_t = std::unique_lock<BasicLockable>;
 
+
+    struct no_timeout_sentinel_t
+    {};
+
+    template<typename Duration>
+    bool x_wait_for_can_push(lock_t& lock, Duration timeout)
+    {
+        return m_can_push.wait_for(
+            lock,
+            timeout,
+            [this]
+            {
+                return m_queue.size() < m_capacity || !m_capacity;
+            });
+    }
+
+    bool x_wait_for_can_push(lock_t& lock, no_timeout_sentinel_t)
+    {
+        m_can_push.wait(
+            lock,
+            [this]
+            {
+                return m_queue.size() < m_capacity || !m_capacity;
+            });
+        return true;
+    }
+
+
     // NB: can't use chrono::seconds::max() for timeout, because
     // now() + max() within wait_for will overflow.
     static constexpr std::chrono::hours s_max_timeout() 
@@ -541,100 +564,16 @@ private:
         // 200 years ought to be enough for everyone
     }
 
-
-    value_type x_blocking_pop() noexcept(false)
-    {
-        guard_t g{ m_pop_mutex };
-
-        if(!m_pop_queue.empty()) {
-            return x_pop();
-        }
-
-        const status st = x_swap_queues(s_max_timeout());
-
-        assert(st != status::timeout);
-        
-        if(st == status::closed) {
-            throw queue_closed{};
-        } 
-        
-        assert(st == status::success);
-        return x_pop();
-    }
-
-    // precondition: m_pop_queue is not empty and m_pop_mutex is locked
-    value_type x_pop()
-    {
-        assert(!m_pop_queue.empty());
-        assert(m_size > 0);
-        value_type val = std::move(m_pop_queue.front());
-        m_pop_queue.pop();
-        --m_size;
-        m_can_push.notify_one();
-        return val;
-    }
-    
-    /////////////////////////////////////////////////////////////////////////
-    // precondition: m_pop_queue is empty and m_pop_mutex is locked
-    template<typename Duration>
-    status x_swap_queues(Duration timeout)
-    {
-        assert(m_pop_queue.empty());
-
-        m_can_push.notify_one(); // in case the pushing thread
-                                 // is in false-wait (see corresponding wait_for)
-
-        lock_t push_lock{ m_push_mutex };
-
-        // NB: m_pop_mutex is locked while we're waiting
-        // on the (notempty or closed) condition, but 
-        // this is the only place it is used.
-
-        const bool ok = m_can_swap.wait_for(
-                push_lock, 
-                timeout,
-                [this]{ return !m_push_queue.empty()
-                             || m_closed; 
-                      });
-
-        if(!ok) {
-            return status::timeout;
-        }
-
-        if(m_push_queue.empty() && m_closed) {
-            return status::closed;
-        }
-        // !(empty && closed) && (!empty || closed)
-        // ^^if-statement        ^^wait-for condition
-        //
-        // simplifies to: !empty
-
-        assert(!m_push_queue.empty());
-        assert( m_pop_queue.empty());
-
-        std::swap(m_push_queue, m_pop_queue); // this is O(1)
-        return status::success;
-    }
-
     /////////////////////////////////////////////////////////////////////////
     /// \brief Closes the queue for more pushing.
     ///
     void x_close()
     {
-        // m_can_push and m_can_swap wait-conditions may evaluate to false,
-        // and then m_closed becomes true before the lambda returns the 
-        // original (now incorrect) value, so the wait_for will deadlock because
-        // notify_all() above happened before the thread is about to block.
-        //
-        // Therefore we need to lock the associated mutexes first.
-        // If we try to lock m_pop_mutex here, we may deadlock because
-        // it may be locked while waiting on m_can_swap. Therefore we need
-        // to unblock wait_for on m_push_mutex in x_swap_queue().
         {{
-             guard_t g{ m_push_mutex }; 
-             m_closed = true;
+            guard_t g{ m_queue_mutex }; 
+            m_capacity = 0;
         }}
-        m_can_swap.notify_all();
+        m_can_pop.notify_all();
         m_can_push.notify_all();
     }
 
@@ -655,24 +594,13 @@ private:
             std::condition_variable,
             std::condition_variable_any        >::type;
 
-                 size_t m_capacity       = size_t(-1); // protected by push_mutex
-     std::atomic_size_t m_size           = { 0 };
-       std::atomic_bool m_closed         = { false };
-
-             const char padding1[128]    = {}; // avoid false-sharing
-
-                queue_t m_push_queue     = queue_t{};
+                 size_t m_capacity       = size_t(-1); // 0 means closed
+                queue_t m_queue          = queue_t{};
+          BasicLockable m_queue_mutex    = {};
           BasicLockable m_push_mutex     = {};
-          BasicLockable m_push_mutex_aux = {};
-              condvar_t m_can_swap       = {};
-
-             const char padding2[128]    = {};
-
-                queue_t m_pop_queue      = queue_t{};
           BasicLockable m_pop_mutex      = {};
               condvar_t m_can_push       = {};   
-
-             const char padding3[128]    = {};
+              condvar_t m_can_pop        = {};
 
 
     // Notes: 
@@ -805,7 +733,7 @@ static void run_tests()
             //assert(q1.empty());
             auto& q2 = q1;
 
-            assert(q2.size() == 1);
+            assert(q2.approx_size() == 1);
             assert(q2.pop() == 123);
         }}
 
@@ -852,7 +780,7 @@ static void run_tests()
 
         std::cerr << "Closing queue...\n";
         queue.close(); // non-blocking; queue may still be non-empty
-        std::cerr << "Size after close:" << queue.size() << "\n";
+        std::cerr << "Size after close:" << queue.approx_size() << "\n";
 
         // pushing should now be prohibited,
         // even if the queue is not empty
@@ -874,7 +802,7 @@ static void run_tests()
         std::cerr << "\n";
 
 
-        assert(queue.empty());
+        assert(queue.approx_size() == 0);
 
 #if 0
         auto queue2 = std::move(queue); // test move-semantics
