@@ -64,6 +64,30 @@ private:
     clock_t::time_point start_timepoint = clock_t::now();
 };
 
+namespace lockables
+{
+
+
+class partial_spin_mutex : public std::mutex
+{
+public:
+    partial_spin_mutex() = default;
+
+    void lock() noexcept
+    {   
+        for(size_t i = 0; i < 16; i++) {
+            if(try_lock()) {
+                return;
+            }
+
+            std::this_thread::sleep_for(
+                std::chrono::microseconds(1));
+        }
+
+        std::mutex::lock();
+    }
+};
+
 /////////////////////////////////////////////////////////////////////////////
 /// \brief Can be used as alternative to std::mutex.
 ///
@@ -119,6 +143,8 @@ public:
         m_flag.clear(std::memory_order_release);
     }    
 };   
+
+}
 
 class synchronized_queue_base
 {
@@ -184,7 +210,7 @@ public:
     fut.get(); // rethrow exception, if any.
 @endcode
 */
-template <typename T, class BasicLockable = std::mutex /*or mt::atomic_lock*/>
+template <typename T, class BasicLockable = lockables::partial_spin_mutex>
 class synchronized_queue : public synchronized_queue_base
 {
 public:
@@ -673,7 +699,7 @@ static void run_tests()
 
     {{
         std::cerr << "Testing queue...\n";
-        using queue_t = mt::synchronized_queue<long, mt::atomic_lock>;
+        using queue_t = mt::synchronized_queue<long, mt::lockables::atomic_lock>;
 
         // test duration/timeout with try_pop
         {{
