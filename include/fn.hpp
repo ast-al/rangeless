@@ -35,6 +35,7 @@
 #include <map>
 #include <deque> // can we get rid of this and implement in terms of ring-buffer?
 #include <string> // for to_string
+#include <iterator> // for std::inserter, MSVC
 #include <cassert>
 
 #if defined(DOXYGEN) || (defined(RANGELESS_FN_ENABLE_RUN_TESTS) && RANGELESS_FN_ENABLE_RUN_TESTS)
