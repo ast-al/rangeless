@@ -349,6 +349,7 @@ c++ -specific (in no particular order):
 - [pfultz2/linq](https://github.com/pfultz2/linq)
 - [boost.range](https://www.boost.org/doc/libs/1_67_0/libs/range/doc/html/index.html)
 - [cpplinq](https://archive.codeplex.com/?p=cpplinq)
+- [simonask/rx-ranges](https://github.com/simonask/rx-ranges)
 
 
 Recommended blogs:
