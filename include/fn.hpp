@@ -2879,7 +2879,9 @@ namespace impl
     // partially differentiates between the objects, and a two objects
     // that are equivalent according to the sort key don't necessarily
     // compare equal, and so we shouldn't be swapping their relative order.
-    template<typename F>
+    struct stable_sort_tag {};
+    struct unstable_sort_tag {};
+    template<typename F, typename SortTag = stable_sort_tag>
     struct sort_by
     {
         const F key_fn;
@@ -2898,14 +2900,29 @@ namespace impl
             // this will fire if Iterable is std::map, where value_type is std::pair<const Key, Value>,
             // which is not move-assignable because of constness.
             static_assert(std::is_move_assignable<typename Iterable::value_type>::value, "value_type must be move-assignable.");
-            auto op_less = [this](const typename Iterable::value_type& x, 
-                                  const typename Iterable::value_type& y)
-            {
-                return lt{}(key_fn(x), key_fn(y));
-            };
 
-            std::stable_sort(src.begin(), src.end(), op_less); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
+            s_sort( src, 
+                    [this](const typename Iterable::value_type& x, 
+                           const typename Iterable::value_type& y)
+                    {
+                        return lt{}(key_fn(x), key_fn(y));
+                    }
+                    , SortTag{});
+
             return src;
+        }
+
+    private:
+        template<typename Iterable, typename Comp>
+        static void s_sort(Iterable& src, Comp comp, stable_sort_tag)
+        {
+            std::stable_sort(src.begin(), src.end(), std::move(comp)); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
+        }
+
+        template<typename Iterable, typename Comp>
+        static void s_sort(Iterable& src, Comp comp, unstable_sort_tag)
+        {
+            std::sort(src.begin(), src.end(), std::move(comp)); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
         }
     };
 
@@ -4587,16 +4604,29 @@ namespace impl
     Buffering space requirements for `seq`: `O(N)`.
     */
     template<typename F>
-    impl::sort_by<F> sort_by(F key_fn)
+    impl::sort_by<F, impl::stable_sort_tag> sort_by(F key_fn)
     {
         return { std::move(key_fn) };
     }
 
     /// @brief `sort_by with key_fn = by::identity`
-    inline impl::sort_by<by::identity> sort()
+    inline impl::sort_by<by::identity, impl::stable_sort_tag> sort()
     {
         return { by::identity{} };
     }
+
+
+    template<typename F>
+    impl::sort_by<F, impl::unstable_sort_tag> unstable_sort_by(F key_fn)
+    {
+        return { std::move(key_fn) };
+    }
+
+    inline impl::sort_by<by::identity, impl::unstable_sort_tag> unstable_sort()
+    {
+        return { by::identity{} };
+    }
+
 
     /// @brief Unstable lazy sort.
     ///
@@ -5484,6 +5514,11 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % reverse()
         % fold;
         VERIFY(res == 54321);
+
+        res = make_inputs({3,2,4,1,5})
+        % unstable_sort()
+        % fold;
+        VERIFY(res == 12345);
     };
 
     tests["lazy_sort"] = [&]
