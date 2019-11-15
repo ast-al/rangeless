@@ -1605,6 +1605,20 @@ namespace impl
     {
         Container dest;
 
+        // pass-through if dest is empty and same type.
+        Container operator()(Container src) && // rvalue-specific because dest will be moved-from
+        {
+            if(dest.empty()) {
+                return std::move(src);
+            }
+
+            for(auto&& x : src) {
+                dest.insert(dest.end(), std::move(x));
+            }       
+            return std::move(dest);
+        }
+
+
         template<typename Iterable>
         Container operator()(Iterable src) && // rvalue-specific because dest will be moved-from
         {
