@@ -143,7 +143,7 @@ Some functions in this library internally buffer elements, as appropriate, with 
 
 ### Signaling `end-of-sequence` from a generator-function
 
-More often than not a generator-function that yields a sequence of values will not be an infinite Fibonacci sequence, but rather some bounded sequence of objects, either from a file, a socket, a database query, etc, so we need to be able to signal end-of-sequence. On way to do it is to yield elements wrapped in `std::unique_ptr` or `std::optional`:
+More often than not a generator-function that yields a sequence of values will not be an infinite Fibonacci sequence, but rather some bounded sequence of objects, either from a file, a socket, a database query, etc, so we need to be able to signal end-of-sequence. One way to do it is to yield elements wrapped in `std::unique_ptr` or `std::optional`:
 ```cpp
   fn::seq([]() -> std::unique_ptr<...> { ... })
 % fn::take_while([](const auto& x) { return bool(x); })
