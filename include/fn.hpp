@@ -2112,7 +2112,7 @@ namespace impl
 
                 auto ret = queue.front().get(); // this returns by-value
                 queue.pop_front();
-                return { ret };
+                return { std::move(ret) };
             }
         };
 
@@ -5189,10 +5189,10 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
     tests["transform_in_parallel"] = [&]
     {
         auto res = make_inputs({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
-        % fn::transform_in_parallel([](X x) { return std::to_string(x); }).queue_capacity(10)
-        % fn::foldl_d([](std::string out, std::string in)
+        % fn::transform_in_parallel([](X x) { return x; }).queue_capacity(10)
+        % fn::foldl_d([](std::string out, X in)
         {
-            return std::move(out) + "," + in;
+            return std::move(out) + "," + std::to_string(in);
         });
         VERIFY(res == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
 
