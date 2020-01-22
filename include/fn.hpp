@@ -1688,10 +1688,10 @@ namespace impl
     template<typename F>
     struct for_each
     {
-        F fn;
+        F fn; // may be non-const, hence operator()s are also non-const.
 
         template<typename Iterable>
-        void operator()(Iterable&& src) const
+        void operator()(Iterable&& src)
         {
             for(auto it = src.begin(); it != src.end(); ++it) {
                 fn(*it);
@@ -1714,7 +1714,7 @@ namespace impl
 
         // See NB[3]
         template<typename Gen>
-        void operator()(seq<Gen> src) const
+        void operator()(seq<Gen> src)
         {
             for(auto x = src.get_gen()(); x; x = src.get_gen()()) {
                 fn(std::move(*x));
@@ -3174,12 +3174,12 @@ namespace impl
         //
         // * Subranges depend on the lifetime of the parent.
         //
-        // * Subranges must be consumed entirely and in order.
+        // * Subranges must be consumed (iterated over) exactly once, entirely, and in order.
         //
         // * Not straightforward conversion to vector-of-vectors
         //    (can't simply convert to vector-of-subseqs, because see above).
         //    Calculation of type requires some recursive metafunction handwaving and recursive implicit conversions.
-       
+        //
 
         [ implementation deleted ]
 
@@ -5671,8 +5671,9 @@ static void run_tests()
 
     test_other["for_each"] = [&]
     {
+        // NB: making sure that for_each compiles with mutable lambdas
         int res = 0;
-        vec_t{{1,2,3}} % fn::for_each([&res](int& x)
+        vec_t{{1,2,3}} % fn::for_each([&res](int& x) mutable
         {
             res = res*10 + x;
         });
