@@ -3222,6 +3222,85 @@ namespace impl
 
 
     /////////////////////////////////////////////////////////////////////
+    template<typename F, typename BinaryPred = impl::eq>
+    struct group_adjacent_as_subseqs_by
+    {
+                 const F key_fn;
+        const BinaryPred pred2;
+
+        template<typename InGen>
+        struct gen
+        {
+              InGen in_gen;
+            const F key_fn;
+
+            using value_type = decltype(gen());
+
+            maybe<value_type> current;
+
+            // subgen for subseq - yield elements of the same group
+            struct subgen
+            {
+                gen* in_gen_ptr = nullptr; // need to hold by shared_ptr?
+                bool reached_next_group = false;
+
+                value_type operator()()
+                {
+                    if(!in_gen_ptr) {
+                        // subgen was default-constructed
+                        throw end_seq::exception{};
+                    }
+
+                    auto& curr = in_gen_ptr->current;
+
+                    if(   !curr  //final-end
+                       || reached_next_group) // current belongs to next group
+                    {
+                        throw end_seq::exception{};
+                    }
+
+                    // curr is member of the same-group
+
+                    try {
+                        auto next = in_gen_ptr->in_gen(); // may throw end-of-inputs
+
+                        reached_next_group = 
+                           !eq{}( in_gen_ptr->key_fn(*curr), 
+                                  in_gen_ptr->key_fn(next));
+
+                        auto ret = std::move(*curr);
+                        *curr = std::move(next);
+                        return std::move(ret);
+                        
+                    } catch( end_seq::exception ) {
+                        // reached end
+                        auto ret = std::move(*curr);
+                        curr.reset(); // will throw end::exception on the next call
+                        return std::move(ret);
+                    }
+                }
+            };
+
+            using subseq_t = seq<subgen>;
+
+            subseq_t operator()()
+            {
+                try {
+                    if(!current) {
+                        current.reset(gen());
+                    }
+                } catch( end_seq::exception ) {
+                    return fn::end_seq();
+                }
+                return subseq_t{ subgen{ this, false } };
+            }
+        };
+
+        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
+    };
+
+
+    /////////////////////////////////////////////////////////////////////
     // used for in_groups_of(n)
     struct chunker
     {
@@ -4564,6 +4643,28 @@ namespace impl
     {
         return { {}, std::move(pred2) };
     }
+
+    /////////////////////////////////////////////////////////////////////////
+
+    template<typename F>
+    impl::group_adjacent_as_subseqs_by<F> group_adjacent_as_subseqs_by(F key_fn)
+    {
+        return { std::move(key_fn), {} };
+    }
+
+    inline impl::group_adjacent_as_subseqs_by<by::identity> group_adjacent_as_subseqs()
+    {
+        return { by::identity{}, {} };
+    }
+
+    /// @brief Group adjacent elements if binary predicate holds.
+    template<typename BinaryPred>
+    impl::group_adjacent_as_subseqs_by<fn::by::identity, BinaryPred> group_adjacent_as_subseqs_if(BinaryPred pred2)
+    {
+        return { {}, std::move(pred2) };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
 
 
     /// @brief Group adjacent elements into chunks of specified size.
