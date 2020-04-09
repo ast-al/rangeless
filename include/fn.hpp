@@ -3231,72 +3231,70 @@ namespace impl
         template<typename InGen>
         struct gen
         {
-              InGen in_gen;
-            const F key_fn;
-
-            using value_type = decltype(gen());
-
-            maybe<value_type> current;
-
             // subgen for subseq - yield elements of the same group
             struct subgen
             {
-                gen* in_gen_ptr = nullptr; // need to hold by shared_ptr?
-                bool reached_next_group = false;
+                using value_type = typename InGen::value_type;
+                gen* parent;
 
-                value_type operator()()
+                maybe<value_type> operator()()
                 {
-                    if(!in_gen_ptr) {
-                        // subgen was default-constructed
-                        throw end_seq::exception{};
-                    }
-
-                    auto& curr = in_gen_ptr->current;
-
-                    if(   !curr  //final-end
-                       || reached_next_group) // current belongs to next group
-                    {
-                        throw end_seq::exception{};
-                    }
-
-                    // curr is member of the same-group
-
-                    try {
-                        auto next = in_gen_ptr->in_gen(); // may throw end-of-inputs
-
-                        reached_next_group = 
-                           !eq{}( in_gen_ptr->key_fn(*curr), 
-                                  in_gen_ptr->key_fn(next));
-
-                        auto ret = std::move(*curr);
-                        *curr = std::move(next);
-                        return std::move(ret);
-                        
-                    } catch( end_seq::exception ) {
-                        // reached end
-                        auto ret = std::move(*curr);
-                        curr.reset(); // will throw end::exception on the next call
-                        return std::move(ret);
-                    }
+                    assert(parent);
+                    return parent->next();
                 }
             };
 
-            using subseq_t = seq<subgen>;
+            /////////////////////////////////////////////////////////////////
 
-            subseq_t operator()()
+            using element_type = typename InGen::value_type;
+            using value_type = seq<subgen>;
+
+                          InGen in_gen;
+                        const F key_fn;
+               const BinaryPred pred2;   // returns true iff two elemens belong to same group
+            maybe<element_type> current; // current element of the current group
+                           bool reached_subend; 
+
+            /////////////////////////////////////////////////////////////////
+
+            maybe<element_type> next() // called from subgen::operator()()
             {
-                try {
-                    if(!current) {
-                        current.reset(gen());
-                    }
-                } catch( end_seq::exception ) {
-                    return fn::end_seq();
+                if(!current || reached_subend) {
+                    reached_subend = true;
+                    return {};
                 }
-                return subseq_t{ subgen{ this, false } };
+
+                auto next = in_gen();
+                reached_subend = !next || !pred2(key_fn(*current), key_fn(*next));
+                std::swap(current, next);
+                return std::move(next);
+            }
+            
+            maybe<value_type> operator()() // return seq for next group
+            {
+                if(!current) { // starting initial group
+                    current = in_gen();
+                } else {
+
+                    // NB: the user-code may have accessed the group only
+                    // partially (or not at all), in which case we must skip
+                    // over the rest elements in the group until we reach 
+                    // the next one.
+                    while(!reached_subend) {
+                        next();
+                    }
+                }
+
+                if(!current) { // reached final end
+                    return {};
+                }
+
+                reached_subend = false;
+                return { subgen{ this } };
             }
         };
 
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
+        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, pred2, {}, false )
     };
 
 
@@ -4645,7 +4643,27 @@ namespace impl
     }
 
     /////////////////////////////////////////////////////////////////////////
-
+    /// Group adjacent elements.
+    /// @see group_adjacent_by
+    ///
+    /// This is similar to group_adjacent_by, except the input must be a seq, 
+    /// and the result is a seq yielding subseqs of equivalent elements, rathen than vectors.
+    /// @code
+    ///     fn::seq(...) 
+    ///   % fn::group_adjacent_as_subseqs_by(key_fn) 
+    ///   % fn::for_each([&](auto group)
+    ///     {
+    ///         for(auto elem : group) {
+    ///             // ...
+    ///         }
+    ///     });
+    /// @endcode
+    ///
+    /// This is useful for cases where a subseq can be arbitrarily large, and you want
+    /// to process grouped elements on-the-fly without accumulating them in a vector.
+    //
+    /// This comes at the cost of more constrained functionality, since all groups and
+    /// all elements in each group can only be accessed once and in order.
     template<typename F>
     impl::group_adjacent_as_subseqs_by<F> group_adjacent_as_subseqs_by(F key_fn)
     {
@@ -5651,6 +5669,40 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % take_top_n(3)
         % fold;
         VERIFY(res == 345);
+    };
+
+    tests["group_adjacent_as_subseqs"] = [&]
+    {
+        int res = 0;
+
+        int group_num = 0;
+
+        make_inputs({1,2,2,3,3,3,4,5})
+      % fn::to_seq()
+      % fn::group_adjacent_as_subseqs()
+      % fn::for_each([&](auto subseq)
+        {
+            group_num++;
+            if(group_num == 4) {
+                return; // testing skipping a group without accessing it
+            }
+
+            size_t i = 0;
+            for(const auto x : subseq) {
+
+                // testing that things work as expected
+                // for partially-accessed groups leaving
+                // some elements unaccessed. Here we'll skip
+                // the last 3 in 333 subgroup.
+                if(i++ >= 2) {
+                    break;
+                }
+
+                res = res*10 + x;
+            }
+            res = res*10;
+        });
+        VERIFY(res == 1022033050);
     };
 
     tests["key_fn returning a reference_wrapper"] = [&]
