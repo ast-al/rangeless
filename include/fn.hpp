@@ -200,7 +200,8 @@ namespace impl
 
     template<typename F, typename G, typename... Rest>
     auto compose(F f, G g, Rest... fns)
-#if __cplusplus >= 201406L
+
+#if __cplusplus >= 201402L
       // in c++14 return-type is auto-deduced
 #elif 0 
       // This produces compilation error with 4 or more args 
@@ -3092,12 +3093,12 @@ namespace impl
                  const F key_fn;
         const BinaryPred pred2;
 
-#if 1
         /////////////////////////////////////////////////////////////////////
         // A simple version that accumulates equivalent-group in a vector, 
         // and yield vector_t. This makes it easy to deal-with (no seq-of
         // seqs), but it needs to allocate a return std::vector per-group.
         // (Edit: unless the use-case supports recycling (see below))
+        //
         template<typename InGen>
         struct gen
         {
@@ -3157,34 +3158,6 @@ namespace impl
 
         // view may be an InputRange, so treat as seq.
         RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, {} )
-#else
-        // Experimental implementation returning non-allocating 
-        // seq-of-subseqs instead of seq-of-vectors.
-        //
-        // After trying it out in various use-cases,
-        // decided against it, because while elegant in theory,
-        // it is not very useful and finnicky in practice 
-        // due to subrange single-passness (think of it as if
-        // an element of a collection could only be accessed 
-        // once), so nearly every time this necessitates a
-        // conversion to vector to be able to do "real work"
-        // (e.g. to reorder subranges).
-        //
-        // Also:
-        //
-        // * Subranges depend on the lifetime of the parent.
-        //
-        // * Subranges must be consumed (iterated over) exactly once, entirely, and in order.
-        //
-        // * Not straightforward conversion to vector-of-vectors
-        //    (can't simply convert to vector-of-subseqs, because see above).
-        //    Calculation of type requires some recursive metafunction handwaving and recursive implicit conversions.
-        //
-
-        [ implementation deleted ]
-
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
-#endif
 
         /////////////////////////////////////////////////////////////////////
         template<typename Cont>
@@ -3294,7 +3267,9 @@ namespace impl
             }
         };
 
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, pred2, {}, false )
+        RANGELESS_FN_OVERLOAD_FOR_SEQ(  key_fn, pred2, {}, false )
+        RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, false )
+        RANGELESS_FN_OVERLOAD_FOR_CONT( key_fn, pred2, {}, false )
     };
 
 
@@ -3578,18 +3553,6 @@ namespace impl
     {
         const F key_fn;
 
-#if 1
-        /*
-        Experimental lazy implementation for seq: keep a map of keys of seen elements
-        and skip if seen. We need to guard against the keys becoming dangling 
-        while in the map, e.g. if key_fn returns a type that is a reference, refence-wrapper,
-        or a value-type containing these (e.g. a tuple).
-
-        Can check against this by requiring the key-type to be default-constructible
-        (references, reference-wrappers, tuples-containing-references, etc. will not be).
-        Is this sufficient?
-        */
-
         template<typename InGen>
         struct gen
         {
@@ -3635,7 +3598,7 @@ namespace impl
         };
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
-#endif
+
 
         template<typename Iterable>
         auto operator()(Iterable src) const
@@ -4610,6 +4573,7 @@ namespace impl
         return { by::identity{} };
     }
 
+    /////////////////////////////////////////////////////////////////////////
 
     /// @brief Group adjacent elements.
     /// @see group_all_by
@@ -4630,10 +4594,46 @@ namespace impl
         return { std::move(key_fn), {} };
     }
 
+    /////////////////////////////////////////////////////////////////////////
+    /// @brief Group adjacent elements.
+    ///
+    /// This is similar to regular `group_adjacent_by`, except the result type
+    /// is a seq yielding subseqs of equivalent elements, rathen than vectors.
+    /// @code
+    ///     fn::seq(...) 
+    ///   % fn::group_adjacent_by(key_fn, fn::to_seq()) 
+    ///   % fn::for_each([&](auto group_seq) 
+    ///     {
+    ///         for(auto elem : group_seq) {
+    ///             // ...
+    ///         }
+    ///     });
+    /// @endcode
+    ///
+    /// This is useful for cases where a subseq can be arbitrarily large, and you want
+    /// to process grouped elements on-the-fly without accumulating them in a vector.
+    ///
+    /// This comes at the cost of more constrained functionality, since all groups and
+    /// all elements in each group can only be accessed once and in order.
+    template<typename F>
+    impl::group_adjacent_as_subseqs_by<F> group_adjacent_by(F key_fn, impl::to_seq)
+    {
+        return { std::move(key_fn), {} };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+
     inline impl::group_adjacent_by<by::identity> group_adjacent()
     {
         return { by::identity{}, {} };
     }
+
+    inline impl::group_adjacent_as_subseqs_by<by::identity> group_adjacent(impl::to_seq)
+    {
+        return { by::identity{}, {} };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
 
     /// @brief Group adjacent elements if binary predicate holds.
     template<typename BinaryPred>
@@ -4642,42 +4642,9 @@ namespace impl
         return { {}, std::move(pred2) };
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Group adjacent elements.
-    /// @see group_adjacent_by
-    ///
-    /// This is similar to group_adjacent_by, except the input must be a seq, 
-    /// and the result is a seq yielding subseqs of equivalent elements, rathen than vectors.
-    /// @code
-    ///     fn::seq(...) 
-    ///   % fn::group_adjacent_as_subseqs_by(key_fn) 
-    ///   % fn::for_each([&](auto group)
-    ///     {
-    ///         for(auto elem : group) {
-    ///             // ...
-    ///         }
-    ///     });
-    /// @endcode
-    ///
-    /// This is useful for cases where a subseq can be arbitrarily large, and you want
-    /// to process grouped elements on-the-fly without accumulating them in a vector.
-    //
-    /// This comes at the cost of more constrained functionality, since all groups and
-    /// all elements in each group can only be accessed once and in order.
-    template<typename F>
-    impl::group_adjacent_as_subseqs_by<F> group_adjacent_as_subseqs_by(F key_fn)
-    {
-        return { std::move(key_fn), {} };
-    }
-
-    inline impl::group_adjacent_as_subseqs_by<by::identity> group_adjacent_as_subseqs()
-    {
-        return { by::identity{}, {} };
-    }
-
     /// @brief Group adjacent elements if binary predicate holds.
     template<typename BinaryPred>
-    impl::group_adjacent_as_subseqs_by<fn::by::identity, BinaryPred> group_adjacent_as_subseqs_if(BinaryPred pred2)
+    impl::group_adjacent_as_subseqs_by<fn::by::identity, BinaryPred> group_adjacent_if(BinaryPred pred2, impl::to_seq)
     {
         return { {}, std::move(pred2) };
     }
@@ -5671,17 +5638,19 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         VERIFY(res == 345);
     };
 
+
+#if __cplusplus >= 201402L
     tests["group_adjacent_as_subseqs"] = [&]
     {
         int res = 0;
-
         int group_num = 0;
 
         make_inputs({1,2,2,3,3,3,4,5})
-      % fn::to_seq()
-      % fn::group_adjacent_as_subseqs()
+      % fn::group_adjacent(fn::to_seq())
       % fn::for_each([&](auto subseq)
         {
+            //subseq.size();  // sanity-check: this should not compile, because type is seq<...>
+
             group_num++;
             if(group_num == 4) {
                 return; // testing skipping a group without accessing it
@@ -5702,8 +5671,11 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
             }
             res = res*10;
         });
+
         VERIFY(res == 1022033050);
     };
+#endif
+
 
     tests["key_fn returning a reference_wrapper"] = [&]
     {
