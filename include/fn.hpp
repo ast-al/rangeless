@@ -2062,9 +2062,8 @@ namespace impl
              const size_t queue_cap;
 
             // TODO: with some handwaving may be able to use std::vector
-            using fmapped_t  = decltype(map_fn(std::move(*gen())));
-            using value_type = fmapped_t;
-            using queue_t    = std::deque<std::future<fmapped_t>>;
+            using value_type = decltype(map_fn(std::move(*gen())));
+            using queue_t    = std::deque<std::future<value_type>>;
 
                   queue_t queue;
 
@@ -2081,7 +2080,7 @@ namespace impl
                     }
                 }
 
-                struct job_t // wrapper for passing inp to fn by-move
+                struct job_t // wrapper for invoking fn on inp, passed by move
                 {
                     using input_t = typename InGen::value_type;
 
@@ -2102,9 +2101,7 @@ namespace impl
                         break;
                     }
 
-                    queue.emplace_back(
-                                 async(
-                                 job_t{ map_fn, std::move(*x) }));
+                    queue.emplace_back( async( job_t{ map_fn, std::move(*x) }));
                 }
 
                 if(queue.empty()) {
@@ -2122,9 +2119,10 @@ namespace impl
     };
 #endif
 
+    /////////////////////////////////////////////////////////////////////
+
 #if 0
     Note: leaving the original implementation for reference.
-    /////////////////////////////////////////////////////////////////////
     template<typename F>
     struct adapt
     {
@@ -2237,7 +2235,7 @@ namespace impl
         RANGELESS_FN_OVERLOAD_FOR_CONT( fn, {}, false )
     };
 
-#endif
+#endif // adapt
    
     /////////////////////////////////////////////////////////////////////
     template<typename Pred>
@@ -2531,7 +2529,7 @@ namespace impl
         Cont operator()(const Cont& cont) const
         {
             Cont ret{};
-            auto pred_copy = pred;
+            auto pred_copy = pred; // in case copy_if needs non-const access 
             std::copy_if(cont.begin(),
                          cont.end(), 
                          std::inserter(ret, ret.end()), 
@@ -2584,7 +2582,7 @@ namespace impl
         // High-priority overload for containers where can call remove_if.
         template<typename Cont>
         auto x_EraseFrom(Cont& cont, pr_high) const -> decltype(void(cont.front()))
-        {
+        {                                                         // ^^^^^^^^^^ discussion below
             // This overload must be made unpalatable to SFINAE unless 
             // std::remove_if is viable for Cont, e.g. feature-checking
             // as follows:
@@ -2596,9 +2594,9 @@ namespace impl
             //     -> decltype(void( *cont.begin() = std::move(*cont.begin()) ))
             //  or -> decltype(std::swap(*cont.begin(), *cont.begin()))
             //
-            // However, SFINAE still considers this overload viable for std::map
-            // even though map's value_type is not move-assignable, (due to key being const);
-            // i.e. the lines below should not and would not compile.
+            // For a std::map, even though map's value_type is not move-assignable, 
+            // (due to key being const, the lines below should not and would not compile, 
+            // and yet SFINAE still considers this overload viable (??)
             //
             //     std::remove(cont.begin(), cont.end(), *cont.begin());
             //     *cont.begin() = std::move(*cont.begin());
@@ -2611,7 +2609,8 @@ namespace impl
             // https://en.cppreference.com/w/cpp/named_req/SequenceContainer
             //
             // Update: This is no longer an issue with newer compilers, so this must have been
-            // a compiler bug. However, Leaving the cont.front() check in place for now.
+            // a compiler bug. However, Leaving the cont.front() check in place for now
+            // to support older compilers.
 
             x_EraseRemove(cont); 
         }
@@ -2710,8 +2709,6 @@ namespace impl
 
             return ret;
         }
-
-
 
         /////////////////////////////////////////////////////////////////
         template<typename Cont,
@@ -4598,11 +4595,11 @@ namespace impl
     /// @brief Group adjacent elements.
     ///
     /// This is similar to regular `group_adjacent_by`, except the result type
-    /// is a seq yielding subseqs of equivalent elements, rathen than vectors.
+    /// is a seq yielding subseqs of equivalent elements, rather than vectors.
     /// @code
     ///     fn::seq(...) 
     ///   % fn::group_adjacent_by(key_fn, fn::to_seq()) 
-    ///   % fn::for_each([&](auto group_seq) 
+    ///   % fn::for_each([&](auto group_seq) // type of group_seq is a seq<...> instead of vector<...>
     ///     {
     ///         for(auto elem : group_seq) {
     ///             // ...
