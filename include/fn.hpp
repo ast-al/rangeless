@@ -66,164 +66,11 @@ namespace fn
 
 namespace impl
 {
-
-#if 0 // don't need this any longer
-    //https://en.cppreference.com/w/cpp/types/remove_cvref
-    template< class T >
-    struct remove_cvref
-    {
-        using type = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-    };
-    template< class T >
-    using remove_cvref_t = typename remove_cvref<T>::type;
-#endif
-
     // A trick to make compiler produce a compilation error printing the expanded type.
     // Usage: TheTypeInQuestionIs<T>{}; or TheTypeInQuestionIs<decltype(expr)>{};
     // The compiler output will have ... TheTypeInQuestionIs<int> ...
     //                                                       ^^^ computed type
     template<typename...> struct TheTypeInQuestionIs;
-
-#if 0
-
-    /*
-    Could implement fn::compose(...) to support point-free composition, e.g.
-
-    // before:
-    static auto my_unique_all_by = [](auto key_fn)
-    {
-        return [key_fn = std::move(key_fn)](auto inputs)
-        {
-            return std::move(inputs)
-          % fn::sort_by(key_fn)
-          % fn::unique_adjacent_by(key_fn);
-        };
-    };
-
-    // after:
-    static auto my_unique_all_by = [](auto key_fn)
-    {
-        return fn::compose(
-            fn::sort_by(key_fn)
-          , fn::unique_adjacent_by(key_fn));
-    };
-
-    Similarly, we could make fn::transform(...) variadic, e.g.
-
-    // before
-    fn::transform([](alns_t alns_for_gene) -> alns_t
-    {   
-        return std::move(alns_for_gene)
-      % my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
-        {   
-            return a.mrna_id.first;
-        })  
-      % fn::transform(
-              my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
-      % fn::concat(); // un-group
-    }) 
-
-    // after (composes the variadic args)
-    fn::transform(
-        my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
-        {   
-            return a.mrna_id.first;
-        })  
-      , fn::transform(
-            my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
-      , fn::concat() // un-group
-    ) 
-    */
-
-    // Most of the aln_filter.cpp can be rewritten in terms of 
-    // fn::compose, but looking at the diff of the code I'm not
-    // convinced this provides a lot of added value, although it
-    // obviates the need in operator%.
-    //
-    // With operator % we are passing results from one function to
-    // another through a chain of invocations. 
-    // With fn::compose we are creating a "template centipede" instead.
-    //
-    // Also, with point-free approach we can't specify
-    // input and output types and can't give it a name 
-    // to the input, so even though point-free is shorter,
-    // it is not necessarily easier to reason about.
-    //
-    // Disabling for now; may rething later.
-
-    /////////////////////////////////////////////////////////////////////////
-    template<typename F, typename G>
-    struct composed
-    {
-        F f;
-        G g;
-
-        template<typename X>
-        auto operator()(X&& x) & -> decltype(g(f(std::forward<X>(x))))
-        {
-            return g(f(std::forward<X>(x)));
-        }
-
-        // some operations can be rvalue-specific, e.g. foldl::operator()
-        template<typename X>
-        auto operator()(X&& x) && -> decltype(std::move(g)(std::move(f)(std::forward<X>(x))))
-        {
-            return std::move(g)(std::move(f)(std::forward<X>(x)));
-        }
-    };
-
-    /////////////////////////////////////////////////////////////////////////
-
-    template<typename... T>
-    struct composed_type_builder;
-
-    template<typename F, typename G>
-    struct composed_type_builder<F, G>
-    {
-        using type = impl::composed<F, G>;
-    };
-
-    template<typename F, typename G, typename... Rest>
-    struct composed_type_builder<F, G, Rest...>
-    {
-        using type = typename composed_type_builder<impl::composed<F, G>, Rest...>::type;
-    };
-
-    /////////////////////////////////////////////////////////////////////////
-}
-
-    template<typename F, typename G>
-    auto compose(F f, G g) -> impl::composed<F, G>
-    {
-        return { std::move(f), std::move(g) };
-    }
-
-    template<typename F, typename G, typename... Rest>
-    auto compose(F f, G g, Rest... fns)
-
-#if __cplusplus >= 201402L
-      // in c++14 return-type is auto-deduced
-#elif 0 
-      // This produces compilation error with 4 or more args 
-      // (e.g. my::where_min_by in aln_filter.cpp). Not sure why.
-      -> decltype(compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...))
-#else
-      // As a work-around, will compute the type manually using composed_type_builder metafunction
-      -> typename impl::composed_type_builder<F, G, Rest...>::type
-#endif
-    {
-        return compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...);
-    }
-
-    // Related: https://github.com/Dobiasd/FunctionalPlus/blob/master/include/fplus/internal/composition.hpp
-    // Related: https://github.com/boostorg/hof/blob/develop/include/boost/hof/flow.hpp
-    // (no idea what's going on there).
-
-namespace impl
-{
-
-
-#endif
 
     template<typename IteratorTag, typename Iterable>
     static inline void require_iterator_category_at_least(const Iterable&)
@@ -370,9 +217,6 @@ namespace impl
 #endif
         }
 
-
-
-
 #if 0
         // this causes internal compiler error in MSVC
         template<typename F>
@@ -391,118 +235,6 @@ namespace impl
             reset();
         }
     };
-
-
-#if 0
-    // in the future will get rid of <deque> dependency
-    // and will use our own simple bounded queue.
-    template<typename T>
-    class queue
-    {
-    public:
-        queue(size_t capacity)
-           : m_capacity{ capacity }
-        {
-            m_data.reserve(capacity);
-        }
-
-        void push(T x)
-        {
-            if(m_beg + m_capacity >= m_end) {
-                RANGELESS_FN_THROW("Queue is full");
-
-            } else if(m_data.size() < m_capacity) {
-                m_data.push_back(std::move(x));
-                ++m_end;
-
-            } else {
-                m_data[m_end++ % m_capacity] = std::move(x);
-            }
-        }
-
-        T pop()
-        {
-            if(m_beg >= m_end) {
-                RANGELESS_FN_THROW("Queue is empty");
-            }
-            return std::move(m_data[m_beg++ % m_capacity]);
-        }
-
-        size_t size() const
-        {
-            return m_end - m_beg;
-        }
-
-        bool empty() const
-        {
-            return m_beg == m_end;
-        }
-
-        std::vector<T> as_vec() &&
-        {   
-            // rotate the elements to put oldest at front
-            return m_data;
-        }
-
-        class iterator
-        {
-        public:
-            using iterator_category = std::random_access_iterator_tag;
-            using   difference_type = ptrdiff_t;
-            using        value_type = T;
-            using           pointer = value_type*;
-            using         reference = value_type&;
-
-            iterator();
-            iterator(const iterator&) = default;
-            iterator& operator=(const iterator&) = default;
-
-            pointer   operator->() const;
-            reference operator*() const;
-
-            iterator& operator++();
-            iterator  operator++(int);
-
-            iterator& operator--();
-            iterator  operator--(int);
-
-            iterator& operator+=(difference_type n)
-            {
-                assert(m_pos + n <= m_parent.m_end);
-                m_pos += n;
-                return *this;
-            }
-
-            iterator& operator-=(difference_type n)
-            {
-                assert(m_beg + n <= m_pos);
-                m_pos -= n;
-                return *this;
-            }
-
-            iterator operator+(difference_type n) const;
-            iterator operator-(difference_type n) const;
-
-            bool operator==(const iterator& other) const;
-            bool operator!=(const iterator& other) const;
-            bool operator<(const iterator& other) const;
-
-        private:
-            queue& m_parent;
-            size_t m_pos;
-        };
-
-
-    private:
-        using vec_t = std::vector<T>;
-
-          const size_t m_capacity;
-                size_t m_beg = 0;
-                size_t m_end = 0;
-        std::vector<T> m_data = {};
-    };
-#endif
-
 
     /////////////////////////////////////////////////////////////////////////////
     // Will be used to control SFINAE priority of ambiguous overload resolutions.
@@ -532,80 +264,6 @@ namespace impl
     @endcode
     */
     /// @{
-
-
-#if 0
-    // Disabling for now until I think this through and decide whether we need it at all.
-    //
-    // Related: https://www.fluentcpp.com/2017/11/24/how-to-use-the-stl-in-legacy-code/
-
-    /////////////////////////////////////////////////////////////////////////
-    // adapter for unary sink-functions
-    template<typename SinkFn>
-    class output_iterator
-    {
-    public:
-        using iterator_category = std::output_iterator_tag;
-        using   difference_type = void;
-        using        value_type = void;
-        using           pointer = void;
-        using         reference = void;
-        
-        output_iterator& operator++() { return *this; }
-        output_iterator& operator*()  { return *this; }
-
-        template<typename T>
-        output_iterator& operator=(T&& inp)
-        {
-            (*sink)(std::forward<T>(inp));
-            return *this;
-        }
-
-#if 0
-        // In MSVC lambdas are copy-constructible but not copy-assignable,
-        // so copy-assignment is implicitly deleted because of SinkFn field.
-        //
-        // std::copy in MSVC relies on output-iterator being copy-assignable
-        // under the hood, so we need to implement copy-assignment via 
-        // placement-new. I'm not 100% sure this is legit, however.
-        output_iterator& operator=(const output_iterator& other)
-        {
-            if(this != &other) {
-                sink.~sink();
-                new (&sink) SinkFn(other.sink);
-            }
-            return *this;
-        }
-        output_iterator(const output_iterator&) = default;
-
-                   output_iterator(output_iterator&&) = default;
-        output_iterator& operator=(output_iterator&&) = default;
-
-        // By the way, I looked at <boost/function_output_iterator.hpp>.
-        // It just holds SinkFn by value and suffers from the same issue,
-        // (since 2001) https://godbolt.org/z/-5ORiK
-#else
-        // Thinking more about it, I think just holding sink_fn by
-        // shared_ptr is a better approach, having all copies 
-        // of the output_iterator refer to the same sink object.
-        // 
-        // requires #include <memory>, adding 0.05s to #includes-overhead,
-        // which is heavy-ish.
-
-        std::shared_ptr<SinkFn> sink;
-#endif
-    };
-
-    /// Adapt unary sink-function as output iterator. @see generate
-    template<typename SinkFn>
-    static output_iterator<SinkFn> make_output_iterator(SinkFn sink_fn)
-    {
-        return { std::make_shared<SinkFn>( std::move(sink_fn) ) };
-    }
-#endif
-
-
-
 
     /////////////////////////////////////////////////////////////////////////
     /// @brief Return fn::end_seq() from input-range generator function to signal end-of-inputs.
@@ -790,7 +448,7 @@ namespace impl
                    seq(const seq&) = delete;
         seq& operator=(const seq&) = delete;
 
-                        seq(seq&&) = default;
+                        seq(seq&&) = default; // TODO: need to customize to set other.m_ended = other.m_started = true?
              seq& operator=(seq&&) = default;
 
         /////////////////////////////////////////////////////////////////////
