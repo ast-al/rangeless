@@ -40,6 +40,7 @@
 
 #if defined(DOXYGEN) || (defined(RANGELESS_FN_ENABLE_RUN_TESTS) && RANGELESS_FN_ENABLE_RUN_TESTS)
 #    define RANGELESS_FN_ENABLE_PARALLEL 1
+#    define RANGELESS_FN_ENABLE_LINE_READER 1
 #endif
 
 // cost of #include <fn.hpp> without par-transform: 0.45s; with: 0.85s, so will disable by default
@@ -4815,6 +4816,147 @@ namespace operators
 
 } // namespace rangeless
         
+#if RANGELESS_FN_ENABLE_LINE_READER
+
+#include <string>
+#include <iostream>
+
+namespace rangeless
+{
+namespace fn
+{
+    struct line_reader
+    {
+        enum class skip_comments_t{ no, yes };
+        enum class    skip_empty_t{ no, yes };
+
+          std::istream& m_istr;
+        skip_comments_t m_skip_comments = skip_comments_t::yes;
+           skip_empty_t m_skip_empty    = skip_empty_t::yes;
+            std::string m_line          = {};
+
+        auto operator()() -> std::reference_wrapper<const std::string>
+        {
+            if(!m_istr) {
+                throw std::runtime_error("Stream is not in good state before reading");
+            }
+
+            m_line.clear();
+            while(std::getline(m_istr, m_line)) {
+
+                if(!m_line.empty() && m_line.back() == '\r') {
+                    m_line.pop_back();
+                }
+
+                if( (bool(m_skip_empty)    &&  m_line.empty())
+                 || (bool(m_skip_comments) && !m_line.empty() &&  m_line[0] == '#'))
+                {
+                    m_line.clear();
+                    continue;
+                }
+
+                return { m_line };
+            }
+
+            if(m_istr.bad() || (m_istr.fail() && !m_istr.eof())) {
+                throw std::runtime_error("Stream terminated abnormally");
+            } else {
+                rangeless::fn::end_seq();
+            }
+
+            return { m_line };
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+
+    struct split_on_delim
+    {
+        enum class truncate_blanks_t{ no, yes };
+        using row_t = std::vector<std::string>;
+
+                    const char m_delim            = '\t';
+        const truncate_blanks_t m_truncate_blanks = truncate_blanks_t::yes;
+                          row_t m_row             = {};
+
+        // To prevent unnecasary allocatinos, instead of returning row_t,
+        // we return a reference-wrapper, and reuse the allocated storage
+        // in m_row.
+
+        auto operator()(const std::string& line) -> std::reference_wrapper<const row_t>
+        {
+            m_row.resize(1 + std::count(line.begin(), line.end(), m_delim));
+
+            size_t i = 0;
+            auto capture_next = [&](size_t b, size_t e)
+            {
+                if(e == std::string::npos) {
+                    e = line.size();
+                }
+
+                if(bool(m_truncate_blanks)) {
+                    while(b < e && std::isspace(line[b])) {
+                        ++b;
+                    }
+                    while(b < e && std::isspace(line[e-1])) {
+                        --e;
+                    }
+                }
+
+                m_row[i++].assign(line, b, e - b);
+            };
+
+            size_t start_pos = 0;
+            while(true) {
+                size_t end_pos = line.find(m_delim, start_pos);
+                capture_next(start_pos, end_pos);
+                if(end_pos == std::string::npos) {
+                    break;
+                } else {
+                    start_pos = end_pos + 1;
+                }
+            }
+
+            return { m_row };
+        }
+    };
+
+#if __cplusplus >= 201402L
+
+    /// @brief Read tab-separated-values from stream.
+    /*!
+    @code
+    std::string result = "";
+    std::istringstream istr{"foo\n#comment\n\n\n  bar  \tbaz\n"};
+
+    // in c++11: fn::seq(line_reader{ istr }) % fn::transform(split_on_delim{ '\t' }) % fn::for_each(...);
+
+    for(const std::vector<std::string>& row : tsv_reader(istr)) {
+        for(const auto& f : row) {
+            result += f;
+            result += "|";
+        }
+        result += ";";
+    });
+
+    VERIFY(result == "foo|;bar|baz|;");
+    @endcode
+    */
+    inline auto tsv_reader(std::istream& istr, char delim = '\t')
+    {
+        return transform(split_on_delim{ delim })( seq(line_reader{ istr }) );
+    }
+
+#endif
+
+} // namespace fn
+
+} // namespace rangeless
+
+
+
+#endif
+
 
 
 #if RANGELESS_FN_ENABLE_RUN_TESTS
@@ -5351,6 +5493,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         auto res = make_inputs({2,3,1,2}) % fn::to(std::set<int>{}) % fold;
         VERIFY(res == 123);
     };
+
 
     /////////////////////////////////////////////////////////////////////////
 #endif
@@ -6027,6 +6170,31 @@ static void run_tests()
         
         VERIFY((res == vec_t{{13, 22, 31}}));
     };
+
+
+    test_other["line_reader"] = [&]
+    {
+        std::string result = "";
+        std::istringstream istr{"foo\n#comment\n\n\n  bar  \tbaz\n"};
+
+#if __cplusplus >= 201402L
+        fn::tsv_reader(istr)
+#else
+        fn::seq(line_reader{ istr })
+      % fn::transform(split_on_delim{ '\t' }) 
+#endif
+      % fn::for_each([&](const std::vector<std::string>& row)
+        {
+            for(const auto& f : row) {
+                result += f;
+                result += "|";
+            }
+            result += ";";
+        });
+
+        VERIFY(result == "foo|;bar|baz|;");
+    };
+
 
 
 #endif // single-test vs all
