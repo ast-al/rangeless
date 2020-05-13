@@ -350,6 +350,7 @@ c++ -specific (in no particular order):
 - [boost.range](https://www.boost.org/doc/libs/1_67_0/libs/range/doc/html/index.html)
 - [cpplinq](https://archive.codeplex.com/?p=cpplinq)
 - [simonask/rx-ranges](https://github.com/simonask/rx-ranges)
+- [arximboldi/zug](https://github.com/arximboldi/zug)
 
 
 Recommended blogs:
