@@ -4823,48 +4823,108 @@ namespace operators
 
 namespace rangeless
 {
-namespace fn
+namespace tsv_reader
 {
-    struct line_reader
+    struct params
     {
-        enum class skip_comments_t{ no, yes };
-        enum class    skip_empty_t{ no, yes };
+        std::string header = "";    // If specified, throw unless encountered in data before first data-line (non-empty, non-comment)
+                                    // Used to check that the file content corresponds to the program's expectations.
+                                    // Skipped, even if !skip_comments.
+                                    // e.g.    "# Schema 1.23" 
+                                    //   or    "#Col1 name\tCol2 name"
+                                    //   or    "Col1 name\tCol2 name"
 
-          std::istream& m_istr;
-        skip_comments_t m_skip_comments = skip_comments_t::yes;
-           skip_empty_t m_skip_empty    = skip_empty_t::yes;
-            std::string m_line          = {};
+        std::string filename  = "";    // Report filename in exception messages.
+                                        
+        bool skip_comments    = true;  // Skip lines starting with '#'.
+        bool truncate_blanks  = true;  // Truncate leading and trailing spaces.
+        bool skip_empty       = true;  // Skip lines that are empty (checked after truncate_blanks is applied).
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+
+    class line_reader
+    {
+    public: 
+        line_reader(std::istream& istr, params p = params{})
+            :   m_istr{ istr }
+            , m_params{ std::move(p) }
+        {}
 
         auto operator()() -> std::reference_wrapper<const std::string>
         {
             if(!m_istr) {
-                throw std::runtime_error("Stream is not in good state before reading");
+                throw std::runtime_error("Stream " + m_params.filename + " is not in good state before reading.");
             }
 
             m_line.clear();
-            while(std::getline(m_istr, m_line)) {
-
-                if(!m_line.empty() && m_line.back() == '\r') {
-                    m_line.pop_back();
-                }
-
-                if( (bool(m_skip_empty)    &&  m_line.empty())
-                 || (bool(m_skip_comments) && !m_line.empty() &&  m_line[0] == '#'))
-                {
-                    m_line.clear();
-                    continue;
-                }
-
+            while(std::getline(m_istr, m_line))
+                if(x_prepare())
+            {
                 return { m_line };
             }
 
             if(m_istr.bad() || (m_istr.fail() && !m_istr.eof())) {
-                throw std::runtime_error("Stream terminated abnormally");
+                throw std::runtime_error("Stream " + m_params.filename + " terminated abnormally.");
             } else {
                 rangeless::fn::end_seq();
             }
 
             return { m_line };
+        }
+
+    private:
+        std::istream& m_istr;
+         const params m_params;
+                 bool m_found_header = false;
+          std::string m_line         = "";
+
+        // preprocess the line and return true iff returnable
+        bool x_prepare()
+        {
+            if(!m_line.empty() && m_line.back() == '\r') {
+                m_line.pop_back();
+            }
+
+            const bool is_comment = !m_line.empty() && m_line[0] == '#';
+
+            if(    !m_params.header.empty()
+                && !m_found_header
+                && m_line == m_params.header)
+            {
+                m_found_header = true;
+                return false;
+            }
+
+            if(m_params.truncate_blanks) {
+                while(!m_line.empty() && std::isspace(m_line.back())) {
+                    m_line.pop_back();
+                }
+
+                size_t i = 0;
+                while(i < m_line.size() && std::isspace(m_line[i])) {
+                    ++i;
+                }
+                m_line.erase(0, i);
+            }
+
+            if( (m_params.skip_empty    &&  m_line.empty())
+             || (m_params.skip_comments && !m_line.empty() && m_line[0] == '#'))
+            {
+                m_line.clear();
+                return false;
+            }
+
+            if(    !m_line.empty() && !is_comment // data-line
+                && !m_params.header.empty() && !m_found_header) // did not find expected header-line
+            {
+                throw std::runtime_error(
+                        "Did not find expected header: '" 
+                       + m_params.header + "'" 
+                      + (m_params.filename.empty() ? "" : ( " in file: " + m_params.filename)));
+            }
+
+            return true;
         }
     };
 
@@ -4872,12 +4932,11 @@ namespace fn
 
     struct split_on_delim
     {
-        enum class truncate_blanks_t{ no, yes };
         using row_t = std::vector<std::string>;
 
-                    const char m_delim            = '\t';
-        const truncate_blanks_t m_truncate_blanks = truncate_blanks_t::yes;
-                          row_t m_row             = {};
+        const char m_delim           = '\t';
+        const bool m_truncate_blanks = true;
+             row_t m_row             = {};
 
         // To prevent unnecasary allocatinos, instead of returning row_t,
         // we return a reference-wrapper, and reuse the allocated storage
@@ -4894,13 +4953,11 @@ namespace fn
                     e = line.size();
                 }
 
-                if(bool(m_truncate_blanks)) {
-                    while(b < e && std::isspace(line[b])) {
-                        ++b;
-                    }
-                    while(b < e && std::isspace(line[e-1])) {
-                        --e;
-                    }
+                while(m_truncate_blanks && b < e && std::isspace(line[b])) {
+                    ++b;
+                }
+                while(m_truncate_blanks && b < e && std::isspace(line[e-1])) {
+                    --e;
                 }
 
                 m_row[i++].assign(line, b, e - b);
@@ -4908,8 +4965,10 @@ namespace fn
 
             size_t start_pos = 0;
             while(true) {
-                size_t end_pos = line.find(m_delim, start_pos);
+                const size_t end_pos = line.find(m_delim, start_pos);
+
                 capture_next(start_pos, end_pos);
+
                 if(end_pos == std::string::npos) {
                     break;
                 } else {
@@ -4942,14 +5001,15 @@ namespace fn
     VERIFY(result == "foo|;bar|baz|;");
     @endcode
     */
-    inline auto tsv_reader(std::istream& istr, char delim = '\t')
+    inline auto make(std::istream& istr, char delim = '\t', params params = {})
     {
-        return transform(split_on_delim{ delim })( seq(line_reader{ istr }) );
+        return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
+                     fn::seq(    line_reader{ istr,  std::move(params) }) );
     }
 
 #endif
 
-} // namespace fn
+} // namespace tsv_reader
 
 } // namespace rangeless
 
@@ -6175,13 +6235,13 @@ static void run_tests()
     test_other["line_reader"] = [&]
     {
         std::string result = "";
-        std::istringstream istr{"foo\n#comment\n\n\n  bar  \tbaz\n"};
+        std::istringstream istr{"Expected Header\n r1f1 \n#Comment: next line is empty, and next one is blanks\n\n  \n r2f1  \tr2f2\t  r2f3  "};
 
-#if __cplusplus >= 201402L
-        fn::tsv_reader(istr)
+#if 1 //__cplusplus >= 201402L
+        tsv_reader::make(istr, '\t', { "Expected Header", "filename" })
 #else
-        fn::seq(line_reader{ istr })
-      % fn::transform(split_on_delim{ '\t' }) 
+        fn::seq( tsv_reader::line_reader{ istr, { "Expected Header" } } )
+      % fn::transform( tsv_reader::split_on_delim{ '\t' } ) 
 #endif
       % fn::for_each([&](const std::vector<std::string>& row)
         {
@@ -6192,7 +6252,7 @@ static void run_tests()
             result += ";";
         });
 
-        VERIFY(result == "foo|;bar|baz|;");
+        VERIFY(result == "r1f1|;r2f1|r2f2|r2f3|;");
     };
 
 
