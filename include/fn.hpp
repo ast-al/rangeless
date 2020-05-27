@@ -40,7 +40,7 @@
 
 #if defined(DOXYGEN) || (defined(RANGELESS_FN_ENABLE_RUN_TESTS) && RANGELESS_FN_ENABLE_RUN_TESTS)
 #    define RANGELESS_FN_ENABLE_PARALLEL 1
-#    define RANGELESS_FN_ENABLE_TSV_READER 1
+#    define RANGELESS_ENABLE_TSV 1
 #endif
 
 // cost of #include <fn.hpp> without par-transform: 0.45s; with: 0.85s, so will disable by default
@@ -4816,25 +4816,25 @@ namespace operators
 
 } // namespace rangeless
         
-#if RANGELESS_FN_ENABLE_TSV_READER
+#if RANGELESS_ENABLE_TSV
 
 #include <string>
 #include <iostream>
 
 namespace rangeless
 {
-namespace tsv_reader
+namespace tsv
 {
     struct params
     {
+        std::string header = "";    
         // If specified, throw unless it is encountered verbatim in data before first data-row.
         // Used for checking that the file content corresponds to the program's expectations.
         // Skipped, even if skip_comments = false.
         //
-        //  e.g. "#Col1 name\tCol2 name" - Column names are in a comment before the data rows.
-        //   or  "Col1 name\tCol2 name"  - Column names are in the first data-row.
-        //   or  "# TSV of COVID-19 cases by zip-code, (schema 1.3)" - some arbitrary comment. 
-        std::string header = "";    
+        //  e.g. "#Col1 name\tCol2 name"  - Column names are in a comment before the data rows.
+        //   or  "Col1 name\tCol2 name"   - Column names are in the first data-row.
+        //   or  "# File descriptor 42"   - some arbitrary comment. 
 
         std::string filename  = "";    // Report filename in exception messages.
                                         
@@ -4845,10 +4845,10 @@ namespace tsv_reader
 
     /////////////////////////////////////////////////////////////////////////
 
-    class line_reader
+    class get_next_line
     {
     public: 
-        line_reader(std::istream& istr, params p = params{})
+        get_next_line(std::istream& istr, params p = params{})
             :   m_istr{ istr }
             , m_params{ std::move(p) }
         {}
@@ -4994,9 +4994,11 @@ namespace tsv_reader
     std::string result = "";
     std::istringstream istr{"foo\n#comment\n\n\n  bar  \tbaz\n"};
 
-    // in c++11: fn::seq(line_reader{ istr }) % fn::transform(split_on_delim{ '\t' }) % fn::for_each(...);
+    // in c++11: fn::seq( tsv::get_next_line{ istr }) 
+    //         % fn::transform( tsv::split_on_delim{ '\t' }) 
+    //         % fn::for_each(...);
 
-    for(const std::vector<std::string>& row : tsv_reader(istr)) {
+    for(const std::vector<std::string>& row : tsv::from(istr)) {
         for(const auto& f : row) {
             result += f;
             result += "|";
@@ -5007,14 +5009,14 @@ namespace tsv_reader
     VERIFY(result == "foo|;bar|baz|;");
     @endcode
     */
-    inline auto make(std::istream& istr, char delim = '\t', params params = {})
+    inline auto from(std::istream& istr, char delim = '\t', params params = {})
     {
         return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
-                     fn::seq(    line_reader{ istr,  std::move(params) }) );
+                     fn::seq(  get_next_line{ istr,  std::move(params) }) );
     }
 #endif
 
-} // namespace tsv_reader
+} // namespace tsv
 
 } // namespace rangeless
 
@@ -6242,11 +6244,11 @@ static void run_tests()
         std::string result = "";
         std::istringstream istr{"Expected Header\n r1f1 \n#Comment: next line is empty, and next one is blanks\n\n  \n r2f1  \tr2f2\t  r2f3  "};
 
-#if 1 //__cplusplus >= 201402L
-        tsv_reader::make(istr, '\t', { "Expected Header", "filename" })
+#if __cplusplus >= 201402L
+        tsv::from(istr, '\t', { "Expected Header", "filename" })
 #else
-        fn::seq( tsv_reader::line_reader{ istr, { "Expected Header" } } )
-      % fn::transform( tsv_reader::split_on_delim{ '\t' } ) 
+        fn::seq( tsv::get_next_line{ istr, { "Expected Header", "filename" } } )
+      % fn::transform( tsv::split_on_delim{ '\t' } ) 
 #endif
       % fn::for_each([&](const std::vector<std::string>& row)
         {
