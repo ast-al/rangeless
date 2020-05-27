@@ -4969,18 +4969,13 @@ namespace tsv
                 m_row[i++].assign(line, b, e - b);
             };
 
-            size_t start_pos = 0;
-            while(true) {
-                const size_t end_pos = line.find(m_delim, start_pos);
+            size_t start_pos = 0, end_pos = 0;
 
+            do {
+                end_pos = line.find(m_delim, start_pos);
                 capture_next(start_pos, end_pos);
-
-                if(end_pos == std::string::npos) {
-                    break;
-                } else {
-                    start_pos = end_pos + 1;
-                }
-            }
+                start_pos = end_pos + 1;
+            } while(end_pos != std::string::npos);
 
             return { m_row };
         }
