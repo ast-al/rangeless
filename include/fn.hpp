@@ -40,7 +40,7 @@
 
 #if defined(DOXYGEN) || (defined(RANGELESS_FN_ENABLE_RUN_TESTS) && RANGELESS_FN_ENABLE_RUN_TESTS)
 #    define RANGELESS_FN_ENABLE_PARALLEL 1
-#    define RANGELESS_FN_ENABLE_LINE_READER 1
+#    define RANGELESS_FN_ENABLE_TSV_READER 1
 #endif
 
 // cost of #include <fn.hpp> without par-transform: 0.45s; with: 0.85s, so will disable by default
@@ -4816,7 +4816,7 @@ namespace operators
 
 } // namespace rangeless
         
-#if RANGELESS_FN_ENABLE_LINE_READER
+#if RANGELESS_FN_ENABLE_TSV_READER
 
 #include <string>
 #include <iostream>
@@ -4827,12 +4827,14 @@ namespace tsv_reader
 {
     struct params
     {
-        std::string header = "";    // If specified, throw unless encountered in data before first data-line (non-empty, non-comment)
-                                    // Used to check that the file content corresponds to the program's expectations.
-                                    // Skipped, even if !skip_comments.
-                                    // e.g.    "# Schema 1.23" 
-                                    //   or    "#Col1 name\tCol2 name"
-                                    //   or    "Col1 name\tCol2 name"
+        // If specified, throw unless it is encountered verbatim in data before first data-row.
+        // Used for checking that the file content corresponds to the program's expectations.
+        // Skipped, even if skip_comments = false.
+        //
+        //  e.g. "#Col1 name\tCol2 name" - Column names are in a comment before the data rows.
+        //   or  "Col1 name\tCol2 name"  - Column names are in the first data-row.
+        //   or  "# TSV of COVID-19 cases by zip-code, (schema 1.3)" - some arbitrary comment. 
+        std::string header = "";    
 
         std::string filename  = "";    // Report filename in exception messages.
                                         
@@ -4864,10 +4866,13 @@ namespace tsv_reader
                 return { m_line };
             }
 
-            if(m_istr.bad() || (m_istr.fail() && !m_istr.eof())) {
+            if(    m_istr.bad() 
+               || (m_istr.fail() && !m_istr.eof()) 
+               || !m_line.empty())
+            {
                 throw std::runtime_error("Stream " + m_params.filename + " terminated abnormally.");
             } else {
-                rangeless::fn::end_seq();
+                rangeless::fn::end_seq(); // finished normally.
             }
 
             return { m_line };
@@ -4893,6 +4898,7 @@ namespace tsv_reader
                 && m_line == m_params.header)
             {
                 m_found_header = true;
+                m_line.clear();
                 return false;
             }
 
@@ -4921,7 +4927,7 @@ namespace tsv_reader
                 throw std::runtime_error(
                         "Did not find expected header: '" 
                        + m_params.header + "'" 
-                      + (m_params.filename.empty() ? "" : ( " in file: " + m_params.filename)));
+                       + (m_params.filename.empty() ? "" : ( " in file: " + m_params.filename)));
             }
 
             return true;
@@ -4938,7 +4944,7 @@ namespace tsv_reader
         const bool m_truncate_blanks = true;
              row_t m_row             = {};
 
-        // To prevent unnecasary allocatinos, instead of returning row_t,
+        // To prevent unnecesary heap allocatinos, instead of returning row_t,
         // we return a reference-wrapper, and reuse the allocated storage
         // in m_row.
 
@@ -5006,7 +5012,6 @@ namespace tsv_reader
         return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
                      fn::seq(    line_reader{ istr,  std::move(params) }) );
     }
-
 #endif
 
 } // namespace tsv_reader
