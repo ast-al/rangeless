@@ -210,7 +210,7 @@ public:
     fut.get(); // rethrow exception, if any.
 @endcode
 */
-template <typename T, class BasicLockable = lockables::partial_spin_mutex>
+template <typename T, class BasicLockable = std::mutex>
 class synchronized_queue : public synchronized_queue_base
 {
 public:
@@ -218,24 +218,23 @@ public:
 
     ///@{ 
 
-    synchronized_queue(size_t cap = size_t(-1))
-      : m_capacity{ cap == 0 ? 1 : cap }
+    synchronized_queue(size_t cap = 1024)
+      : m_capacity{ cap }
     {}
 
-    ~synchronized_queue()
-    {
-        // What if there are elements in the queue? 
-        // If there are active poppers, we ought to 
-        // let them finish, but if there aren't any,
-        // this will block indefinitely, so we'll 
-        // leave it to the user code to manage the
-        // lifetime across multiple threads.
-        //
-        // Should we call x_close() ?
-        // No point - we're already destructing.
-        // (it also grabs the m_queue_mutex, which 
-        // theoretically may throw).
-    }
+    ~synchronized_queue() = default;
+    // What if there are elements in the queue? 
+    // If there are active poppers, we ought to 
+    // let them finish, but if there aren't any,
+    // this will block indefinitely, so we'll 
+    // leave it to the user code to manage the
+    // lifetime across multiple threads.
+    //
+    // Should we call x_close() ?
+    // No point - we're already destructing.
+    // (it also grabs the m_queue_mutex, which 
+    // theoretically may throw).
+
 
     // After careful consideration, decided not to provide 
     // move-semantics; copy and move constructors are implicitly
@@ -259,7 +258,6 @@ public:
     //
     // Adapt queue as output-iterator:
     // std::copy(inputs.begin(), inputs.end(), my_queue.push);
-    //
 
     /////////////////////////////////////////////////////////////////////////
     /// Implements insert_iterator and unary-invokable.
@@ -408,9 +406,10 @@ public:
         lock_t queue_lock{ m_queue_mutex };
         
         const bool ok = x_wait_until([this]
-    	{
-    		return m_queue.size() < m_capacity || !m_capacity;
-    	}, m_can_push, queue_lock, timeout);
+    	    {
+    		    return m_queue.size() < m_capacity || !m_capacity;
+    	    }, 
+            m_can_push, queue_lock, timeout);
 
         if(!ok) {
             return status::timeout;
@@ -442,13 +441,11 @@ public:
         guard_t pop_guard{ m_pop_mutex };
         lock_t queue_lock{ m_queue_mutex };
 
-        bool ok = m_can_pop.wait_for(
-            queue_lock,
-            timeout,
-            [this]
+        bool ok = x_wait_until([this]
             {
                 return !m_queue.empty() || !m_capacity;
-            });
+            },
+            m_can_pop, queue_lock, timeout);
 
         if(!ok) {
             return status::timeout;
@@ -470,8 +467,6 @@ public:
 
         return status::success;
     }
-
-
 
     ///@}
     ///@{ 
@@ -594,10 +589,10 @@ private:
     ///
     void x_close()
     {
-        {{
+        {
             guard_t g{ m_queue_mutex }; 
             m_capacity = 0;
-        }}
+        }
         m_can_pop.notify_all();
         m_can_push.notify_all();
     }
@@ -764,7 +759,9 @@ static void run_tests()
         std::vector<std::future<void>> pushers;
         std::vector<std::future<long>> poppers; 
 
-        const size_t num_jobs = std::thread::hardware_concurrency();
+        const size_t num_cpus = std::thread::hardware_concurrency();
+        std::cerr << "hardware concurrency: " << num_cpus << "\n";
+        const size_t num_jobs = num_cpus / 2;
         const int64_t num = 100000;
 
         // using 16 push-jobs and 16 pop-jobs:
