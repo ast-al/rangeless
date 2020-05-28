@@ -4820,6 +4820,7 @@ namespace operators
 
 #include <string>
 #include <iostream>
+#include <cctype> // for MSVC v19.16
 
 namespace rangeless
 {
