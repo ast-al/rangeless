@@ -157,7 +157,7 @@ static auto where_max_by = [](auto key_fn)
 //---------------------------------------------------------------------------
 
 static auto lazy_transform_in_parallel = [](auto fn, 
-                                           size_t max_queue_size = std::thread::hardware_concurrency())
+                                          size_t max_queue_size = std::thread::hardware_concurrency())
 {
     assert(max_queue_size >= 1);
 
@@ -200,6 +200,30 @@ static auto lazy_transform_in_parallel = [](auto fn,
         });
     };
 };
+
+
+// for demonstration: suppose a single invocation of transform-function is too small
+// compared to async-invocation overhead, so we want to amortize the overhead by batching:
+static auto batched_lazy_transform_in_parallel = [](auto fn,
+                                                  size_t max_queue_size = std::thread::hardware_concurrency(),
+                                                  size_t batch_size = 2)
+{
+    return [=](auto inputs)
+    {
+        return std::move(inputs)
+      % fn::in_groups_of(batch_size)
+      % my::lazy_transform_in_parallel([&](auto inputs_batch)
+        {
+            return std::move(inputs_batch) 
+                 % fn::transform(fn) 
+                 % fn::to_vector(); // NB: since fn::transform is lazy,
+                                    // we need to force eager-evalution
+                                    // within this batch-transform function.
+        }, max_queue_size)
+      % fn::concat(); // flatten the batches of outputs
+    };
+};
+                                                        
 
 } //namespace my
 
@@ -315,7 +339,7 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
     //-----------------------------------------------------------------------
     // (2) Realign in parallel
 
-  % my::lazy_transform_in_parallel(realign) // aln_t->alns_t
+  % my::batched_lazy_transform_in_parallel(realign) // aln_t->alns_t
   % fn::concat()
   
     //-----------------------------------------------------------------------
