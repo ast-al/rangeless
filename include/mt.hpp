@@ -642,7 +642,81 @@ private:
 }; // synchronized_queue
 
 } // namespace mt
+
+
+namespace fn
+{
+
+namespace impl
+{
+    struct async_wr
+    {
+        size_t queue_size;
+
+        template<typename InGen>
+        struct gen
+        {
+            using value_type = typename InGen::value_type;
+            using queue_t = mt::synchronized_queue<maybe<value_type>>;
+
+                        InGen gen;      // nullary generator yielding maybe<...>
+                 const size_t queue_size;
+     std::unique_ptr<queue_t> queue;    // as unique-ptr, because non-moveable
+            std::future<void> fut;
+
+            auto operator()() -> maybe<value_type>
+            {
+                if(!queue) {
+                    queue.reset(new queue_t{ queue_size });
+                    fut = std::async(std::launch::async, [this]
+                    {
+                        auto guard = queue->close();
+                        for(auto x = gen(); x; x = gen()) {
+                            queue->push(std::move(x));
+                        }
+                        queue->push({});
+                    });
+                }
+
+                auto x = queue->pop();
+                if(!x) {
+                    fut.get(); // allow exceptions to rethrow
+                    assert(queue->closed());
+                }
+                return x;
+            }
+        };
+
+        RANGELESS_FN_OVERLOAD_FOR_SEQ(queue_size, {}, {})
+    };
+}
+
+    /// \brief Wrap generating `seq` in an async-task.
+    /*!
+    @code
+        long i = 0, res = 0;
+        fn::seq([&]{ return i < 9 ? i++ : fn::end_seq(); })
+      % fn::transform([](long x) { return x + 1; })
+      % fn::to_async(42) // the generator+transform will be offloaded to an async-task
+                         // and the elements will be yielded via 42-capacity blocking queue.
+                         // (If we wanted the generator and transform to be offloaded to
+                         // separate threads, we could insert another to_async() before transform()).
+      % fn::for_each([&](long x) {
+              res = res * 10 + x;
+        });
+        assert(res == 123456789);
+    @endcode
+    */
+    inline impl::async_wr to_async(size_t queue_size = 16)
+    {
+        return { queue_size };
+    }
+
+} // namespace fn
 } // namespace rangeless
+
+
+
 
 
 #if RANGELESS_MT_ENABLE_RUN_TESTS
@@ -926,6 +1000,27 @@ static void run_tests()
         res = queue.try_push(10, std::chrono::milliseconds(10));
         assert(res == queue_t::status::timeout);
     }}
+
+
+    {{
+        // test to_async
+        long i = 0;
+        long res = 0;
+        namespace fn = rangeless::fn;
+        using fn::operators::operator%;
+
+        fn::seq([&]{ return i < 9 ? i++ : fn::end_seq(); })
+      % fn::transform([](long x) { return x + 1; })
+      % fn::to_async(16) // the generator+transform will be offloaded to an async-task
+                         // and the elements will be yielded via 16-capacity blocking queue.
+                         // (If we wanted the generator and transform to be offloaded to
+                         // separate threads, we could insert another to_async() before transform()).
+      % fn::for_each([&](long x) {
+              res = res * 10 + x;
+        });
+        assert(res == 123456789);
+    }}
+
 } // run_tests()
 
 } // namespace impl
