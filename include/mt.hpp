@@ -805,7 +805,7 @@ static void run_tests()
             assert(q2.pop() == 123);
         }}
 
-        queue_t queue{ 1000 };
+        queue_t queue{ 2048 };
 
         mt::timer timer;
 
@@ -848,9 +848,9 @@ static void run_tests()
             fut.wait();
         }
 
-        std::cerr << "Closing queue...\n";
         queue.close(); // non-blocking; queue may still be non-empty
-        std::cerr << "Size after close:" << queue.approx_size() << "\n";
+        
+        //std::cerr << "Size after close:" << queue.approx_size() << "\n";
 
         // pushing should now be prohibited,
         // even if the queue is not empty
@@ -863,15 +863,9 @@ static void run_tests()
 
         // collect subtotals accumulated from each pop-job.
         int64_t total = 0;
-        std::cerr << "subtotals:";
         for(auto& fut : poppers) {
-            const auto x = fut.get();
-            std::cerr << " " << x;
-            total += x;
+            total += fut.get();
         }
-        std::cerr << "\n";
-
-
         assert(queue.approx_size() == 0);
 
 #if 0
@@ -889,7 +883,7 @@ static void run_tests()
         assert(total == n);
 
         // of async-tasks (blocking and non-blocking versions)
-        std::cerr << "Throughput: "  <<  double(total)/timer << "/s.\n";
+        std::cerr << "Queue throughput: "  <<  double(total)/timer << "/s.\n";
     }}
 
 #if 0
