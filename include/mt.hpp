@@ -600,12 +600,7 @@ private:
     // NB: open() is not provided, such that if closed() returns true,
     // we know for sure that it's staying that way. 
 
-
     /////////////////////////////////////////////////////////////////////////
-
-    // To reduce lock contention between producers and consumers
-    // we're using separate queues for pushing and popping,
-    // and lock them both and swap as necessary.
 
                  size_t m_capacity       = size_t(-1); // 0 means closed
                 queue_t m_queue          = queue_t{};
@@ -616,29 +611,6 @@ private:
 
               condvar_t m_can_push       = {};   
               condvar_t m_can_pop        = {};
-
-
-    // Notes: 
-    //
-    // Could use a single ring-buffer instead of pair of queues, and two
-    // cursors, m_head and m_tail. Using the pair-of-queues allows
-    // the size to grow dynamically, without preallocating the storage.
-    //
-    // Throughput for typical usage is limited by mt-performance of malloc,
-    // rather than synchronized_queue, when the memory is allocated in
-    // one thread and freed in another (e.g. future/promise shared-state, 
-    // allocating memory for results in a worker-thread and passing the 
-    // ownership to consumer thread, etc. In this case malloc has to 
-    // synchronize memory ownership among threads under the hood. 
-    //
-    // MT-optimized allocators, such as libtcmalloc or libllalloc are 
-    // much faster in this scenario.
-    //
-    // NB: Using fancy wait-free queue in parallelized-pipeline implementation,
-    // or substituting mutexes with atomic_locks in this implementation
-    // actually hurts performance somewhat in cpu-bound applications
-    // even though it increases queue throughput for POD types.
-
 }; // synchronized_queue
 
 } // namespace mt
@@ -670,20 +642,27 @@ namespace impl
                     queue.reset(new queue_t{ queue_size });
                     fut = std::async(std::launch::async, [this]
                     {
-                        auto guard = queue->close();
+                        auto guard = queue->close(); // close on scope-exit
                         for(auto x = gen(); x; x = gen()) {
                             queue->push(std::move(x));
                         }
-                        queue->push({});
+                        queue->push({}); // last empty-maybe element
                     });
                 }
 
-                auto x = queue->pop();
-                if(!x) {
-                    fut.get(); // allow exceptions to rethrow
-                    assert(queue->closed());
+                try {
+                    auto x = queue->pop();
+                    if(!x) {
+                        fut.get(); // last element - allow future to rethrow
+                        assert(queue->closed());
+                    }
+                    return x;
+                } catch(mt::synchronized_queue_base::queue_closed) {
+                    // pop() threw queue_closed before we saw the last empty-maybe
+                    // - allow the future to rethrow.
+                    fut.get();
+                    throw;
                 }
-                return x;
             }
         };
 
