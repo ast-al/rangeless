@@ -6652,7 +6652,7 @@ namespace impl
             using value_type = typename InGen::value_type;
             using queue_t = mt::synchronized_queue<maybe<value_type>>;
 
-                        InGen gen;      // nullary generator yielding maybe<...>
+                        InGen in_gen;      // nullary generator yielding maybe<...>
                  const size_t queue_size;
      std::unique_ptr<queue_t> queue;    // as unique-ptr, because non-moveable
             std::future<void> fut;
@@ -6664,7 +6664,7 @@ namespace impl
                     fut = std::async(std::launch::async, [this]
                     {
                         auto guard = queue->close(); // close on scope-exit
-                        for(auto x = gen(); x; x = gen()) {
+                        for(auto x = in_gen(); x; x = in_gen()) {
                             queue->push(std::move(x));
                         }
                         queue->push({}); // last empty-maybe element
