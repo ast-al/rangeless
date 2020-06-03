@@ -95,6 +95,8 @@ employees = std::move(employees)
     // sys    0m0.097s
 ```
 
+See [A rudimentary lazy TSV parser](https://godbolt.org/z/f6eptu).
+
 See [calendar.cpp](test/calendar.cpp) vs. [Haskell](https://github.com/BartoszMilewski/Calendar/blob/master/Main.hs) vs. [range-v3 implementation](https://github.com/ericniebler/range-v3/blob/master/example/calendar.cpp).
 
 See [aln_filter.cpp](test/aln_filter.cpp) for more advanced examples of use.
@@ -350,6 +352,7 @@ c++ -specific (in no particular order):
 - [boost.range](https://www.boost.org/doc/libs/1_67_0/libs/range/doc/html/index.html)
 - [cpplinq](https://archive.codeplex.com/?p=cpplinq)
 - [simonask/rx-ranges](https://github.com/simonask/rx-ranges)
+- [ReactiveX/RxCpp](https://github.com/ReactiveX/RxCpp)
 - [arximboldi/zug](https://github.com/arximboldi/zug)
 
 
