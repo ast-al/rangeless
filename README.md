@@ -109,7 +109,7 @@ See [full documentation](https://ast-al.github.io/rangeless/docs/html/namespacer
 - Minimal standard library dependencies.
 - No inheritance, polymorphism, type-erasures, ADL, advanced metaprogramming, enable_ifs, concepts, preprocessor magic, arcane programming techniques (for some definition of arcane), or compiler-specific workarounds.
 - Low `#include` and compile-time overhead.
-- Enables trivial parallelization (see [`fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
+- Enables trivial parallelization (see [`fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__parallel.html)).
 - Allows for trivial extension of functionality (see [`fn::adapt`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
 
 ### Minimum supported compilers: MSVC-19.15, GCC-4.9.3, clang-3.7, ICC-18
@@ -352,6 +352,7 @@ c++ -specific (in no particular order):
 - [boost.range](https://www.boost.org/doc/libs/1_67_0/libs/range/doc/html/index.html)
 - [cpplinq](https://archive.codeplex.com/?p=cpplinq)
 - [simonask/rx-ranges](https://github.com/simonask/rx-ranges)
+- [ReactiveX/RxCpp](https://github.com/ReactiveX/RxCpp)
 - [arximboldi/zug](https://github.com/arximboldi/zug)
 
 
