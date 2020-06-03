@@ -43,13 +43,6 @@
 #    define RANGELESS_ENABLE_TSV 1
 #endif
 
-// cost of #include <fn.hpp> without par-transform: 0.45s; with: 0.85s, so will disable by default
-#if RANGELESS_FN_ENABLE_PARALLEL
-#    include <deque>
-#    include <future>
-#    include <thread>
-#endif
-
 #if defined(_MSC_VER)
 #   pragma warning(push)
 #   pragma warning(disable: 4068) // unknown pragmas (for GCC diagnostic push)
@@ -1686,97 +1679,6 @@ namespace impl
         RANGELESS_FN_OVERLOAD_FOR_SEQ( {}, {{}, {}}, win_size )
     };
 
-#if RANGELESS_FN_ENABLE_PARALLEL 
-
-    // Default implementation of Async for par_transform below.
-    struct std_async
-    {
-        template<typename NullaryCallable>
-        auto operator()(NullaryCallable gen) const -> std::future<decltype(gen())>
-        {
-            return std::async(std::launch::async, std::move(gen));
-        }
-    };
-
-    /////////////////////////////////////////////////////////////////////
-    template<typename F, typename Async>
-    struct par_transform
-    {
-          const Async async;
-              const F map_fn;    // const, because expecting this to be thread-safe
-               size_t queue_cap; // 0 means in-this-thread.
-
-        par_transform& queue_capacity(size_t cap) 
-        {
-            queue_cap = cap;
-            return *this;
-        }
-
-        template<typename InGen>
-        struct gen
-        {
-                    InGen gen;
-              const Async async;
-                  const F map_fn;
-             const size_t queue_cap;
-
-            // TODO: with some handwaving may be able to use std::vector
-            using value_type = decltype(map_fn(std::move(*gen())));
-            using queue_t    = std::deque<std::future<value_type>>;
-
-                  queue_t queue;
-
-            auto operator()() -> maybe<value_type>
-            {
-                // behave like a plain impl::transform in in-this-thread mode
-                if(queue_cap == 0) {
-                    assert(queue.empty());
-                    auto x = gen();
-                    if(!x) {
-                        return { };
-                    } else {
-                        return map_fn(std::move(*x));
-                    }
-                }
-
-                struct job_t // wrapper for invoking fn on inp, passed by move
-                {
-                    using input_t = typename InGen::value_type;
-
-                    const F& fn;
-                     input_t inp; 
-
-                    auto operator()() -> decltype(fn(std::move(inp)))
-                    {    
-                        return fn(std::move(inp));
-                    }    
-                };
-
-                // if have more inputs, top-off the queue with async-tasks.
-                while(queue.size() < queue_cap) {
-                    auto x = gen();
-                    
-                    if(!x) {
-                        break;
-                    }
-
-                    queue.emplace_back( async( job_t{ map_fn, std::move(*x) }));
-                }
-
-                if(queue.empty()) {
-                    return { };
-                }
-
-                auto ret = queue.front().get(); // this returns by-value
-                queue.pop_front();
-                return { std::move(ret) };
-            }
-        };
-
-        RANGELESS_FN_OVERLOAD_FOR_SEQ(  async, map_fn, queue_cap, {} )
-        RANGELESS_FN_OVERLOAD_FOR_CONT( async, map_fn, queue_cap, {} )
-    };
-#endif
 
     /////////////////////////////////////////////////////////////////////
 
@@ -3770,132 +3672,6 @@ namespace impl
 
 
 
-#if RANGELESS_FN_ENABLE_PARALLEL
-
-
-    /// @brief Parallelized version of `fn::transform`
-    ///
-    /// Requires `#define RANGELESS_FN_ENABLE_PARALLEL 1` before `#include fn.hpp` because
-    /// it brings in "heavy" STL `#include`s (`<future>` and `<thread>`).
-    ///
-    /// `queue_capacity` is the maximum number of simultaneosly-running `std::async`-tasks, each executing a single invocation of `map_fn`.
-    /// 
-    /// NB: if the execution time of `map_fn` is highly variable, having higher capacity may help, such that
-    /// tasks continue to execute while we're blocked waiting on a result from a long-running task. 
-    ///
-    /// NB: If the tasks are too small compared to overhead of running as async-task, 
-    /// it may be helpful to batch them (see `fn::in_groups_of`), have `map_fn` produce
-    /// a vector of outputs from a vector of inputs, and `fn::concat` the outputs.
-    /// 
-    /// `map_fn` is required to be thread-safe.
-    ///
-    /// NB: the body of the `map_fn` would normally compute the result in-place,
-    /// but it could also, for example, execute a subprocess do it, or offload it
-    /// to a cloud or a compute-farm, etc.
-    ///
-    /// ---
-    /// Q: Why do we need this? We have parallel `std::transform` and `std::transform_reduce` in c++17?
-    /// 
-    /// A: Parallel `std::transform` requires a multi-pass `ForwardRange`
-    /// rather than `InputRange`, and `std::terminate`s if any of the tasks throws.
-    /// `std::transform_reduce` requires `ForwardRange` and type-symmetric, associative, and commutative `BinaryOp`
-    /// (making it next-to-useless).
-    ///
-    /*!
-    @code
-    // Example: implement parallelized gzip compressor (a-la pigz)
-
-    #define RANGELESS_FN_ENABLE_PARALLEL 1
-    #include "fn.hpp"
-
-    #include <util/compress/stream_util.hpp>
-
-    int main()
-    {
-        auto& istr = std::cin;
-        auto& ostr = std::cout;
-
-        istr.exceptions(std::ios::badbit);
-        ostr.exceptions(std::ios::failbit | std::ios::badbit);
-
-        namespace fn = rangeless::fn;
-        using fn::operators::operator%;
-        using bytes_t = std::string;
-
-        fn::seq([&istr]() -> bytes_t
-        {
-            auto buf = bytes_t(1000000UL, '\0');
-            istr.read(&buf[0], std::streamsize(buf.size()));
-            buf.resize(size_t(istr.gcount()));
-            return !buf.empty() ? std::move(buf) : fn::end_seq();
-        })
-      
-      % fn::transform_in_parallel([](bytes_t buf) -> bytes_t
-        {
-            // compress the block.
-            std::ostringstream local_ostr;
-            ncbi::CCompressOStream{
-                local_ostr,
-                ncbi::CCompressOStream::eGZipFile } << buf;
-            return local_ostr.str();
-
-        }).queue_capacity( std::thread::hardware_concurrency() )
-
-      % fn::for_each([&ostr](bytes_t buf)
-        {
-            ostr.write(buf.data(), std::streamsize(buf.size()));
-        });
-
-        return istr.eof() && !istr.bad() ? 0 : 1;
-    }
-
-    @endcode
-
-    See an similar examples using [RaftLib](https://medium.com/cat-dev-urandom/simplifying-parallel-applications-for-c-an-example-parallel-bzip2-using-raftlib-with-performance-f69cc8f7f962)
-    or [TBB](https://software.intel.com/en-us/node/506068)
-    */
-    template<typename F> 
-    impl::par_transform<F, impl::std_async> transform_in_parallel(F map_fn)
-    {
-        return { impl::std_async{}, std::move(map_fn), std::thread::hardware_concurrency() };
-    }
-
-    
-    /// @brief A version of `transform_in_parallel` that uses a user-provided Async (e.g. backed by a fancy work-stealing thread-pool implementation).
-    ///
-    /// `Async` is a unary invokable having the following signature:
-    /// `template<typename NullaryInvokable> operator()(NullaryInvokable job) const -> std::future<decltype(job())>`
-    ///
-    /// NB: `Async` must be copy-constructible (may be passed via `std::ref` as appropriate). 
-    ///
-    /// A single-thread pool can be used to offload the transform-stage to a separate thread if `transform` is not parallelizeable.
-    /*!
-    @code
-        auto res2 = 
-            std::vector{{1,2,3,4,5}} // can be an InputRange
-
-          % fn::transform_in_parallel([](auto x)
-            {
-                return std::to_string(x);
-            },
-            [&my_thread_pool](auto job) -> std::future<decltype(job())>
-            {
-                return my_thread_pool.enqueue(std::move(job));
-            }).queue_capacity(10)
-
-          % fn::foldl_d([](std::string out, std::string in)
-            {
-                return std::move(out) + "," + in;
-            });
-        VERIFY(res2 == ",1,2,3,4,5");
-    @endcode
-    */
-    template<typename F, typename Async> 
-    impl::par_transform<F, Async> transform_in_parallel(F map_fn, Async async)
-    {
-        return { std::move(async), std::move(map_fn), std::thread::hardware_concurrency() };
-    }
-#endif
 
     /// @}
     /// @defgroup folding Folds and Loops
@@ -5010,15 +4786,13 @@ namespace tsv
         return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
                      fn::seq(  get_next_line{ istr,  std::move(params) }) );
     }
-#endif
+#endif  //__cplusplus >= 201402L
 
 } // namespace tsv
 
 } // namespace rangeless
 
-
-
-#endif
+#endif // ENABLE_TSV
 
 
 
@@ -5031,6 +4805,7 @@ namespace tsv
 #include <iostream>
 #include <sstream>
 #include <cctype>
+#include <memory>
 
 #ifndef VERIFY
 #define VERIFY(expr) if(!(expr)) RANGELESS_FN_THROW("Assertion failed: ( "#expr" ).");
@@ -5132,31 +4907,6 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         VERIFY(res == 42123);
     };
 
-    tests["transform_in_parallel"] = [&]
-    {
-        auto res = make_inputs({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
-        % fn::transform_in_parallel([](X x) { return x; }).queue_capacity(10)
-        % fn::foldl_d([](std::string out, X in)
-        {
-            return std::move(out) + "," + std::to_string(in);
-        });
-        VERIFY(res == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
-
-
-#if __cplusplus >= 201402L
-        auto res2 = make_inputs({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
-        % fn::transform_in_parallel([](X x) { return std::to_string(x); },
-                                    [](auto job)
-                                    {
-                                        return std::async(std::launch::async, std::move(job));
-                                    }).queue_capacity(10)
-        % fn::foldl_d([](std::string out, std::string in)
-        {
-            return std::move(out) + "," + in;
-        });
-        VERIFY(res2 == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
-#endif
-    };
 
 
 
@@ -6294,7 +6044,7 @@ static void run_tests()
 /////////////////////////////////////////////////////////////////////////////
 //
 //
-// synchronized_queue and to_async below
+// synchronized_queue, to_async, transform_in_parallel below
 //
 //
 /////////////////////////////////////////////////////////////////////////////
@@ -6308,7 +6058,7 @@ static void run_tests()
 #include <atomic>
 #include <future>
 #include <chrono>
-#include <cassert>
+#include <memory>
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6885,6 +6635,7 @@ private:
 
 } // namespace mt
 
+/////////////////////////////////////////////////////////////////////////////
 
 namespace fn
 {
@@ -6938,7 +6689,105 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ(queue_size, {}, {})
     };
-}
+
+    /////////////////////////////////////////////////////////////////////////
+
+
+    // Default implementation of Async for par_transform below.
+    struct std_async
+    {
+        template<typename NullaryCallable>
+        auto operator()(NullaryCallable gen) const -> std::future<decltype(gen())>
+        {
+            return std::async(std::launch::async, std::move(gen));
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////
+    template<typename F, typename Async>
+    struct par_transform
+    {
+          const Async async;
+              const F map_fn;    // const, because expecting this to be thread-safe
+               size_t queue_cap; // 0 means in-this-thread.
+
+        par_transform& queue_capacity(size_t cap) 
+        {
+            queue_cap = cap;
+            return *this;
+        }
+
+        template<typename InGen>
+        struct gen
+        {
+                    InGen gen;
+              const Async async;
+                  const F map_fn;
+             const size_t queue_cap;
+
+            // TODO: with some handwaving may be able to use std::vector
+            using value_type = decltype(map_fn(std::move(*gen())));
+            using queue_t    = std::deque<std::future<value_type>>;
+
+                  queue_t queue;
+
+            auto operator()() -> maybe<value_type>
+            {
+                // behave like a plain impl::transform in in-this-thread mode
+                if(queue_cap == 0) {
+                    assert(queue.empty());
+                    auto x = gen();
+                    if(!x) {
+                        return { };
+                    } else {
+                        return map_fn(std::move(*x));
+                    }
+                }
+
+                struct job_t // wrapper for invoking fn on inp, passed by move
+                {
+                    using input_t = typename InGen::value_type;
+
+                    const F& fn;
+                     input_t inp; 
+
+                    auto operator()() -> decltype(fn(std::move(inp)))
+                    {    
+                        return fn(std::move(inp));
+                    }    
+                };
+
+                // if have more inputs, top-off the queue with async-tasks.
+                while(queue.size() < queue_cap) {
+                    auto x = gen();
+                    
+                    if(!x) {
+                        break;
+                    }
+
+                    queue.emplace_back( async( job_t{ map_fn, std::move(*x) }));
+                }
+
+                if(queue.empty()) {
+                    return { };
+                }
+
+                auto ret = queue.front().get(); // this returns by-value
+                queue.pop_front();
+                return { std::move(ret) };
+            }
+        };
+
+        RANGELESS_FN_OVERLOAD_FOR_SEQ(  async, map_fn, queue_cap, {} )
+        RANGELESS_FN_OVERLOAD_FOR_CONT( async, map_fn, queue_cap, {} )
+    };
+
+} // namespace impl
+
+
+    /// @defgroup parallel
+    /// @{
+
 
     /// \brief Wrap generating `seq` in an async-task.
     /*!
@@ -6960,6 +6809,133 @@ namespace impl
     {
         return { queue_size };
     }
+
+
+    /// @brief Parallelized version of `fn::transform`
+    ///
+    /// Requires `#define RANGELESS_FN_ENABLE_PARALLEL 1` before `#include fn.hpp` because
+    /// it brings in "heavy" STL `#include`s (`<future>` and `<thread>`).
+    ///
+    /// `queue_capacity` is the maximum number of simultaneosly-running `std::async`-tasks, each executing a single invocation of `map_fn`.
+    /// 
+    /// NB: if the execution time of `map_fn` is highly variable, having higher capacity may help, such that
+    /// tasks continue to execute while we're blocked waiting on a result from a long-running task. 
+    ///
+    /// NB: If the tasks are too small compared to overhead of running as async-task, 
+    /// it may be helpful to batch them (see `fn::in_groups_of`), have `map_fn` produce
+    /// a vector of outputs from a vector of inputs, and `fn::concat` the outputs.
+    /// 
+    /// `map_fn` is required to be thread-safe.
+    ///
+    /// NB: the body of the `map_fn` would normally compute the result in-place,
+    /// but it could also, for example, execute a subprocess do it, or offload it
+    /// to a cloud or a compute-farm, etc.
+    ///
+    /// ---
+    /// Q: Why do we need this? We have parallel `std::transform` and `std::transform_reduce` in c++17?
+    /// 
+    /// A: Parallel `std::transform` requires a multi-pass `ForwardRange`
+    /// rather than `InputRange`, and `std::terminate`s if any of the tasks throws.
+    /// `std::transform_reduce` requires `ForwardRange` and type-symmetric, associative, and commutative `BinaryOp`
+    /// (making it next-to-useless).
+    ///
+    /*!
+    @code
+    // Example: implement parallelized gzip compressor (a-la pigz)
+
+    #define RANGELESS_FN_ENABLE_PARALLEL 1
+    #include "fn.hpp"
+
+    #include <util/compress/stream_util.hpp>
+
+    int main()
+    {
+        auto& istr = std::cin;
+        auto& ostr = std::cout;
+
+        istr.exceptions(std::ios::badbit);
+        ostr.exceptions(std::ios::failbit | std::ios::badbit);
+
+        namespace fn = rangeless::fn;
+        using fn::operators::operator%;
+        using bytes_t = std::string;
+
+        fn::seq([&istr]() -> bytes_t
+        {
+            auto buf = bytes_t(1000000UL, '\0');
+            istr.read(&buf[0], std::streamsize(buf.size()));
+            buf.resize(size_t(istr.gcount()));
+            return !buf.empty() ? std::move(buf) : fn::end_seq();
+        })
+      
+      % fn::transform_in_parallel([](bytes_t buf) -> bytes_t
+        {
+            // compress the block.
+            std::ostringstream local_ostr;
+            ncbi::CCompressOStream{
+                local_ostr,
+                ncbi::CCompressOStream::eGZipFile } << buf;
+            return local_ostr.str();
+
+        }).queue_capacity( std::thread::hardware_concurrency() )
+
+      % fn::for_each([&ostr](bytes_t buf)
+        {
+            ostr.write(buf.data(), std::streamsize(buf.size()));
+        });
+
+        return istr.eof() && !istr.bad() ? 0 : 1;
+    }
+
+    @endcode
+
+    See an similar examples using [RaftLib](https://medium.com/cat-dev-urandom/simplifying-parallel-applications-for-c-an-example-parallel-bzip2-using-raftlib-with-performance-f69cc8f7f962)
+    or [TBB](https://software.intel.com/en-us/node/506068)
+    */
+    template<typename F> 
+    impl::par_transform<F, impl::std_async> transform_in_parallel(F map_fn)
+    {
+        return { impl::std_async{}, std::move(map_fn), std::thread::hardware_concurrency() };
+    }
+
+    
+    /// @brief A version of `transform_in_parallel` that uses a user-provided Async (e.g. backed by a fancy work-stealing thread-pool implementation).
+    ///
+    /// `Async` is a unary invokable having the following signature:
+    /// `template<typename NullaryInvokable> operator()(NullaryInvokable job) const -> std::future<decltype(job())>`
+    ///
+    /// NB: `Async` must be copy-constructible (may be passed via `std::ref` as appropriate). 
+    ///
+    /// A single-thread pool can be used to offload the transform-stage to a separate thread if `transform` is not parallelizeable.
+    /*!
+    @code
+        auto res2 = 
+            std::vector{{1,2,3,4,5}} // can be an InputRange
+
+          % fn::transform_in_parallel([](auto x)
+            {
+                return std::to_string(x);
+            },
+            [&my_thread_pool](auto job) -> std::future<decltype(job())>
+            {
+                return my_thread_pool.enqueue(std::move(job));
+            }).queue_capacity(10)
+
+          % fn::foldl_d([](std::string out, std::string in)
+            {
+                return std::move(out) + "," + in;
+            });
+        VERIFY(res2 == ",1,2,3,4,5");
+    @endcode
+    */
+    template<typename F, typename Async> 
+    impl::par_transform<F, Async> transform_in_parallel(F map_fn, Async async)
+    {
+        return { std::move(async), std::move(map_fn), std::thread::hardware_concurrency() };
+    }
+
+    ///@}
+    // defgroup parallel
 
 } // namespace fn
 } // namespace rangeless
@@ -6996,8 +6972,8 @@ static void run_tests()
 
         auto y = queue.pop();
         queue >>= [&](int& x_) { x_ = 20; };
-        assert(x == 20);
-        assert(y == 20);
+        VERIFY(x == 20);
+        VERIFY(y == 20);
     }}
 
     {{
@@ -7008,11 +6984,11 @@ static void run_tests()
         auto st1 = q.try_push(std::move(s1), std::chrono::milliseconds(10));
         auto st2 = q.try_push(std::move(s2), std::chrono::milliseconds(10));
 
-        assert(st1 == decltype(q)::status::success);
-        assert(s1 == "");
+        VERIFY(st1 == decltype(q)::status::success);
+        VERIFY(s1 == "");
 
-        assert(st2 == decltype(q)::status::timeout);
-        assert(s2 == "2");
+        VERIFY(st2 == decltype(q)::status::timeout);
+        VERIFY(s2 == "2");
     }}
 
     {{
@@ -7031,14 +7007,14 @@ static void run_tests()
             long x = 0;
             
             auto res = q.try_pop(x, std::chrono::milliseconds(90));
-            assert(res == queue_t::status::timeout);
+            VERIFY(res == queue_t::status::timeout);
 
             auto res2 = q.try_pop(x, std::chrono::milliseconds(20)); // 110 milliseconds passed
-            assert(res2 == queue_t::status::success);
-            assert(x == 1);
+            VERIFY(res2 == queue_t::status::success);
+            VERIFY(x == 1);
 
-            assert(q.try_pop(x) == queue_t::status::closed);
-            assert(q.try_push(42) == queue_t::status::closed);
+            VERIFY(q.try_pop(x) == queue_t::status::closed);
+            VERIFY(q.try_push(42) == queue_t::status::closed);
         }}
 
         // test duration/timeout with try_push
@@ -7053,11 +7029,11 @@ static void run_tests()
             });
 
             auto res = q.try_push(42, std::chrono::milliseconds(90));
-            assert(res == queue_t::status::timeout);
+            VERIFY(res == queue_t::status::timeout);
 
             auto res2 = q.try_push(42, std::chrono::milliseconds(20)); // 110 milliseconds passed
-            assert(res2 == queue_t::status::success);
-            assert(q.pop() == 42);
+            VERIFY(res2 == queue_t::status::success);
+            VERIFY(q.pop() == 42);
         }}
 
 
@@ -7071,8 +7047,8 @@ static void run_tests()
             //assert(q1.empty());
             auto& q2 = q1;
 
-            assert(q2.approx_size() == 1);
-            assert(q2.pop() == 123);
+            VERIFY(q2.approx_size() == 1);
+            VERIFY(q2.pop() == 123);
         }}
 
         queue_t queue{ 2048 };
@@ -7126,9 +7102,9 @@ static void run_tests()
         // even if the queue is not empty
         try {
             long x = 0;
-            assert(queue.try_push(std::move(x)) == queue_t::status::closed);
+            VERIFY(queue.try_push(std::move(x)) == queue_t::status::closed);
             queue.push(std::move(x));
-            assert(false);
+            VERIFY(false);
         } catch(queue_t::queue_closed&) {}
 
         // collect subtotals accumulated from each pop-job.
@@ -7136,7 +7112,7 @@ static void run_tests()
         for(auto& fut : poppers) {
             total += fut.get();
         }
-        assert(queue.approx_size() == 0);
+        VERIFY(queue.approx_size() == 0);
 
 #if 0
         auto queue2 = std::move(queue); // test move-semantics
@@ -7150,107 +7126,35 @@ static void run_tests()
 
         const auto n = int64_t(num_jobs) * num;
 
-        assert(total == n);
+        VERIFY(total == n);
 
         // of async-tasks (blocking and non-blocking versions)
         std::cerr << "Queue throughput: "  <<  double(total)/timer << "/s.\n";
     }}
 
-#if 0
-    // with 64 pushers and poppers on 32-CPU dev host:
-    //                       CSyncQueue: 90k/s
-    // synchronized_queue with mutex   : 1.5M/s
-    // synchronized_queue with atomic_lock: 5.5M/s
-
+    // test timeout;
     {{
-        LOG("Testing CSyncQueue...");
-        //CSyncQueue<long> queue{ 10000 };
-        basic_synchronized_queue<long, mt::atomic_lock> queue{1000};
-
-        const CTimeSpan timeout{ 2.9 }; // NB: must use explicit timeouts
-
-        mt::timer timer;
-
-        std::vector<std::future<void>> pushers;
-        std::vector<std::future<long>> poppers; 
-
-        const size_t num_jobs = std::thread::hardware_concurrency();
-        const int64_t num = 100000;
-
-        // using 16 push-jobs and 16 pop-jobs:
-        // In each pop-job accumulate partial sum.
-        for(size_t i = 0; i < num_jobs; i++) {
-            
-            // Using blocking push/pop
-            /////////////////////////////////////////////////////////////////
-
-            pushers.emplace_back(
-                std::async(std::launch::async, [&]
-                {
-                    for(long j = 0; j < num; j++) {
-                        //queue.Push(1, &timeout);
-                        queue.push(1);
-                    }
-                }));
-
-            poppers.emplace_back(
-                std::async(std::launch::async, [&]
-                {
-                    long acc = 0;
-                    for(long j = 0; j < num; j++) {
-                        //acc += queue.Pop(&timeout);
-                        acc += queue.pop();
-                    }
-                    return acc;
-                }));
-        }
-
-        // wait for all push-jobs to finish, and 
-        // close the queue, unblocking the poppers.
-        for(auto& fut : pushers) {
-            fut.wait();
-        }
-
-        int64_t total = 0;
-        std::cerr << "subtotals:";
-        for(auto& fut : poppers) {
-            const auto x = fut.get();
-            std::cerr << " " << x;
-            total += x;
-        }
-        std::cerr << "\n";
-
-        const auto n = (int64_t)num_jobs * num;
-        assert(total == n);
-
-        // of async-tasks (blocking and non-blocking versions)
-        LOG("Throughput: "  <<  double(total)/timer << "/s.");
-    }}
-#endif
-
-
-    {{
-        // test timeout;
         using queue_t = synchronized_queue<int>;
         queue_t queue{ 1 };
 
         int x = 5;
         auto res = queue.try_pop(x, std::chrono::milliseconds(10));
-        assert(res == queue_t::status::timeout);
-        assert(x == 5);
+        VERIFY(res == queue_t::status::timeout);
+        VERIFY(x == 5);
 
         queue.push(10);
         res = queue.try_push(10, std::chrono::milliseconds(10));
-        assert(res == queue_t::status::timeout);
+        VERIFY(res == queue_t::status::timeout);
     }}
 
 
+    namespace fn = rangeless::fn;
+    using fn::operators::operator%;
+
+    // test to_async
     {{
-        // test to_async
         long i = 0;
         long res = 0;
-        namespace fn = rangeless::fn;
-        using fn::operators::operator%;
 
         fn::seq([&]{ return i < 9 ? i++ : fn::end_seq(); })
       % fn::transform([](long x) { return x + 1; })
@@ -7261,8 +7165,35 @@ static void run_tests()
       % fn::for_each([&](long x) {
               res = res * 10 + x;
         });
-        assert(res == 123456789);
+        VERIFY(res == 123456789);
     }}
+
+    // test transform_in_parallel
+    {{
+        auto res = std::vector<int>({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
+        % fn::transform_in_parallel([](int x) { return x; }).queue_capacity(10)
+        % fn::foldl_d([](std::string out, int in)
+        {
+            return std::move(out) + "," + std::to_string(in);
+        });
+        VERIFY(res == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
+
+
+#if __cplusplus >= 201402L
+        auto res2 = std::vector<int>({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
+        % fn::transform_in_parallel([](int x) { return std::to_string(x); },
+                                    [](auto job)
+                                    {
+                                        return std::async(std::launch::async, std::move(job));
+                                    }).queue_capacity(10)
+        % fn::foldl_d([](std::string out, std::string in)
+        {
+            return std::move(out) + "," + in;
+        });
+        VERIFY(res2 == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
+#endif
+    }}
+
 
 } // run_tests()
 
