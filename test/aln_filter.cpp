@@ -151,7 +151,7 @@ static auto where_min_by = [](auto key_fn)
 
 static auto where_max_by = [](auto key_fn)
 {   
-    return my::where_min_by(fn::by::flipped(std::move(key_fn)));
+    return my::where_min_by(fn::by::decreasing(std::move(key_fn)));
 };
 
 //---------------------------------------------------------------------------

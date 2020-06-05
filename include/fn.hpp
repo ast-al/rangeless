@@ -780,18 +780,12 @@ namespace impl
         {
             return other.val == this->val;
         }
-    };
 
-    // composition of gt over key_fn
-    template<typename F>
-    struct gt_fn
-    {
-        const F key_fn;
-
+        // if val is a unary key-function
         template<typename Arg>
-        auto operator()(const Arg& arg) const -> gt<decltype(key_fn(arg))>
+        auto operator()(const Arg& arg) const -> gt<decltype(val(arg))>
         {
-            return { key_fn(arg) };
+            return { val(arg) };
         }
     };
 
@@ -892,7 +886,7 @@ namespace by
 
 
         // we can also compose by::decreasing with a key-function
-        auto ret3 = inp % fn::sort_by(fn::by::flipped([](const std::string& s)
+        auto ret3 = inp % fn::sort_by(fn::by::decreasing([](const std::string& s)
         {
             return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
         }));
@@ -939,13 +933,6 @@ namespace by
         // because otherwise unwrapped reference_wrapper won't bind to
         // operator< in gt::operator<.
         return { x.get() };
-    }
-
-    /// @brief Compose key_fn with `by::decreasing`.
-    template<typename F>
-    impl::gt_fn<F> flipped(F key_fn)
-    {
-        return { std::move(key_fn) };
     }
 
     /// @brief Make binary comparison predicate from a key-function
@@ -5680,7 +5667,7 @@ static void run_tests()
 
         VERIFY(ret2 == expected);
 
-        auto ret3 = inp % fn::sort_by(fn::by::flipped([](const std::string& s)
+        auto ret3 = inp % fn::sort_by(fn::by::decreasing([](const std::string& s)
         {
             return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
         }));
