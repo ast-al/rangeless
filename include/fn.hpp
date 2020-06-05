@@ -6749,11 +6749,25 @@ namespace impl
                   const F map_fn;
              const size_t queue_cap;
 
-            // TODO: with some handwaving may be able to use std::vector
             using value_type = decltype(map_fn(std::move(*gen())));
-            using queue_t    = std::deque<std::future<value_type>>;
+            
+#if 0
+            using queue_t = std::deque<std::future<value_type>>;
+#else
+            // Instead of assuming that async returns a std::future,
+            // support the usage of any future-like type,
+            // allowing integration of 3rd-party async-like libraries.
+            struct value_type_callable
+            {
+                value_type operator()() const;
+            };
+            using future_like_t = decltype(async(value_type_callable{}));
+            using queue_t  = std::deque<future_like_t>;
+#endif
+          
+            queue_t queue;
 
-                  queue_t queue;
+            /////////////////////////////////////////////////////////////////
 
             auto operator()() -> maybe<value_type>
             {
