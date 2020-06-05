@@ -6422,14 +6422,17 @@ public:
         //
         // making the move explicitly visible.
 
-        guard_t push_guard{ m_push_mutex };
+        const guard_t contention_guard{ m_push_mutex };
+
         lock_t queue_lock{ m_queue_mutex };
-        
+
+        ++m_num_waiting_to_push;        
         const bool ok = x_wait_until([this]
     	    {
     		    return m_queue.size() < m_capacity || !m_capacity;
     	    }, 
             m_can_push, queue_lock, timeout);
+        --m_num_waiting_to_push;        
 
         if(!ok) {
             return status::timeout;
@@ -6446,9 +6449,13 @@ public:
         // if the move-assignment never happens.
         m_queue.push(std::move(value));
 
+        const bool do_notify = m_num_waiting_to_pop > 0;
         queue_lock.unlock();
 
-        m_can_pop.notify_one();
+        if(do_notify) {
+            m_can_pop.notify_one();
+        }
+
         return status::success;
     }
 
@@ -6458,14 +6465,17 @@ public:
     template <typename Duration = std::chrono::milliseconds>
     status try_pop(value_type& value, Duration timeout = {})
     {
-        guard_t pop_guard{ m_pop_mutex };
+        const guard_t contention_guard{ m_pop_mutex };
+
         lock_t queue_lock{ m_queue_mutex };
 
+        ++m_num_waiting_to_pop;
         bool ok = x_wait_until([this]
             {
                 return !m_queue.empty() || !m_capacity;
             },
             m_can_pop, queue_lock, timeout);
+        --m_num_waiting_to_pop;
 
         if(!ok) {
             return status::timeout;
@@ -6482,8 +6492,12 @@ public:
         value = std::move(m_queue.front());
         m_queue.pop();
 
+        const bool do_notify = m_num_waiting_to_push > 0;
         queue_lock.unlock();
-        m_can_push.notify_one();
+
+        if(do_notify) {
+            m_can_push.notify_one();
+        }
 
         return status::success;
     }
@@ -6581,15 +6595,18 @@ private:
 
     value_type x_blocking_pop()
     {
-        guard_t pop_guard{ m_pop_mutex };
+        const guard_t contention_guard{ m_pop_mutex };
+
         lock_t queue_lock{ m_queue_mutex };
 
+        ++m_num_waiting_to_pop;
         m_can_pop.wait(
             queue_lock,
             [this]
             {
                 return !m_queue.empty() || !m_capacity;
             });
+        --m_num_waiting_to_pop;
 
         if(m_queue.empty()) {
             throw queue_closed{};
@@ -6598,8 +6615,12 @@ private:
         value_type ret = std::move(m_queue.front());
         m_queue.pop();
 
+        const bool do_notify = m_num_waiting_to_push > 0;
         queue_lock.unlock();
-        m_can_push.notify_one();
+
+        if(do_notify) {
+            m_can_push.notify_one();
+        }
 
         return ret;
     }
@@ -6631,6 +6652,9 @@ private:
 
               condvar_t m_can_push       = {};   
               condvar_t m_can_pop        = {};
+
+                 size_t m_num_waiting_to_push = 0; // both guarded by m_queue_mutex
+                 size_t m_num_waiting_to_pop = 0;
 }; // synchronized_queue
 
 } // namespace mt
