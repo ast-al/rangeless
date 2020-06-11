@@ -6074,82 +6074,31 @@ private:
 namespace lockables
 {
 
-
-class partial_spin_mutex : public std::mutex
-{
-public:
-    partial_spin_mutex() = default;
-
-    void lock() noexcept
-    {   
-        for(size_t i = 0; i < 16; i++) {
-            if(try_lock()) {
-                return;
-            }
-
-            std::this_thread::sleep_for(
-                std::chrono::microseconds(1));
-        }
-
-        std::mutex::lock();
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////
-/// \brief Can be used as alternative to std::mutex.
-///
-/// It is faster than std::mutex, yet does not aggressively max-out the CPUs.
-/// NB: may cause thread starvation
-class atomic_lock
-{    
-    alignas(128) std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
-    // alignas to avoid false-sharing
-
-    // todo: could we implement exponential-backoff algorithm that prevents
-    // thread-starvation in mpsc spmc scenarios?
+class atomic_mutex // without alignas(cacheline_size) to avoid overaligned-new pre-c++17
+{                  // instead will add padding around the fields
+protected:
+    std::atomic<bool> m_locked = { false };
 
 public:
-
-    atomic_lock() = default;
-
-    // non-copyable and non-movable, as with std::mutex
-    
-               atomic_lock(const atomic_lock&) = delete;
-    atomic_lock& operator=(const atomic_lock&) = delete;
-
-               atomic_lock(atomic_lock&&) = delete;
-    atomic_lock& operator=(atomic_lock&&) = delete;
-
     bool try_lock() noexcept
-    {    
-        return !m_flag.test_and_set(std::memory_order_acquire);
-    }    
+    {
+        return !m_locked.load(std::memory_order_relaxed)
+            && !m_locked.exchange(true, std::memory_order_acquire);
+    }
 
     void lock() noexcept
-    {   
-        while(m_flag.test_and_set(std::memory_order_acquire)) { 
+    {
+        for(size_t i = 0; !try_lock(); i++) {
             std::this_thread::sleep_for(
-                std::chrono::nanoseconds(1)); // the actual time is greater, depends on scheduler
+                std::chrono::microseconds(5)); // the actual time is greater, depends on scheduler
         }
-
-        // Related:
-        // https://stackoverflow.com/questions/7868235/why-is-sleeping-not-allowed-while-holding-a-spinlock
-        //
-        // Note that here we are sleepining while NOT holding 
-        // the lock, but while trying to acquire it.
-        // 
-        // If we did NOT sleep here, the polling
-        // thread would deadlock on a single-core system
-        // if the thread holding the lock goes to sleep.
-        //
-        // Caveat emptor.
-    }    
+    }
 
     void unlock() noexcept
-    {    
-        m_flag.clear(std::memory_order_release);
-    }    
-};   
+    {
+        m_locked.store(false, std::memory_order_release);
+    }
+};
 
 }
 
@@ -6630,18 +6579,19 @@ private:
 
     /////////////////////////////////////////////////////////////////////////
 
-                 size_t m_capacity       = size_t(-1); // 0 means closed
-                queue_t m_queue          = queue_t{};
-          BasicLockable m_queue_mutex    = {};
+       const char m_padding0[64]        = {};
 
-          BasicLockable m_push_mutex     = {}; // these are to manage contention
-          BasicLockable m_pop_mutex      = {}; // in MPSC/SPMC use-cases.
+         uint32_t m_num_waiting_to_push = 0;
+         uint32_t m_num_waiting_to_pop  = 0;
+           size_t m_capacity            = size_t(-1); // 0 means closed
+          queue_t m_queue               = queue_t{};
+    BasicLockable m_queue_mutex         = {};
+    BasicLockable m_push_mutex          = {}; // for managing contention in SPMC/MPSC cases
+    BasicLockable m_pop_mutex           = {};
+        condvar_t m_can_push            = {};
+        condvar_t m_can_pop             = {};
 
-              condvar_t m_can_push       = {};   
-              condvar_t m_can_pop        = {};
-
-                 size_t m_num_waiting_to_push = 0; // both guarded by m_queue_mutex
-                 size_t m_num_waiting_to_pop = 0;
+       const char m_padding1[64]        = {};
 }; // synchronized_queue
 
 } // namespace mt
@@ -6661,7 +6611,7 @@ namespace impl
         struct gen
         {
             using value_type = typename InGen::value_type;
-            using queue_t = mt::synchronized_queue<maybe<value_type>>;
+            using queue_t = mt::synchronized_queue<maybe<value_type>, mt::lockables::atomic_mutex>;
 
                         InGen in_gen;      // nullary generator yielding maybe<...>
                  const size_t queue_size;
@@ -7018,7 +6968,7 @@ static void run_tests()
 
     {{
         std::cerr << "Testing queue...\n";
-        using queue_t = mt::synchronized_queue<long, mt::lockables::atomic_lock>;
+        using queue_t = mt::synchronized_queue<long, mt::lockables::atomic_mutex>;
 
         // test duration/timeout with try_pop
         {{
@@ -7181,16 +7131,18 @@ static void run_tests()
         long i = 0;
         long res = 0;
 
-        fn::seq([&]{ return i < 9 ? i++ : fn::end_seq(); })
-      % fn::transform([](long x) { return x + 1; })
-      % fn::to_async(16) // the generator+transform will be offloaded to an async-task
-                         // and the elements will be yielded via 16-capacity blocking queue.
-                         // (If we wanted the generator and transform to be offloaded to
-                         // separate threads, we could insert another to_async() before transform()).
+        timer timer{};
+
+        fn::seq([&]{ return i <= 1000000 ? i++ : fn::end_seq(); })
+      % fn::to_async(4096) // the generator+transform will be offloaded to an async-task
+                           // and the elements will be yielded via 2048-capacity blocking queue.
+                           // (If we wanted the generator and transform to be offloaded to
+                           // separate threads, we could insert another to_async() before transform()).
       % fn::for_each([&](long x) {
-              res = res * 10 + x;
+            res = res + x;
         });
-        VERIFY(res == 123456789);
+        VERIFY(res == 500000500000);
+        std::cerr << "to_async throughput: " << double(1000000)/timer << "/s.\n";
     }}
 
     // test transform_in_parallel
