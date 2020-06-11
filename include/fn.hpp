@@ -1363,6 +1363,30 @@ namespace impl
         }
     };
 
+    template<typename F2>
+    struct for_each_adjacent
+    {
+        F2 fn2; // may be non-const, hence operator()s are also non-const.
+
+        template<typename Iterable>
+        void operator()(Iterable&& src)
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(src);
+
+            auto it2 = src.begin();
+            if(it2 == src.end()) {
+                return;
+            }
+            auto it1 = it2;
+            ++it2;
+
+            for(; it2 != src.end(); it1 = it2, ++it2) {
+                fn2(*it1, *it2);
+            }
+        }
+    };
+
+
     /////////////////////////////////////////////////////////////////////
     template<typename Ret, typename Op>
     struct foldl
@@ -3775,6 +3799,16 @@ namespace impl
         return { std::move(fn) };
     }
 
+
+    /// Invoke binary fn on each pair of adjacent elements.
+    ///
+    /// NB: the inputs must satisfy `ForwardRange` or stronger.
+    template<typename F2>
+    impl::for_each_adjacent<F2> for_each_adjacent(F2 fn2)
+    {
+        return { std::move(fn2) };
+    }
+
     /// @}
     /// @defgroup filtering Filtering
     /// @{
@@ -5395,13 +5429,25 @@ static void run_tests()
     test_other["for_each"] = [&]
     {
         // NB: making sure that for_each compiles with mutable lambdas
-        int res = 0;
-        vec_t{{1,2,3}} % fn::for_each([&res](int& x) mutable
+        auto vec = vec_t{{1,2,3}};
+        vec % fn::for_each([](int& x) mutable
         {
-            res = res*10 + x;
+            x *= 10;
         });
-        VERIFY(res == 123);
+        VERIFY(( vec == vec_t{{10,20,30}} ));
     };
+
+    test_other["for_each_adjacent"] = [&]
+    {
+        auto vec = vec_t{{1,2,3,4}};
+        vec % fn::for_each_adjacent([](int& x1, int& x2) mutable // making sure non-const-reference binds
+        {
+            return x2 = x1*10 + x2;
+        });
+
+        VERIFY(( vec == vec_t{{1,12,123,1234}} ));
+    };
+
 
     test_other["zip_adjacent"] = [&]
     {
@@ -5415,6 +5461,8 @@ static void run_tests()
 
         VERIFY(( res == std::vector<int>{{12,23,34}} ));
     };
+
+
 
     test_other["fold"] = [&]
     {
