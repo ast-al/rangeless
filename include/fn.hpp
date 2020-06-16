@@ -4701,12 +4701,12 @@ namespace tsv
             }
 
             if(m_params.truncate_blanks) {
-                while(!m_line.empty() && std::isspace(m_line.back())) {
+                while(!m_line.empty() && m_line.back() == ' ') {
                     m_line.pop_back();
                 }
 
                 size_t i = 0;
-                while(i < m_line.size() && std::isspace(m_line[i])) {
+                while(i < m_line.size() && m_line[i] == ' ') {
                     ++i;
                 }
                 m_line.erase(0, i);
@@ -4757,10 +4757,10 @@ namespace tsv
                     e = line.size();
                 }
 
-                while(m_truncate_blanks && b < e && std::isspace(line[b])) {
+                while(m_truncate_blanks && b < e && line[b] == ' ') {
                     ++b;
                 }
-                while(m_truncate_blanks && b < e && std::isspace(line[e-1])) {
+                while(m_truncate_blanks && b < e && line[e-1] == ' ') {
                     --e;
                 }
 
@@ -6023,7 +6023,7 @@ static void run_tests()
     test_other["line_reader"] = [&]
     {
         std::string result = "";
-        std::istringstream istr{"Expected Header\n r1f1 \n#Comment: next line is empty, and next one is blanks\n\n  \n r2f1  \tr2f2\t  r2f3  "};
+        std::istringstream istr{"Expected Header\n \t r1f1 \t \n#Comment: next line is empty, and next one is blanks\n\n  \n r2f1  \tr2f2\t  r2f3  "};
 
 #if __cplusplus >= 201402L
         tsv::from(istr, '\t', { "Expected Header", "filename" })
@@ -6040,7 +6040,7 @@ static void run_tests()
             result += ";";
         });
 
-        VERIFY(result == "r1f1|;r2f1|r2f2|r2f3|;");
+        VERIFY(result == "|r1f1||;r2f1|r2f2|r2f3|;");
     };
 
 
