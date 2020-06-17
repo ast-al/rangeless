@@ -6716,15 +6716,54 @@ namespace impl
     template<typename F, typename Async>
     struct par_transform
     {
-          const Async async;
-              const F map_fn;    // const, because expecting this to be thread-safe
-               size_t queue_cap; // 0 means in-this-thread.
+         Async async;
+             F map_fn;    
+        size_t queue_cap; // 0 means in-this-thread.
 
-        par_transform& queue_capacity(size_t cap) 
+        par_transform&& queue_capacity(size_t cap) &&
         {
             queue_cap = cap;
-            return *this;
+            return std::move(*this);
         }
+
+#if __cplusplus >= 201402L 
+
+        /// If a job granularity is too small, combine work in batches per-async-task.
+        auto in_batches_of(size_t batch_size) && // rvalue-specific because will move-from
+        {
+            assert(batch_size >= 2);
+
+            return [ map_fn = std::move(this->map_fn), 
+                      async = std::move(this->async),
+                  queue_cap = std::move(this->queue_cap),
+                 batch_size
+                            ] (auto inputs)
+            {
+                // TODO: can capture map_fn and async below by-move and make this lambda mutable?
+
+                auto batch_transform = [ map_fn ](auto inputs_batch) // [ inputs ] -> [ outputs ]
+                {
+                    // NB:: since fn::transform is lazy, we need to force eager-evaluation
+                    // within the batch-transform function by converting to vector.
+                    return fn::to_vector()(
+                            fn::transform(map_fn)(
+                                std::move(inputs_batch)));
+                };
+
+                // par_batch_transform = fn::transform_in_parallel(...), but it has not been declared yet.
+                auto par_batch_transform = 
+                    impl::par_transform<decltype(batch_transform), Async>{ async, // by-move here?
+                                                                           std::move(batch_transform), 
+                                                                           queue_cap };
+
+                return fn::concat()(                      // flatten batches of outputs.
+                        std::move(par_batch_transform)(   // par-transform batches of inputs.
+                            fn::in_groups_of(batch_size)( // batch the inputs.
+                                std::move(inputs))));
+            };
+        }
+
+#endif // __cplusplus >= 201402L
 
         template<typename InGen>
         struct gen
@@ -7211,6 +7250,7 @@ static void run_tests()
                                     {
                                         return std::async(std::launch::async, std::move(job));
                                     }).queue_capacity(10)
+                                      .in_batches_of(2)
         % fn::foldl_d([](std::string out, std::string in)
         {
             return std::move(out) + "," + in;
