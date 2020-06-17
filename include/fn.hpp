@@ -6783,7 +6783,11 @@ namespace impl
             // allowing integration of 3rd-party async-like libraries.
             struct value_type_callable
             {
-                value_type operator()() const;
+                // we only need this in decltype context, but won't link without the body definition.
+                value_type operator()() const
+                {
+                    return value_type{};
+                }
             };
             using future_like_t = decltype(async(value_type_callable{}));
             using queue_t  = std::deque<future_like_t>;
