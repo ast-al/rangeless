@@ -4623,6 +4623,8 @@ namespace rangeless
 {
 namespace tsv
 {
+    using row_t = std::vector<std::string>;
+
     struct params
     {
         std::string header = "";    
@@ -4736,17 +4738,15 @@ namespace tsv
 
     struct split_on_delim
     {
-        using row_t = std::vector<std::string>;
-
         const char m_delim           = '\t';
         const bool m_truncate_blanks = true;
-             row_t m_row             = {};
+        tsv::row_t m_row             = {};
 
         // To prevent unnecesary heap allocatinos, instead of returning row_t,
         // we return a reference-wrapper, and reuse the allocated storage
         // in m_row.
 
-        auto operator()(const std::string& line) -> std::reference_wrapper<const row_t>
+        auto operator()(const std::string& line) -> std::reference_wrapper<const tsv::row_t>
         {
             m_row.resize(1 + std::count(line.begin(), line.end(), m_delim));
 
@@ -6031,7 +6031,7 @@ static void run_tests()
         fn::seq( tsv::get_next_line{ istr, { "Expected Header", "filename" } } )
       % fn::transform( tsv::split_on_delim{ '\t' } ) 
 #endif
-      % fn::for_each([&](const std::vector<std::string>& row)
+      % fn::for_each([&](const tsv::row_t& row)
         {
             for(const auto& f : row) {
                 result += f;
