@@ -359,6 +359,20 @@ namespace impl
         }
     };
 
+    // A type-erasing wrapper for a gen, wrapping it in a std::function, 
+    // and providing value_type (so that InGen::value_type all over the place works).
+    // An alternative would be to use a metafunction that computes value_type everywhere instead.
+    template<typename T>
+    struct any_gen
+    {
+        using value_type = T;
+        std::function<impl::maybe<value_type>()> gen;
+
+        auto operator()() -> impl::maybe<value_type>
+        {
+            return gen();
+        }
+    };
 
     /////////////////////////////////////////////////////////////////////
     // invoke gen.recycle(value) if gen defines this method
@@ -374,20 +388,6 @@ namespace impl
     {
         // no-op
     }
-
-    /////////////////////////////////////////////////////////////////////////
-    template<typename Gen>
-    struct get_value_type
-    {
-        using type = typename Gen::value_type;
-    };
-
-    template<typename T>
-    struct get_value_type<std::function<impl::maybe<T>()>>
-    {
-        using type = T;
-    };
-
 
     /////////////////////////////////////////////////////////////////////////
     /// Single-pass InputRange-adapter for nullary generators.
@@ -409,7 +409,7 @@ namespace impl
         // need to deal with iterators directly.
     
     public:
-        using value_type = typename get_value_type<Gen>::type;
+        using value_type = typename Gen::value_type;
         static_assert(!std::is_reference<value_type>::value, "The type returned by the generator-function must be a value-type. Use std::ref if necessary.");
 
         seq(Gen gen) 
@@ -437,7 +437,7 @@ namespace impl
         {
             other.m_started = true;
             other.m_ended   = true;
-        }   
+        }
 
                    seq(const seq&) = delete;
         seq& operator=(const seq&) = delete;
@@ -678,33 +678,6 @@ namespace impl
         return { { src, src.begin() } };
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// @brief Type-erase a `seq`.
-    ///
-    /// `any_seq_t` is implicitly constructible from any `seq`,
-    /// wrapping the underlying `NullaryInvokable` as `std::function`.
-    ///
-    /// This may be useful when you want to declare a function or a method
-    /// returning a seq, but don't want to define it with all the gory details
-    /// in the header.
-    ///
-    /// NB: wrappnig a callable in a `std::function` is subject to
-    /// performance-related considerations.
-    /*!
-    @code
-    fn::any_seq_t<int> myseq = 
-        fn::seq([i = 0]() mutable
-        {
-            return i < 10 ? i++ : fn::end_seq();
-        })
-      % fn::where([](int x)
-        {
-            return x % 2 == 0;
-        });
-    @endcode
-    */
-    template<typename T>
-    using any_seq_t = impl::seq<std::function<impl::maybe<T>()>>;
     /// @}
    
     
@@ -3438,6 +3411,18 @@ namespace impl
 
     /////////////////////////////////////////////////////////////////////////
 
+    template<typename T>
+    using any_seq_t = impl::seq<impl::any_gen<T>>;
+
+    /// @brief Type-erase a `seq`.
+    ///
+    /// Wrap the underlying nullary invokable as std::function.
+    template<typename Gen, typename T = typename Gen::value_type>
+    inline any_seq_t<T> make_typerased(impl::seq<Gen> seq)
+    {
+        return { std::move(seq) };
+    }
+
     /// @defgroup to_vec to_vector/to_seq
     /// @{
 
@@ -5406,9 +5391,9 @@ static void run_tests()
 
     /////////////////////////////////////////////////////////////////////////
 
-    test_other["any_seq_t"] = [&]
+    test_other["typerased"] = [&]
     {
-        fn::any_seq_t<int> myseq = 
+        fn::any_seq_t<int> myseq = //fn::make_typerased(
             fn::seq([i = 0]() mutable
             {
                 return i < 10 ? i++ : fn::end_seq();
@@ -6659,6 +6644,7 @@ namespace impl
         struct gen
         {
             using value_type = typename InGen::value_type;
+
             using queue_t = mt::synchronized_queue<maybe<value_type>, mt::lockables::atomic_mutex>;
 
                         InGen in_gen;      // nullary generator yielding maybe<...>
