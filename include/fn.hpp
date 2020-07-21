@@ -4603,6 +4603,8 @@ namespace operators
 #include <string>
 #include <iostream>
 #include <cctype> // for MSVC v19.16
+#include <cstdlib>
+#include <cstring>
 
 namespace rangeless
 {
@@ -4793,6 +4795,115 @@ namespace tsv
                      fn::seq(  get_next_line{ istr,  std::move(params) }) );
     }
 #endif  //__cplusplus >= 201402L
+
+
+    /// @brief Utility to parse numbers.
+    ///
+    /// This is a dispatcher for `std::strto*` functions with additional functionality:
+    /// throws `std::domain_error` if can't parse, or out of bounds, or input has trailing non-whitespaces.
+    /*!
+     * @code
+     * bouble a = tsv::to_num("");         // throws - expected a number
+     * double b = tsv::to_num(" 123xyz");  // throws - trailing garbage not allowed
+     * int8_t c = tsv::to_num(" 12345 ");  // throws - out of range
+     * float  d = tsv::to_num("12e-456");  // throws - underflow
+     * @endcode
+     */
+    class to_num
+    {
+    public:
+        explicit to_num(const char* str) 
+          : m_beg{ str }
+          , m_end{ m_beg + std::strlen(str) } 
+        {}
+
+        template<typename Str> // string, string_view, CTempString etc.
+        explicit to_num(const Str& str) 
+          : m_beg{ str.begin() == str.end() ? nullptr : &*str.begin() }
+          , m_end{ str.begin() == str.end() ? nullptr : &*str.end() }
+        {}
+
+        template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value>::type* = nullptr>
+        operator Enum() const && // rvalue-specific such that no possibility of m_beg/m_end becoming dangling
+        {
+            auto value = typename std::underlying_type<Enum>::type{};
+            value = *this;
+            return Enum(value);
+        }
+
+        template<typename Number, typename std::enable_if<std::is_arithmetic<Number>::value>::type* = nullptr>
+        operator Number() const &&
+        {
+            auto ret = Number{};
+            char* endptr = nullptr;
+            
+            errno = 0;
+            x_parse(ret, &endptr);
+
+            throw_if(errno,                      ret, "under-or-overflow"); 
+            throw_if(!endptr || endptr == m_beg, ret, "could not interpret");
+            throw_if(endptr > m_end,             ret, "parsed past the end");
+
+            for(; endptr < m_end; ++endptr) { // verify that there's no garbage past the end
+                throw_if(!std::isspace(*endptr), ret, "trailing garbage");
+            }
+            return ret;
+        }
+
+        operator bool() const &&
+        {
+            uint8_t ret = std::move(*this);
+            throw_if(ret != 0 && ret != 1, ret, "out of bounds");
+            return ret;
+        }
+
+    private:
+        const char* m_beg;
+        const char* m_end;
+
+        template<typename T>
+        void throw_if(bool cond, T, const char* message) const
+        {
+            if(cond) {
+                throw std::domain_error(
+                    "Can't parse '" 
+                  + std::string(m_beg, m_end-m_beg)
+                  + "' as numeric type " + typeid(T).name() + " - " + message + ".");
+            }
+        }
+
+        void x_parse(long double& d, char** endptr) const
+        {
+            d = std::strtold(m_beg, endptr);
+        }
+
+        void x_parse(double & d, char** endptr) const
+        {
+            d = std::strtod(m_beg, endptr);
+        }
+        
+        void x_parse(float& d, char** endptr) const
+        {
+            d = std::strtof(m_beg, endptr);
+        }
+
+        template<typename Integral>
+        void x_parse(Integral& x, char** endptr) const
+        {
+            static_assert(std::is_integral<Integral>::value, "");
+
+            if(std::is_signed<Integral>::value) {
+                auto num = strtoll(m_beg, endptr, 10);
+                x = static_cast<Integral>(num);
+                throw_if(x != num, x, "overflow");
+            } else {
+                auto num = strtoull(m_beg, endptr, 10);
+                x = static_cast<Integral>(num);
+                throw_if(x != num, x, "overflow");
+            }
+        }
+    }; // to_num
+
 
 } // namespace tsv
 
@@ -6028,6 +6139,32 @@ static void run_tests()
         VERIFY(result == "|r1f1||;r2f1|r2f2|r2f3|;");
     };
 
+    test_other["to_num"] = [&]
+    {
+        VERIFY(123   == int(tsv::to_num(" +123 ")));
+
+        double delta = 123.0 - double(tsv::to_num(" 123.0 "));
+        if(delta < 0) {
+            delta *= 1;
+        }
+        VERIFY(delta < 1e-10);
+
+        VERIFY(bool(tsv::to_num(" 1 ")));
+
+        try{
+            int8_t(tsv::to_num("-129"));
+            VERIFY(false);
+        } catch(const std::domain_error&) {
+            ;
+        }
+
+        try{
+            int(tsv::to_num("123 4")); // trailing garbage
+            VERIFY(false);
+        } catch(const std::domain_error&) {
+            ;
+        }
+    };
 
 
 #endif // single-test vs all
@@ -6397,9 +6534,9 @@ public:
 
         ++m_num_waiting_to_push;        
         const bool ok = x_wait_until([this]
-    	    {
-    		    return m_queue.size() < m_capacity || !m_capacity;
-    	    }, 
+            {
+                return m_queue.size() < m_capacity || !m_capacity;
+            }, 
             m_can_push, queue_lock, timeout);
         --m_num_waiting_to_push;        
 
