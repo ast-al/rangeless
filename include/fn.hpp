@@ -4800,13 +4800,14 @@ namespace tsv
     /// @brief Utility to parse numbers.
     ///
     /// This is a dispatcher for `std::strto*` functions with additional functionality:
-    /// throws `std::domain_error` if can't parse, or out of bounds, or input has trailing non-whitespaces.
+    /// throws `std::domain_error` if can't parse, or out of bounds, or input has trailing non-whitespaces, or the destination type is unsigned and the input is a negative number.
     /*!
      * @code
-     * bouble a = tsv::to_num("");         // throws - expected a number
-     * double b = tsv::to_num(" 123xyz");  // throws - trailing garbage not allowed
-     * int8_t c = tsv::to_num(" 12345 ");  // throws - out of range
-     * float  d = tsv::to_num("12e-456");  // throws - underflow
+     * bouble   a = tsv::to_num("");         // throws - expected a number
+     * double   b = tsv::to_num(" 123xyz");  // throws - trailing garbage not allowed
+     * int8_t   c = tsv::to_num(" 12345 ");  // throws - out of range
+     * float    d = tsv::to_num("12e-456");  // throws - underflow
+     * uint16_t e = tsv::to_num("-1");       // throws - negative number while destination is unsigned
      * @endcode
      */
     class to_num
@@ -4904,7 +4905,13 @@ namespace tsv
                 x = static_cast<Integral>(num);
                 throw_if(x != num, x, "overflow");
             } else {
-                auto num = strtoull(m_beg, endptr, 10);
+                auto ptr = m_beg;
+                while(ptr < m_end && std::isspace(*ptr)) {
+                    ++ptr;
+                }
+                throw_if(ptr < m_end && *ptr == '-', x, "negative number in unsigned conversion");
+
+                auto num = strtoull(ptr, endptr, 10);
                 x = static_cast<Integral>(num);
                 throw_if(x != num, x, "overflow");
             }
@@ -6159,7 +6166,7 @@ static void run_tests()
         VERIFY(bool(tsv::to_num(" 1 ")));
 
         try{
-            int8_t(tsv::to_num("-129"));
+            int8_t(tsv::to_num("-129")); // overflow
             VERIFY(false);
         } catch(const std::domain_error&) {
             ;
@@ -6167,6 +6174,13 @@ static void run_tests()
 
         try{
             int(tsv::to_num("123 4")); // trailing garbage
+            VERIFY(false);
+        } catch(const std::domain_error&) {
+            ;
+        }
+
+        try{
+            uint16_t(tsv::to_num("-123")); // negative number for unsigned
             VERIFY(false);
         } catch(const std::domain_error&) {
             ;
