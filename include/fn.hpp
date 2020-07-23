@@ -4866,7 +4866,7 @@ namespace tsv
         const char* m_end;
 
         template<typename T>
-        void throw_if(bool cond, T, const char* message) const
+        void throw_if(bool cond, const T&, const char* message) const
         {
             if(cond) {
                 throw std::domain_error(
@@ -4901,7 +4901,7 @@ namespace tsv
             // but chose pragmatic approach instead.
 
             if(std::is_signed<Integral>::value) {
-                auto num = strtoll(m_beg, endptr, 10);
+                auto num = std::strtoll(m_beg, endptr, 10);
                 x = static_cast<Integral>(num);
                 throw_if(x != num, x, "overflow");
             } else {
@@ -4911,7 +4911,7 @@ namespace tsv
                 }
                 throw_if(ptr < m_end && *ptr == '-', x, "negative number in unsigned conversion");
 
-                auto num = strtoull(ptr, endptr, 10);
+                auto num = std::strtoull(ptr, endptr, 10);
                 x = static_cast<Integral>(num);
                 throw_if(x != num, x, "overflow");
             }
