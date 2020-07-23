@@ -4820,9 +4820,10 @@ namespace tsv
         template<typename Str> // string, string_view, CTempString etc.
         explicit to_num(const Str& str) 
           : m_beg{ str.begin() == str.end() ? nullptr : &*str.begin() }
-          , m_end{ str.begin() == str.end() ? nullptr : &*str.end() }
+          , m_end{ str.begin() == str.end() ? nullptr : &*str.begin() + str.size() }
         {}
 
+        /// Conversion to an enum or enum-class
         template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value>::type* = nullptr>
         operator Enum() const && // rvalue-specific such that no possibility of m_beg/m_end becoming dangling
         {
@@ -4831,6 +4832,7 @@ namespace tsv
             return Enum(value);
         }
 
+        /// Conversion to an arithmetic type
         template<typename Number, typename std::enable_if<std::is_arithmetic<Number>::value>::type* = nullptr>
         operator Number() const &&
         {
@@ -4845,11 +4847,12 @@ namespace tsv
             throw_if(endptr > m_end,             ret, "parsed past the end");
 
             for(; endptr < m_end; ++endptr) { // verify that there's no garbage past the end
-                throw_if(!std::isspace(*endptr), ret, "trailing garbage");
+                throw_if(!std::isspace(*endptr), ret, "trailing non-whitespace characters");
             }
             return ret;
         }
 
+        /// Convert to `uint8_t` first; throw unless 0 or 1; return as bool.
         operator bool() const &&
         {
             uint8_t ret = std::move(*this);
@@ -4868,7 +4871,8 @@ namespace tsv
                 throw std::domain_error(
                     "Can't parse '" 
                   + std::string(m_beg, m_end-m_beg)
-                  + "' as numeric type " + typeid(T).name() + " - " + message + ".");
+                  + "' as numeric type '" + typeid(T).name() 
+                  + "' - " + message + ".");
             }
         }
 
@@ -4891,6 +4895,9 @@ namespace tsv
         void x_parse(Integral& x, char** endptr) const
         {
             static_assert(std::is_integral<Integral>::value, "");
+
+            // NB: can do another round of static dispatching here,
+            // but chose pragmatic approach instead.
 
             if(std::is_signed<Integral>::value) {
                 auto num = strtoll(m_beg, endptr, 10);
