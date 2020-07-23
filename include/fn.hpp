@@ -4813,6 +4813,9 @@ namespace tsv
     class to_num
     {
     public:
+        to_num(const to_num&) = delete; // prevent nonsense like auto x = tsv::num("123") from compiling
+        to_num& operator=(const to_num&) = delete;
+
         explicit to_num(const char* str) 
           : m_beg{ str }
           , m_end{ m_beg + std::strlen(str) } 
@@ -4901,10 +4904,13 @@ namespace tsv
             // but chose pragmatic approach instead.
 
             if(std::is_signed<Integral>::value) {
+
                 auto num = std::strtoll(m_beg, endptr, 10);
                 x = static_cast<Integral>(num);
                 throw_if(x != num, x, "overflow");
+
             } else {
+
                 auto ptr = m_beg;
                 while(ptr < m_end && std::isspace(*ptr)) {
                     ++ptr;
