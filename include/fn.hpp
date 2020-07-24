@@ -4832,7 +4832,7 @@ namespace tsv
         operator Enum() const && // rvalue-specific such that no possibility of m_beg/m_end becoming dangling
         {
             auto value = typename std::underlying_type<Enum>::type{};
-            value = *this;
+            value = std::move(*this);
             return Enum(value);
         }
 
@@ -6191,6 +6191,10 @@ static void run_tests()
         } catch(const std::domain_error&) {
             ;
         }
+
+        enum class my_int_t : int{};
+        my_int_t my_int = tsv::to_num("42");
+        VERIFY(my_int == my_int_t(42));
     };
 
 
