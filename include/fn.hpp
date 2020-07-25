@@ -4729,13 +4729,11 @@ namespace tsv
         const bool m_truncate_blanks = true;
         tsv::row_t m_row             = {};
 
-        // To prevent unnecesary heap allocatinos, instead of returning row_t,
-        // we return a reference-wrapper, and reuse the allocated storage
-        // in m_row.
-
-        auto operator()(const std::string& line) -> std::reference_wrapper<const tsv::row_t>
+        // If we're an rvalue, support usage like `const auto row = tsv::split_on_delim{ ',' }("a,bb,ccc");` 
+        // or, if we want to reuse existing row's storage: `row = tsv::spit_on_delim{ ',' }("a,bb,ccc", std::move(row));`
+        auto operator()(const std::string& line, row_t ret = {}) const && -> tsv::row_t
         {
-            m_row.resize(1 + std::count(line.begin(), line.end(), m_delim));
+            ret.resize(1 + std::count(line.begin(), line.end(), m_delim));
 
             size_t i = 0;
             auto capture_next = [&](size_t b, size_t e)
@@ -4751,7 +4749,7 @@ namespace tsv
                     --e;
                 }
 
-                m_row[i++].assign(line, b, e - b);
+                ret[i++].assign(line, b, e - b);
             };
 
             size_t start_pos = 0, end_pos = 0;
@@ -4762,6 +4760,17 @@ namespace tsv
                 start_pos = end_pos + 1;
             } while(end_pos != std::string::npos);
 
+            return ret; // copy elision guaranteed here in c++11?
+        }
+
+        // The operator below is for repeated invocations when we're an lvalue.
+        //
+        // To prevent unnecesary heap allocatinos, instead of returning row_t,
+        // we return a const reference-wrapper, and reuse the allocated storage
+        // in m_row.
+        auto operator()(const std::string& line) & -> std::reference_wrapper<const tsv::row_t>
+        {
+            m_row = std::move(*this)(line, std::move(m_row));
             return { m_row };
         }
     };
@@ -6157,6 +6166,10 @@ static void run_tests()
         });
 
         VERIFY(result == "|r1f1||;r2f1|r2f2|r2f3|;");
+
+        // test split_on_delim when it's an rvalue, returning row_t
+        const auto row = tsv::split_on_delim{ ',' }("a,bb,ccc");
+        VERIFY((row == tsv::row_t{{"a", "bb", "ccc"}}));
     };
 
     test_other["to_num"] = [&]
