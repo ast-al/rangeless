@@ -98,7 +98,7 @@ namespace impl
         maybe(const maybe&) = delete;
         maybe& operator=(const maybe&) = delete;
 
-        maybe(T val)
+        maybe(T&& val)
         {
             reset(std::move(val));
         }
@@ -113,7 +113,6 @@ namespace impl
 
         // need this for monadic binding?
         // maybe(maybe<maybe<T>> other) noexcept { ... }
-
 
         // NB: the assignment semantics differ from that of std::optional!
         // See discussion in reset() below
@@ -130,7 +129,7 @@ namespace impl
             return *this;
         }
 
-        void reset(T val)
+        void reset(T&& val)
         {
             // NB: even if we are holding a value, we don't move-assign to it
             // and instead reset and place-new, because the type may be
@@ -146,11 +145,26 @@ namespace impl
             //     int y = 99;
             //     std::optional<std::tuple<int&>> opt_x = std::tie(x);
             //     std::optional<std::tuple<int&>> opt_y = std::tie(y);
-            //     opt_x = opt_y; // x is now 99 - Why, c++ standard committee? whyyyy??
+            //     opt_x = opt_y; // x is now 99. For our purposes this is NOT what we want.
             //
-            // For our purposes maybe<T> should behave similarly 
-            // to a unique_ptr, except with stack-storage, where
-            // reassignment simply transfers ownership.
+            // For our purposes maybe<T> MUST behave similarly to a unique_ptr, 
+            // except with stack-storage, where move-assignment simply transfers ownership.
+            //
+            // We are not sacrificing any correctness or performance because no copies are ever made anywhere - 
+            // all assignments and argument-passing are by-move; T does not even need to be copy-constructible/assignable.
+            //
+            // We absolutely cannot rely on T::operator=(...), 
+            // but the user code, however, can always invoke it directly as appropriate, e.g.
+            //      *nonempty_maybe_vec = other_vec; // uses vector's operator= (will reuse existing internal storage without reallocation when possible).
+            //
+            // Note: We used to take T by value `reset(T val)`, since we're passing and taking by move, while also 
+            // allowing the user-code to pass by implicit copy if they need to, but changed it to taking by rvalue-reference
+            // `reset(T&& val)` only, to disallow the user-code to accidentally write inefficient code like
+            // nonemmpty_maybe_vec.reset(other_vec), which destroys the currently-held vector, and makes a copy of
+            // other vec while passing it by value. Instead, the user-code would be forced to write
+            //      *nonempty_maybe_vec = other_vec.
+            //
+            // (this was never a use-case in this library, but disallowing it anyway based on feedback).
             //
             // Related:
             // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3527.html#optional_ref.rationale.assign
