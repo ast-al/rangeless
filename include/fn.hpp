@@ -6188,11 +6188,11 @@ static void run_tests()
 
     test_other["to_num"] = [&]
     {
-        VERIFY(123   == int(tsv::to_num(" +123 ")));
+        VERIFY(123  == int(tsv::to_num(" +123 ")));
 
         double delta = 123.0 - double(tsv::to_num(" 123.0 "));
         if(delta < 0) {
-            delta *= 1;
+            delta *= -1;
         }
         VERIFY(delta < 1e-10);
 
