@@ -1882,9 +1882,9 @@ namespace impl
 
             // in case cont is a view:
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
-            const auto size = std::distance(inps.begin(), inps.end());
+            const auto size = size_t(std::distance(inps.begin(), inps.end()));
 
-            if(decltype(size)(cap) < size) {
+            if(cap < size) {
                 auto it = inps.begin();
                 std::advance(it, size - cap);
                 inps.erase(inps.begin(), it);
@@ -1960,9 +1960,9 @@ namespace impl
 
             // in case cont is a view:
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
-            const auto size = std::distance(inps.begin(), inps.end());
+            const auto size = size_t(std::distance(inps.begin(), inps.end()));
 
-            if(decltype(size)(n) < size) {
+            if(n < size) {
                 auto it = inps.begin();
                 std::advance(it, size - n);
                 inps.erase(it, inps.end());
@@ -4737,17 +4737,25 @@ namespace tsv
 
     /////////////////////////////////////////////////////////////////////////
 
-    struct split_on_delim
+    class split_on_delim
     {
-        const char m_delim           = '\t';
-        const bool m_truncate_blanks = true;
-        tsv::row_t m_row             = {};
+    private:
+        const char m_delim;
+        const bool m_truncate_blanks;
+        tsv::row_t m_row;
+
+    public:
+        split_on_delim(char delim = '\t', bool truncate_blanks = true)
+          : m_delim{ delim }
+          , m_truncate_blanks{ truncate_blanks }
+          , m_row{}
+        {}
 
         // If we're an rvalue, support usage like `const auto row = tsv::split_on_delim{ ',' }("a,bb,ccc");` 
         // or, if we want to reuse existing row's storage: `row = tsv::spit_on_delim{ ',' }("a,bb,ccc", std::move(row));`
         auto operator()(const std::string& line, row_t ret = {}) const && -> tsv::row_t
         {
-            ret.resize(1 + std::count(line.begin(), line.end(), m_delim));
+            ret.resize(size_t(1 + std::count(line.begin(), line.end(), m_delim)));
 
             size_t i = 0;
             auto capture_next = [&](size_t b, size_t e)
@@ -4789,17 +4797,11 @@ namespace tsv
         }
     };
 
-#if __cplusplus >= 201402L
-
     /// @brief Read tab-separated-values from stream.
     /*!
     @code
     std::string result = "";
     std::istringstream istr{"foo\n#comment\n\n\n  bar  \tbaz\n"};
-
-    // in c++11: fn::seq( tsv::get_next_line{ istr }) 
-    //         % fn::transform( tsv::split_on_delim{ '\t' }) 
-    //         % fn::for_each(...);
 
     for(const std::vector<std::string>& row : tsv::from(istr)) {
         for(const auto& f : row) {
@@ -4812,13 +4814,11 @@ namespace tsv
     VERIFY(result == "foo|;bar|baz|;");
     @endcode
     */
-    inline auto from(std::istream& istr, char delim = '\t', params params = {})
+    inline auto from(std::istream& istr, char delim = '\t', params params = {}) -> fn::impl::seq<fn::impl::transform<tsv::split_on_delim>::gen<fn::impl::catch_end<tsv::get_next_line> > >
     {
         return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
                      fn::seq(  get_next_line{ istr,  std::move(params) }) );
     }
-#endif  //__cplusplus >= 201402L
-
 
     /// @brief Utility to parse numbers.
     ///
@@ -4897,7 +4897,7 @@ namespace tsv
             if(cond) {
                 throw std::domain_error(
                     "Can't parse '" 
-                  + std::string(m_beg, m_end-m_beg)
+                  + std::string(m_beg, size_t(m_end-m_beg))
                   + "' as numeric type '" + typeid(T).name() 
                   + "' - " + message + ".");
             }
@@ -5333,7 +5333,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % fn::in_groups_of(2)
         % fn::transform([](Xs v)
         {
-            return v.size();
+            return int64_t(v.size());
         })
         % fold;
         VERIFY(res == 221);
@@ -5547,8 +5547,9 @@ static void run_tests()
 
     test_other["typerased"] = [&]
     {
+        int i = 0;
         fn::any_seq_t<int> myseq = //fn::make_typerased(
-            fn::seq([i = 0]() mutable
+            fn::seq([i]() mutable
             {
                 return i < 10 ? i++ : fn::end_seq();
             })
@@ -5827,7 +5828,7 @@ static void run_tests()
             {
                 in.reserve(64);
                 ptrs.insert(in.data());
-                return out*10 + in.size();
+                return out*10 + int64_t(in.size());
             });
 
         VERIFY((result == 2312));
@@ -6149,7 +6150,7 @@ static void run_tests()
         auto res = 
             vec_t{{ 1, 1,2, 1,2,3 }} 
           % fn::counts()
-          % fn::transform([](const auto& kv)
+          % fn::transform([](const std::map<int, size_t>::value_type& kv)
             {
                 return kv.first * 10 + int(kv.second);
             })
@@ -6159,17 +6160,16 @@ static void run_tests()
     };
 
 
-    test_other["line_reader"] = [&]
+    test_other["tsv"] = [&]
     {
         std::string result = "";
         std::istringstream istr{"Expected Header\n \t r1f1 \t \n#Comment: next line is empty, and next one is blanks\n\n  \n r2f1  \tr2f2\t  r2f3  "};
 
-#if __cplusplus >= 201402L
-        tsv::from(istr, '\t', { "Expected Header", "filename" })
-#else
-        fn::seq( tsv::get_next_line{ istr, { "Expected Header", "filename" } } )
-      % fn::transform( tsv::split_on_delim{ '\t' } ) 
-#endif
+        tsv::params params{};
+        params.header = "Expected Header";
+        params.filename = "filename";
+
+        tsv::from(istr, '\t', params)  // tsv::from(istr, '\t', { "Expected Header", "filename" }) // won't compile in c++11
       % fn::for_each([&](const tsv::row_t& row)
         {
             for(const auto& f : row) {
@@ -6199,21 +6199,21 @@ static void run_tests()
         VERIFY(bool(tsv::to_num(" 1 ")));
 
         try{
-            int8_t(tsv::to_num("-129")); // overflow
+            (void)int8_t(tsv::to_num("-129")); // overflow
             VERIFY(false);
         } catch(const std::domain_error&) {
             ;
         }
 
         try{
-            int(tsv::to_num("123 4")); // trailing garbage
+            (void)int(tsv::to_num("123 4")); // trailing garbage
             VERIFY(false);
         } catch(const std::domain_error&) {
             ;
         }
 
         try{
-            uint16_t(tsv::to_num("-123")); // negative number for unsigned
+            (void)uint16_t(tsv::to_num("-123")); // negative number for unsigned
             VERIFY(false);
         } catch(const std::domain_error&) {
             ;
