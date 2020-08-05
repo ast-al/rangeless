@@ -2375,6 +2375,7 @@ namespace impl
             return vec;
         }
 
+#if 0
         template<typename Iterable>
         struct reversed
         {
@@ -2419,6 +2420,20 @@ namespace impl
         {
             return reversed<Iterable>{ std::move(src) };
         }
+
+#else   // The above approach is more clever, and works for all containers that support bidirectional iteration.
+        // In practice, however, the input is a vector and the user programmer expects the reversed vector as output.
+        // So in the spirit of pragmatism, will expect a reversible sequence container as input, and reverse eagerly.
+        // (Since it costs at least O(n) to create a container, reversing in O(n) does not add
+        // to asymptotic complexity).
+
+        template<typename ReversibleContainer>
+        auto operator()(ReversibleContainer cont) const -> ReversibleContainer
+        {
+            std::reverse(cont.begin(), cont.end()); // compilation hint: expecting ReversibleContainer - consider fn::to_vector() first.
+            return cont;
+        }
+#endif
 
         template<typename Iterator>
         view<std::reverse_iterator<Iterator>> operator()(view<Iterator> v) const
