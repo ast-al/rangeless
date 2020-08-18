@@ -11,27 +11,32 @@ This library is intended for moderate to advanced-level c++ programmers that lik
 
 ### Simple examples
 ```cpp
+#define LAMBDA(x, expr) ([&](auto&& x){ return (expr); })
+
 namespace fn = rangeless::fn;
 using fn::operators::operator%;   // arg % f % g % h; // h(g(f(std::forward<Arg>(arg))));
 using fn::operators::operator%=;  // arg %= fn;       // arg = fn(std::move(arg));
 
-employees %= fn::sort_by([](const auto& e){ return std::tie(e.last_name, e.first_name); });
+
+employees %= fn::sort_by LAMBDA(e, std::tie(e.last_name, e.first_name) );
              // this returns a unary function xs->xs that sorts by the given predicate.
 
-employees %= fn::where([](const auto& e){ return e.last_name != "Doe"; });
+employees %= fn::where LAMBDA(e, e.last_name != "Doe");
              // say Good Riddance to the erase-remove idiom and iterate-erase loops.
 
-employees %= fn::take_top_n_by(10, [](const auto& e){ return e.years_onboard; });
+employees %= fn::take_top_n_by(10, LAMBDA(e, e.years_onboard ));
 
 // or 
 
 employees = std::move(employees)
-          % fn::sort_by(           [](const auto& e){ return std::tie(e.last_name, e.first_name); })
-          % fn::where(             [](const auto& e){ return e.last_name != "Doe"; })
-          % fn::take_top_n_by(10,  [](const auto& e){ return e.years_onboard; });
+          % fn::sort_by LAMBDA(e, std::tie(e.last_name, e.first_name) )
+          % fn::where   LAMBDA(e, e.last_name != "Doe" )
+          % fn::take_top_n_by(10,  LAMBDA(e, e.years_onboard ));
+
 ```
 
 ```cpp
+
     // 
     // Top-5 most frequent words among the words of the same length.
     //
@@ -46,47 +51,19 @@ employees = std::move(employees)
     fn::from(
         std::istreambuf_iterator<char>(istr.rdbuf()),
         std::istreambuf_iterator<char>{})
-
-      % fn::transform([](const char c) // tolower
-        {    
-            return ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c; 
-        })   
-
+        
+      % fn::transform LAMBDA(c, ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c ) // to-lower
       % fn::group_adjacent_by(my_isalnum)
-
-#if 0
-        // build word->count map
-      % fn::foldl_d([&](counts_t out, const std::string& in)
-        {
-            if(my_isalnum(in.front())) {
-                ++out[ in ];
-            }
-            return std::move(out);
-        })
-#else
-        // alternatively:
-      % fn::where([&](const std::string& s)
-        {
-            return my_isalnum(s.front());
-        })
-      % fn::counts() // map:word->count
-#endif
-
-      % fn::group_all_by([](const counts_t::value_type kv)
-        {
-            return kv.first.size(); // by word-size
-        })
-
-      % fn::transform(
-              fn::take_top_n_by(5UL, fn::by::second{}))
-
-      % fn::concat()
-
+      % fn::where LAMBDA(str, my_isalnum(str.front())) // discard punctuation
+      % fn::counts()                                   // returns map:word->count
+      % fn::group_all_by LAMBDA(kv, kv.first.size())   // by word-size
+      % fn::transform( fn::take_top_n_by(5UL, fn::by::second{})) 
+      % fn::concat()                                   // undo group_all_by
       % fn::for_each([](const counts_t::value_type& kv)
         {    
-            std::cerr << kv.first << "\t" << kv.second << "\n";
+            std::cout << kv.first << "\t" << kv.second << "\n";
         })   
-      ;    
+      ; 
 
     // compilation time:
     // >>time g++ -I ../include/ -std=c++14 -o test.o -c test.cpp
@@ -109,7 +86,7 @@ See [full documentation](https://ast-al.github.io/rangeless/docs/html/namespacer
 - Minimal standard library dependencies.
 - No inheritance, polymorphism, type-erasures, ADL, advanced metaprogramming, enable_ifs, concepts, preprocessor magic, arcane programming techniques (for some definition of arcane), or compiler-specific workarounds.
 - Low `#include` and compile-time overhead.
-- Enables trivial parallelization (see [`fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__parallel.html)).
+- Enables trivial parallelization (see [`fn::to_async and fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__parallel.html)).
 - Allows for trivial extension of functionality (see [`fn::adapt`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
 
 ### Minimum supported compilers: MSVC-19.15, GCC-4.9.3, clang-3.7, ICC-18
