@@ -11,27 +11,31 @@ This library is intended for moderate to advanced-level c++ programmers that lik
 
 ### Simple examples
 ```cpp
-#define LAMBDA(x, expr) ([&](auto&& x){ return (expr); })
-
 namespace fn = rangeless::fn;
-using fn::operators::operator%;   // arg % f % g % h; // h(g(f(std::forward<Arg>(arg))));
-using fn::operators::operator%=;  // arg %= fn;       // arg = fn(std::move(arg));
+using fn::operators::operator%;   // arg % f % g;  equivalent to: g(f(std::forward<Arg>(arg)));
+using fn::operators::operator%=;  // arg %= fn;    equivalent to: arg = fn(std::move(arg));
 
+struct employee_t
+{
+    std::string last_name;
+    std::string first_name;
+            int years_onboard;
+};
 
-employees %= fn::sort_by LAMBDA(e, std::tie(e.last_name, e.first_name) );
-             // this returns a unary function xs->xs that sorts by the given predicate.
+auto employees = std::vector<employee_t>{/*...*/};
 
-employees %= fn::where LAMBDA(e, e.last_name != "Doe");
-             // say Good Riddance to the erase-remove idiom and iterate-erase loops.
+#define LAMBDA(expr) ([&](auto&& _){ return expr; })
 
-employees %= fn::take_top_n_by(10, LAMBDA(e, e.years_onboard ));
+employees %= fn::sort_by LAMBDA( std::tie(_.last_name, _.first_name) );
+employees %= fn::where LAMBDA( _.last_name != "Doe" );
+employees %= fn::take_top_n_by(10, LAMBDA( _.years_onboard ));
 
 // or 
 
 employees = std::move(employees)
-          % fn::sort_by LAMBDA(e, std::tie(e.last_name, e.first_name) )
-          % fn::where   LAMBDA(e, e.last_name != "Doe" )
-          % fn::take_top_n_by(10,  LAMBDA(e, e.years_onboard ));
+          % fn::sort_by LAMBDA( std::tie(_.last_name, _.first_name) )
+          % fn::where   LAMBDA( _.last_name != "Doe" )
+          % fn::take_top_n_by(10,  LAMBDA( _.years_onboard ));
 
 ```
 
@@ -52,13 +56,14 @@ employees = std::move(employees)
         std::istreambuf_iterator<char>(istr.rdbuf()),
         std::istreambuf_iterator<char>{})
         
-      % fn::transform LAMBDA(c, ('A' <= c && c <= 'Z') ? char(c - ('Z' - 'z')) : c ) // to-lower
-      % fn::group_adjacent_by(my_isalnum)
-      % fn::where LAMBDA(str, my_isalnum(str.front())) // discard punctuation
-      % fn::counts()                                   // returns map:word->count
-      % fn::group_all_by LAMBDA(kv, kv.first.size())   // by word-size
-      % fn::transform( fn::take_top_n_by(5UL, fn::by::second{})) 
-      % fn::concat()                                   // undo group_all_by
+      % fn::transform LAMBDA( ('A' <= _ && _ <= 'Z') ? char(_ - ('Z' - 'z')) : _ ) // to-lower
+      % fn::group_adjacent_by(my_isalnum)             // returns sequence-of-std::string
+      % fn::where LAMBDA( my_isalnum(_.front()))      // discard punctuation
+      % fn::counts()                                  // returns map:word->count
+      % fn::group_all_by LAMBDA( _.first.size())      // returns [[(word, count)]], each subvector containing words of same length
+      % fn::transform(                                // transform each sub-vector...
+            fn::take_top_n_by(5UL, fn::by::second{})) // by filtering it taking top-5 by count.
+      % fn::concat()                                  // undo group_all_by (flatten)
       % fn::for_each([](const counts_t::value_type& kv)
         {    
             std::cout << kv.first << "\t" << kv.second << "\n";
