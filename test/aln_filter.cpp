@@ -151,7 +151,7 @@ static auto where_min_by = [](auto key_fn)
 
 static auto where_max_by = [](auto key_fn)
 {   
-    return my::where_min_by(fn::by::decreasing(std::move(key_fn)));
+    return my::where_min_by( fn::by::decreasing( std::move(key_fn)));
 };
 
 //---------------------------------------------------------------------------
@@ -170,7 +170,7 @@ static auto lazy_transform_in_parallel = [](auto fn,
 
       % fn::transform([fn](auto inp)
         {
-            return std::async(std::launch::async, 
+            return std::async( std::launch::async, 
                 [inp = std::move(inp), fn]() mutable // mutable because inp will be moved-from
                 {
                     return fn(std::move(inp));
@@ -182,9 +182,9 @@ static auto lazy_transform_in_parallel = [](auto fn,
         // dummy future<...>'s, such that all real tasks make it 
         // from the other end of the sliding-window in the next stage.
 
-      % fn::append(fn::seq([i = 1UL, max_queue_size]() mutable
+      % fn::append( fn::seq([i = 1UL, max_queue_size]() mutable
         {
-            using fn_out_t = decltype(fn(std::move(*inputs.begin())));
+            using fn_out_t = decltype( fn( std::move( *inputs.begin())));
             return i++ < max_queue_size ? std::future<fn_out_t>() : fn::end_seq();
         }))
 
@@ -212,7 +212,7 @@ static auto batched_lazy_transform_in_parallel = [](auto fn,
     {
         return std::move(inputs)
       % fn::in_groups_of(batch_size)
-      % my::lazy_transform_in_parallel([&](auto inputs_batch)
+      % my::lazy_transform_in_parallel( [&](auto inputs_batch)
         {
             return std::move(inputs_batch) 
                  % fn::transform(fn) 
@@ -237,6 +237,8 @@ static alns_t realign(aln_t a) // realign stub: just return the original
     return ret;
 }
 
+#define LAMBDA(expr) ([&](const auto& _){ return expr; })
+
 
 //---------------------------------------------------------------------------
 // Filtering steps (5) and (6)
@@ -247,19 +249,13 @@ static auto filter_to_unique_cds_for_gene(alns_t alns_for_gene) -> alns_t
 
     // (5.1) Keep alignments with valid cds-start.
 
-  % fn::where([](const aln_t& aln)
-    {
-        return aln.chr_cds_start_pos != aln_t::invalid_pos;
-    })
+  % fn::where LAMBDA( _.chr_cds_start_pos != aln_t::invalid_pos )
 
     //-------------------------------------------------------------------
     // (5.2) Keep alignments with most-ubiquitous valid cds-starts.
 
-  % my::group_all_by(std::mem_fn(&aln_t::chr_cds_start_pos))
-  % my::where_max_by([](const alns_t& alns)
-    {
-        return alns.size();
-    })
+  % my::group_all_by LAMBDA( _.chr_cds_start_pos )
+  % my::where_max_by LAMBDA( _.size() )
   % fn::concat()
 
     //-------------------------------------------------------------------
@@ -268,28 +264,18 @@ static auto filter_to_unique_cds_for_gene(alns_t alns_for_gene) -> alns_t
     // (5.4) then lower chr-id, 
     // (5.5) then more upstream cds-start.
 
-  % my::where_min_by([](const aln_t& a)
-    {
-        const bool is_nc = a.chr_id.first.find("NC_") == 0;
-
-        // We want maximal is_nc, therefore minimal !is_nc.
-        // NB: can't use std::tie here, but can use make_tuple,
-        // passing via reference-wrapper where appropriate.
-        return std::make_tuple( !is_nc, 
-                     std::cref( a.chr_id), 
-                                a.chr_cds_start_pos);
-    })
+  % my::where_min_by LAMBDA( 
+          std::make_tuple( _.chr_id.first.find("NC_") != 0,
+                std::cref( _.chr_id ), 
+                           _.chr_cds_start_pos))
 
 #if 1
     //-------------------------------------------------------------------
     // (6) Sort by decreasing alignment score, then by increasing mrna-id.
 
-  % fn::sort_by([](const aln_t& a)
-    {
-        return std::make_pair(
-           fn::by::decreasing( a.score),
-                    std::cref( a.mrna_id));
-    })
+  % fn::sort_by LAMBDA( 
+          std::make_pair( fn::by::decreasing( _.score),
+                                   std::cref( _.mrna_id) ))
 
 #else // alternatively, e.g if you want to use your own sort
 
@@ -322,16 +308,13 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
     //-----------------------------------------------------------------------
     // (1) Filter to latest mRNA-version per mRNA-accession
     
-  % fn::group_adjacent_by(std::mem_fn(&aln_t::gene_id))
-  % fn::transform([](alns_t alns_for_gene) -> alns_t
+  % fn::group_adjacent_by( std::mem_fn( &aln_t::gene_id))
+  % fn::transform( [](alns_t alns_for_gene) -> alns_t
     {
         return std::move(alns_for_gene)
-      % my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
-        {
-            return a.mrna_id.first;
-        })
+      % my::group_all_by LAMBDA( std::cref( _.mrna_id.first))
       % fn::transform(
-              my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
+              my::where_max_by( std::mem_fn( &aln_t::mrna_id)))
       % fn::concat(); // un-group
     })
   % fn::concat()
@@ -339,7 +322,7 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
     //-----------------------------------------------------------------------
     // (2) Realign in parallel
 
-  % my::batched_lazy_transform_in_parallel(realign) // aln_t->alns_t
+  % my::batched_lazy_transform_in_parallel(realign) // aln_t -> alns_t
   % fn::concat()
   
     //-----------------------------------------------------------------------
@@ -347,26 +330,21 @@ static auto aln_filter = [](auto alns_seq) // alns may be a lazy input-sequence 
     // (3) Keep top-scoring
     // (4) Drop duplicates
   
-  % fn::group_adjacent_by(std::mem_fn(&aln_t::mrna_id)) // were made adjacent in (1)
-  % fn::transform([](alns_t alns_for_mrna) -> alns_t
+  % fn::group_adjacent_by( std::mem_fn( &aln_t::mrna_id)) // were made adjacent in (1)
+  % fn::transform( [](alns_t alns_for_mrna) -> alns_t
     {
         return std::move(alns_for_mrna)
-      % my::where_max_by(std::mem_fn(&aln_t::score))
-      % my::unique_all_by([](const aln_t& a)
-        {
-            return std::tie( a.mrna_id, 
-                             a.chr_id,
-                             a.chr_start,
-                             a.chr_stop );
-        });
+      % my::where_max_by( std::mem_fn( &aln_t::score))
+      % my::unique_all_by LAMBDA( 
+              std::tie( _.mrna_id, _.chr_id, _.chr_start, _.chr_stop ));
     })
   % fn::concat() 
 
     //-----------------------------------------------------------------------
     // (5), (6)
 
-  % fn::group_adjacent_by(std::mem_fn(&aln_t::gene_id))
-  % fn::transform(example::filter_to_unique_cds_for_gene)
+  % fn::group_adjacent_by( std::mem_fn( &aln_t::gene_id))
+  % fn::transform( example::filter_to_unique_cds_for_gene)
   % fn::concat();
 };
 
@@ -412,7 +390,7 @@ int main()
 
   % example::aln_filter
 
-  % fn::for_each([&](aln_t a)
+  % fn::for_each( [&](aln_t a)
     {
         std::cerr << a.gene_id << "\t" << a.aln_id << "\n";
         kept_ids.push_back(a.aln_id);
