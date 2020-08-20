@@ -24,7 +24,7 @@ struct employee_t
 
 auto employees = std::vector<employee_t>{/*...*/};
 
-#define LAMBDA(expr) ([&](auto&& _){ return expr; })
+#define LAMBDA(expr) ([&](const auto& _){ return expr; })
 
 employees %= fn::sort_by LAMBDA( std::tie(_.last_name, _.first_name) );
 employees %= fn::where LAMBDA( _.last_name != "Doe" );
@@ -166,14 +166,14 @@ Despite packing a lot of functionality, `#include <fn.hpp>` adds only a tiny sli
 // tmp.cpp
 
 #if defined(STD_INCLUDES)
-#   include <stdexcept>
-#   include <algorithm>
-#   include <functional>
-#   include <vector>
-#   include <map>
-#   include <deque>
-#   include <string>
-#   include <cassert>
+#    include <stdexcept>
+#    include <algorithm>
+#    include <functional>
+#    include <vector>
+#    include <map>
+#    include <deque>
+#    include <string>
+#    include <cassert>
 #elif defined(INCLUDE_FN)
 #    include "fn.hpp"
 #elif defined(INCLUDE_RANGE_ALL)
@@ -289,8 +289,8 @@ If you feel that the idiomatic way of filtering a container is an abomination th
 
 #### Transformations over infinite (arbitrarily large) streams (`InputRange`s)
 
-The most useful use-case is the scenarios for writing a function or an expression
-where the input is an infinite stream that you want to manipulate lazily, like a UNIX pipeline, e.g. the above-mentioned [aln_filter.cpp](test/aln_filter.cpp).
+The most useful use-case is the scenarios for writing a functional pipeline
+over an infinite stream that you want to manipulate lazily, like a UNIX pipeline, e.g. the above-mentioned [aln_filter.cpp](test/aln_filter.cpp).
 
 
 ### Downsides and Caveats.
