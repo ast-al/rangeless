@@ -6,14 +6,19 @@
 - Lessen the need to deal with iterators directly.
 - Make the code more expressive and composeable.
 
-This library is intended for moderate to advanced-level c++ programmers that like the idea of c++ `ranges`, but can't use them for various reasons (high complexity, compilation overhead, debug-build performance, size of the library, etc).
+This library is intended for moderate to advanced-level c++ programmers that like the idea of c++ `ranges`, but can't or choose not to use them for various reasons (e.g. high complexity, compilation overhead, debug-build performance, size of the library, etc).
+
+Motivations:
+- https://www.fluentcpp.com/2019/09/13/the-surprising-limitations-of-c-ranges-beyond-trivial-use-cases/
+- https://brevzin.github.io/c++/2020/07/06/split-view/
+- https://aras-p.info/blog/2018/12/28/Modern-C-Lamentations/
 
 
 ### Simple examples
 ```cpp
 namespace fn = rangeless::fn;
-using fn::operators::operator%;   // arg % f % g;  equivalent to: g(f(std::forward<Arg>(arg)));
-using fn::operators::operator%=;  // arg %= fn;    equivalent to: arg = fn(std::move(arg));
+
+#define LAMBDA(expr) ([&](const auto& _ ){ return expr; })
 
 struct employee_t
 {
@@ -24,26 +29,53 @@ struct employee_t
 
 auto employees = std::vector<employee_t>{/*...*/};
 
-#define LAMBDA(expr) ([&](const auto& _){ return expr; })
+employees = fn::where LAMBDA( _.last_name != "Doe" )( std::move(employees));
+employees = fn::take_top_n_by(10, LAMBDA( _.years_onboard ))( std::move(employees));
+employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) )( std::move(employees));
 
-employees %= fn::sort_by LAMBDA( std::tie(_.last_name, _.first_name) );
-employees %= fn::where LAMBDA( _.last_name != "Doe" );
-employees %= fn::take_top_n_by(10, LAMBDA( _.years_onboard ));
+// or, as function-composition:
 
-// or 
-
-employees = std::move(employees)
-          % fn::sort_by LAMBDA( std::tie(_.last_name, _.first_name) )
-          % fn::where   LAMBDA( _.last_name != "Doe" )
-          % fn::take_top_n_by(10,  LAMBDA( _.years_onboard ));
-
+employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name))(
+                fn::take_top_n_by(10, LAMBDA( _.years_onboard ))(
+                    fn::where LAMBDA( _.last_name != "Doe" )(
+                        std::move(employees) )));
 ```
 
+How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns an overloaded unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value.
+
+`operator %` is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow. It is implemented as:
+```cpp
+    template<typename Arg, typename F>
+    auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)( std::forward<Arg>(arg)) )
+    {
+        return std::forward<F>(fn)( std::forward<Arg>(arg));
+    }
+```
+
+The original example can then be written as:
 ```cpp
 
-    // 
-    // Top-5 most frequent words among the words of the same length.
-    //
+using fn::operators::operator%;   // arg % f % g % h; // h( g( f( std::forward<Arg>(arg))));
+using fn::operators::operator%=;  // arg %= fn;       // arg = fn( std::move(arg));
+
+employees %= fn::where LAMBDA( _.last_name != "Doe" );
+employees %= fn::take_top_n_by(10, LAMBDA( _.years_onboard ));
+employees %= fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
+
+// or:
+
+employees = std::move(employees)
+          % fn::where LAMBDA( _.last_name != "Doe" )
+          % fn::take_top_n_by(10, LAMBDA( _.years_onboard ))
+          % fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
+```
+
+Note on the `LAMBDA` macro: a common complaint among c++ programmers is the verbosity of lambdas, which are used a lot with this library.
+The macro can to alleviate it somewhat. I'm personally ambivalent to it; it's not defined in the library.
+
+
+### Example: Top-5 most frequent words chosen among the words of the same length.
+```cpp
 
     auto my_isalnum = [](const int ch)
     {    
@@ -96,7 +128,7 @@ See [full documentation](https://ast-al.github.io/rangeless/docs/html/namespacer
 
 ### Minimum supported compilers: MSVC-19.15, GCC-4.9.3, clang-3.7, ICC-18
 
-This is not a range library, like `range-v3`, as it is centered around value-semantics rather than reference-semantics. This library does not know or deal with the multitude of range concepts; rather, it deals with data transformations via higher-order functions. It differentiates between two types of inputs: a `Container` and a lazy `seq<NullaryInvokable>` satisfying single-pass forward-only `InputRange` semantics (also known as a data-stream). Most of the function-objects in this library have two overloads of `operator()` respectively. Rather than composing views over ranges as with `range-v3`, `operator()`s take inputs by value, operate on it eagerly or compose a lazy `seq`, as appropriate (following the Principle of least astonishment), and return the result by value (with move-semantics) to the next stage.
+This is not a range library, like `range-v3`, as it is centered around value-semantics rather than reference-semantics. This library does not know or deal with the multitude of range concepts; rather, it deals with data transformations via higher-order functions. It differentiates between two types of inputs: a `Container` and a lazy `seq<NullaryInvokable>` satisfying single-pass forward-only `InputRange` semantics (also known as a data-stream). Most of the function-objects in this library have two overloads of `operator()` respectively. Rather than composing views over ranges as with `range-v3`, `operator()`s take inputs by value, operate on it eagerly or compose a lazy `seq`, as appropriate (following the Principle of Least Astonishment), and return the result by value (with move-semantics) to the next stage.
 
 E.g.
 - `fn::where`
