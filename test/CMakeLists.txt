@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_compile_options(
     -g -pthread
-    -ftemplate-backtrace-limit=1 -Wfatal-errors 
+    -ftemplate-backtrace-limit=1 -Wfatal-errors
     -Wall -Wextra 
     -Wconversion -Wdeprecated-declarations -Wstrict-aliasing 
     -Wlogical-op -Wmissing-declarations -Wpedantic -Wshadow 
@@ -11,11 +11,9 @@ add_compile_options(
     -Wmissing-include-dirs -Winvalid-pch -Wmissing-format-attribute 
     -Wfloat-equal -Wdouble-promotion -Winit-self -Weffc++ 
     -Woverloaded-virtual -Wsign-promo -Wvla -Wredundant-decls 
-    -Wcast-align -Wcast-qual -Wold-style-cast 
-    -fprofile-arcs -ftest-coverage 
-    -fsanitize=address -fsanitize=undefined)
+    -Wcast-align -Wcast-qual -Wold-style-cast)
     
-link_libraries("-static-libasan -fsanitize=address -fsanitize=undefined -fprofile-arcs -ftest-coverage")
+link_libraries("-pthread")
 
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 

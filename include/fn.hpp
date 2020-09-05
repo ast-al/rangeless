@@ -35,17 +35,12 @@
 #include <map>
 #include <deque> // can we get rid of this and implement in terms of ring-buffer?
 #include <string> // for to_string
+#include <iterator> // for std::inserter, MSVC
 #include <cassert>
 
 #if defined(DOXYGEN) || (defined(RANGELESS_FN_ENABLE_RUN_TESTS) && RANGELESS_FN_ENABLE_RUN_TESTS)
 #    define RANGELESS_FN_ENABLE_PARALLEL 1
-#endif
-
-// cost of #include <fn.hpp> without par-transform: 0.45s; with: 0.85s, so will disable by default
-#if RANGELESS_FN_ENABLE_PARALLEL
-#    include <deque>
-#    include <future>
-#    include <thread>
+#    define RANGELESS_ENABLE_TSV 1
 #endif
 
 #if defined(_MSC_VER)
@@ -65,163 +60,11 @@ namespace fn
 
 namespace impl
 {
-
-#if 0 // don't need this any longer
-    //https://en.cppreference.com/w/cpp/types/remove_cvref
-    template< class T >
-    struct remove_cvref
-    {
-        using type = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-    };
-    template< class T >
-    using remove_cvref_t = typename remove_cvref<T>::type;
-#endif
-
     // A trick to make compiler produce a compilation error printing the expanded type.
     // Usage: TheTypeInQuestionIs<T>{}; or TheTypeInQuestionIs<decltype(expr)>{};
     // The compiler output will have ... TheTypeInQuestionIs<int> ...
     //                                                       ^^^ computed type
     template<typename...> struct TheTypeInQuestionIs;
-
-#if 0
-
-    /*
-    Could implement fn::compose(...) to support point-free composition, e.g.
-
-    // before:
-    static auto my_unique_all_by = [](auto key_fn)
-    {
-        return [key_fn = std::move(key_fn)](auto inputs)
-        {
-            return std::move(inputs)
-          % fn::sort_by(key_fn)
-          % fn::unique_adjacent_by(key_fn);
-        };
-    };
-
-    // after:
-    static auto my_unique_all_by = [](auto key_fn)
-    {
-        return fn::compose(
-            fn::sort_by(key_fn)
-          , fn::unique_adjacent_by(key_fn));
-    };
-
-    Similarly, we could make fn::transform(...) variadic, e.g.
-
-    // before
-    fn::transform([](alns_t alns_for_gene) -> alns_t
-    {   
-        return std::move(alns_for_gene)
-      % my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
-        {   
-            return a.mrna_id.first;
-        })  
-      % fn::transform(
-              my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
-      % fn::concat(); // un-group
-    }) 
-
-    // after (composes the variadic args)
-    fn::transform(
-        my::group_all_by([](const aln_t& a) -> const aln_t::accession_t&
-        {   
-            return a.mrna_id.first;
-        })  
-      , fn::transform(
-            my::where_max_by(std::mem_fn(&aln_t::mrna_id)))
-      , fn::concat() // un-group
-    ) 
-    */
-
-    // Most of the aln_filter.cpp can be rewritten in terms of 
-    // fn::compose, but looking at the diff of the code I'm not
-    // convinced this provides a lot of added value, although it
-    // obviates the need in operator%.
-    //
-    // With operator % we are passing results from one function to
-    // another through a chain of invocations. 
-    // With fn::compose we are creating a "template centipede" instead.
-    //
-    // Also, with point-free approach we can't specify
-    // input and output types and can't give it a name 
-    // to the input, so even though point-free is shorter,
-    // it is not necessarily easier to reason about.
-    //
-    // Disabling for now; may rething later.
-
-    /////////////////////////////////////////////////////////////////////////
-    template<typename F, typename G>
-    struct composed
-    {
-        F f;
-        G g;
-
-        template<typename X>
-        auto operator()(X&& x) & -> decltype(g(f(std::forward<X>(x))))
-        {
-            return g(f(std::forward<X>(x)));
-        }
-
-        // some operations can be rvalue-specific, e.g. foldl::operator()
-        template<typename X>
-        auto operator()(X&& x) && -> decltype(std::move(g)(std::move(f)(std::forward<X>(x))))
-        {
-            return std::move(g)(std::move(f)(std::forward<X>(x)));
-        }
-    };
-
-    /////////////////////////////////////////////////////////////////////////
-
-    template<typename... T>
-    struct composed_type_builder;
-
-    template<typename F, typename G>
-    struct composed_type_builder<F, G>
-    {
-        using type = impl::composed<F, G>;
-    };
-
-    template<typename F, typename G, typename... Rest>
-    struct composed_type_builder<F, G, Rest...>
-    {
-        using type = typename composed_type_builder<impl::composed<F, G>, Rest...>::type;
-    };
-
-    /////////////////////////////////////////////////////////////////////////
-}
-
-    template<typename F, typename G>
-    auto compose(F f, G g) -> impl::composed<F, G>
-    {
-        return { std::move(f), std::move(g) };
-    }
-
-    template<typename F, typename G, typename... Rest>
-    auto compose(F f, G g, Rest... fns)
-#if __cplusplus >= 201406L
-      // in c++14 return-type is auto-deduced
-#elif 0 
-      // This produces compilation error with 4 or more args 
-      // (e.g. my::where_min_by in aln_filter.cpp). Not sure why.
-      -> decltype(compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...))
-#else
-      // As a work-around, will compute the type manually using composed_type_builder metafunction
-      -> typename impl::composed_type_builder<F, G, Rest...>::type
-#endif
-    {
-        return compose(impl::composed<F,G>{ std::move(f), std::move(g) }, std::move(fns)...);
-    }
-
-    // Related: https://github.com/Dobiasd/FunctionalPlus/blob/master/include/fplus/internal/composition.hpp
-    // Related: https://github.com/boostorg/hof/blob/develop/include/boost/hof/flow.hpp
-    // (no idea what's going on there).
-
-namespace impl
-{
-
-
-#endif
 
     template<typename IteratorTag, typename Iterable>
     static inline void require_iterator_category_at_least(const Iterable&)
@@ -246,6 +89,8 @@ namespace impl
     public:
         using value_type = T;
 
+        static_assert(!std::is_same<value_type, void>::value, "Can't have void as value_type - did you perhaps forget a return-statement in your transform-function?");
+
         maybe() : m_sentinel{}
         {}
 
@@ -253,7 +98,7 @@ namespace impl
         maybe(const maybe&) = delete;
         maybe& operator=(const maybe&) = delete;
 
-        maybe(T val)
+        maybe(T&& val)
         {
             reset(std::move(val));
         }
@@ -268,7 +113,6 @@ namespace impl
 
         // need this for monadic binding?
         // maybe(maybe<maybe<T>> other) noexcept { ... }
-
 
         // NB: the assignment semantics differ from that of std::optional!
         // See discussion in reset() below
@@ -285,7 +129,7 @@ namespace impl
             return *this;
         }
 
-        void reset(T val)
+        void reset(T&& val)
         {
             // NB: even if we are holding a value, we don't move-assign to it
             // and instead reset and place-new, because the type may be
@@ -301,11 +145,26 @@ namespace impl
             //     int y = 99;
             //     std::optional<std::tuple<int&>> opt_x = std::tie(x);
             //     std::optional<std::tuple<int&>> opt_y = std::tie(y);
-            //     opt_x = opt_y; // x is now 99 - Why, c++ standard committee? whyyyy??
+            //     opt_x = opt_y; // x is now 99. For our purposes this is NOT what we want.
             //
-            // For our purposes maybe<T> should behave similarly 
-            // to a unique_ptr, except with stack-storage, where
-            // reassignment simply transfers ownership.
+            // For our purposes maybe<T> MUST behave similarly to a unique_ptr, 
+            // except with stack-storage, where move-assignment simply transfers ownership.
+            //
+            // We are not sacrificing any correctness or performance because no copies are ever made anywhere - 
+            // all assignments and argument-passing are by-move; T does not even need to be copy-constructible/assignable.
+            //
+            // We absolutely cannot rely on T::operator=(...), 
+            // but the user code, however, can always invoke it directly as appropriate, e.g.
+            //      *nonempty_maybe_vec = other_vec; // uses vector's operator= (will reuse existing internal storage without reallocation when possible).
+            //
+            // Note: We used to take T by value `reset(T val)`, since we're passing and taking by move, while also 
+            // allowing the user-code to pass by implicit copy if they need to, but changed it to taking by rvalue-reference
+            // `reset(T&& val)` only, to disallow the user-code to accidentally write inefficient code like
+            // nonemmpty_maybe_vec.reset(other_vec), which destroys the currently-held vector, and makes a copy of
+            // other vec while passing it by value. Instead, the user-code would be forced to write
+            //      *nonempty_maybe_vec = other_vec.
+            //
+            // (this was never a use-case in this library, but disallowing it anyway based on feedback).
             //
             // Related:
             // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3527.html#optional_ref.rationale.assign
@@ -336,7 +195,7 @@ namespace impl
             assert(!m_empty);
 
 #if __cplusplus >= 201703L
-            return std::launder(m_value);
+            return *std::launder(&m_value);
 #else
             return m_value;
 #endif
@@ -360,14 +219,11 @@ namespace impl
             assert(!m_empty);
             
 #if __cplusplus >= 201703L
-            return std::launder(m_value);
+            return *std::launder(&m_value);
 #else
             return m_value;
 #endif
         }
-
-
-
 
 #if 0
         // this causes internal compiler error in MSVC
@@ -387,118 +243,6 @@ namespace impl
             reset();
         }
     };
-
-
-#if 0
-    // in the future will get rid of <deque> dependency
-    // and will use our own simple bounded queue.
-    template<typename T>
-    class queue
-    {
-    public:
-        queue(size_t capacity)
-           : m_capacity{ capacity }
-        {
-            m_data.reserve(capacity);
-        }
-
-        void push(T x)
-        {
-            if(m_beg + m_capacity >= m_end) {
-                RANGELESS_FN_THROW("Queue is full");
-
-            } else if(m_data.size() < m_capacity) {
-                m_data.push_back(std::move(x));
-                ++m_end;
-
-            } else {
-                m_data[m_end++ % m_capacity] = std::move(x);
-            }
-        }
-
-        T pop()
-        {
-            if(m_beg >= m_end) {
-                RANGELESS_FN_THROW("Queue is empty");
-            }
-            return std::move(m_data[m_beg++ % m_capacity]);
-        }
-
-        size_t size() const
-        {
-            return m_end - m_beg;
-        }
-
-        bool empty() const
-        {
-            return m_beg == m_end;
-        }
-
-        std::vector<T> as_vec() &&
-        {   
-            // rotate the elements to put oldest at front
-            return m_data;
-        }
-
-        class iterator
-        {
-        public:
-            using iterator_category = std::random_access_iterator_tag;
-            using   difference_type = ptrdiff_t;
-            using        value_type = T;
-            using           pointer = value_type*;
-            using         reference = value_type&;
-
-            iterator();
-            iterator(const iterator&) = default;
-            iterator& operator=(const iterator&) = default;
-
-            pointer   operator->() const;
-            reference operator*() const;
-
-            iterator& operator++();
-            iterator  operator++(int);
-
-            iterator& operator--();
-            iterator  operator--(int);
-
-            iterator& operator+=(difference_type n)
-            {
-                assert(m_pos + n <= m_parent.m_end);
-                m_pos += n;
-                return *this;
-            }
-
-            iterator& operator-=(difference_type n)
-            {
-                assert(m_beg + n <= m_pos);
-                m_pos -= n;
-                return *this;
-            }
-
-            iterator operator+(difference_type n) const;
-            iterator operator-(difference_type n) const;
-
-            bool operator==(const iterator& other) const;
-            bool operator!=(const iterator& other) const;
-            bool operator<(const iterator& other) const;
-
-        private:
-            queue& m_parent;
-            size_t m_pos;
-        };
-
-
-    private:
-        using vec_t = std::vector<T>;
-
-          const size_t m_capacity;
-                size_t m_beg = 0;
-                size_t m_end = 0;
-        std::vector<T> m_data = {};
-    };
-#endif
-
 
     /////////////////////////////////////////////////////////////////////////////
     // Will be used to control SFINAE priority of ambiguous overload resolutions.
@@ -528,80 +272,6 @@ namespace impl
     @endcode
     */
     /// @{
-
-
-#if 0
-    // Disabling for now until I think this through and decide whether we need it at all.
-    //
-    // Related: https://www.fluentcpp.com/2017/11/24/how-to-use-the-stl-in-legacy-code/
-
-    /////////////////////////////////////////////////////////////////////////
-    // adapter for unary sink-functions
-    template<typename SinkFn>
-    class output_iterator
-    {
-    public:
-        using iterator_category = std::output_iterator_tag;
-        using   difference_type = void;
-        using        value_type = void;
-        using           pointer = void;
-        using         reference = void;
-        
-        output_iterator& operator++() { return *this; }
-        output_iterator& operator*()  { return *this; }
-
-        template<typename T>
-        output_iterator& operator=(T&& inp)
-        {
-            (*sink)(std::forward<T>(inp));
-            return *this;
-        }
-
-#if 0
-        // In MSVC lambdas are copy-constructible but not copy-assignable,
-        // so copy-assignment is implicitly deleted because of SinkFn field.
-        //
-        // std::copy in MSVC relies on output-iterator being copy-assignable
-        // under the hood, so we need to implement copy-assignment via 
-        // placement-new. I'm not 100% sure this is legit, however.
-        output_iterator& operator=(const output_iterator& other)
-        {
-            if(this != &other) {
-                sink.~sink();
-                new (&sink) SinkFn(other.sink);
-            }
-            return *this;
-        }
-        output_iterator(const output_iterator&) = default;
-
-                   output_iterator(output_iterator&&) = default;
-        output_iterator& operator=(output_iterator&&) = default;
-
-        // By the way, I looked at <boost/function_output_iterator.hpp>.
-        // It just holds SinkFn by value and suffers from the same issue,
-        // (since 2001) https://godbolt.org/z/-5ORiK
-#else
-        // Thinking more about it, I think just holding sink_fn by
-        // shared_ptr is a better approach, having all copies 
-        // of the output_iterator refer to the same sink object.
-        // 
-        // requires #include <memory>, adding 0.05s to #includes-overhead,
-        // which is heavy-ish.
-
-        std::shared_ptr<SinkFn> sink;
-#endif
-    };
-
-    /// Adapt unary sink-function as output iterator. @see generate
-    template<typename SinkFn>
-    static output_iterator<SinkFn> make_output_iterator(SinkFn sink_fn)
-    {
-        return { std::make_shared<SinkFn>( std::move(sink_fn) ) };
-    }
-#endif
-
-
-
 
     /////////////////////////////////////////////////////////////////////////
     /// @brief Return fn::end_seq() from input-range generator function to signal end-of-inputs.
@@ -703,6 +373,20 @@ namespace impl
         }
     };
 
+    // A type-erasing wrapper for a gen, wrapping it in a std::function, 
+    // and providing value_type (so that InGen::value_type all over the place works).
+    // An alternative would be to use a metafunction that computes value_type everywhere instead.
+    template<typename T>
+    struct any_gen
+    {
+        using value_type = T;
+        std::function<impl::maybe<value_type>()> gen;
+
+        auto operator()() -> impl::maybe<value_type>
+        {
+            return gen();
+        }
+    };
 
     /////////////////////////////////////////////////////////////////////
     // invoke gen.recycle(value) if gen defines this method
@@ -718,20 +402,6 @@ namespace impl
     {
         // no-op
     }
-
-    /////////////////////////////////////////////////////////////////////////
-    template<typename Gen>
-    struct get_value_type
-    {
-        using type = typename Gen::value_type;
-    };
-
-    template<typename T>
-    struct get_value_type<std::function<impl::maybe<T>()>>
-    {
-        using type = T;
-    };
-
 
     /////////////////////////////////////////////////////////////////////////
     /// Single-pass InputRange-adapter for nullary generators.
@@ -753,7 +423,7 @@ namespace impl
         // need to deal with iterators directly.
     
     public:
-        using value_type = typename get_value_type<Gen>::type;
+        using value_type = typename Gen::value_type;
         static_assert(!std::is_reference<value_type>::value, "The type returned by the generator-function must be a value-type. Use std::ref if necessary.");
 
         seq(Gen gen) 
@@ -781,12 +451,12 @@ namespace impl
         {
             other.m_started = true;
             other.m_ended   = true;
-        }   
+        }
 
                    seq(const seq&) = delete;
         seq& operator=(const seq&) = delete;
 
-                        seq(seq&&) = default;
+                        seq(seq&&) = default; // TODO: need to customize to set other.m_ended = other.m_started = true?
              seq& operator=(seq&&) = default;
 
         /////////////////////////////////////////////////////////////////////
@@ -1022,33 +692,6 @@ namespace impl
         return { { src, src.begin() } };
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// @brief Type-erase a `seq`.
-    ///
-    /// `any_seq_t` is implicitly constructible from any `seq`,
-    /// wrapping the underlying `NullaryInvokable` as `std::function`.
-    ///
-    /// This may be useful when you want to declare a function or a method
-    /// returning a seq, but don't want to define it with all the gory details
-    /// in the header.
-    ///
-    /// NB: wrappnig a callable in a `std::function` is subject to
-    /// performance-related considerations.
-    /*!
-    @code
-    fn::any_seq_t<int> myseq = 
-        fn::seq([i = 0]() mutable
-        {
-            return i < 10 ? i++ : fn::end_seq();
-        })
-      % fn::where([](int x)
-        {
-            return x % 2 == 0;
-        });
-    @endcode
-    */
-    template<typename T>
-    using any_seq_t = impl::seq<std::function<impl::maybe<T>()>>;
     /// @}
    
     
@@ -1116,7 +759,7 @@ namespace impl
 
         bool operator<(const gt& other) const
         {
-            return other.val < this->val;
+            return std::less<T>{}(other.val, this->val);
         }
 
         // operator== in case it will be used with group_adjacent_by or unique_adjacent_by
@@ -1124,18 +767,12 @@ namespace impl
         {
             return other.val == this->val;
         }
-    };
 
-    // composition of gt over key_fn
-    template<typename F>
-    struct gt_fn
-    {
-        const F key_fn;
-
+        // if val is a unary key-function
         template<typename Arg>
-        auto operator()(const Arg& arg) const -> gt<decltype(key_fn(arg))>
+        auto operator()(const Arg& arg) const -> gt<decltype(val(arg))>
         {
-            return { key_fn(arg) };
+            return { val(arg) };
         }
     };
 
@@ -1236,7 +873,7 @@ namespace by
 
 
         // we can also compose by::decreasing with a key-function
-        auto ret3 = inp % fn::sort_by(fn::by::flipped([](const std::string& s)
+        auto ret3 = inp % fn::sort_by(fn::by::decreasing([](const std::string& s)
         {
             return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
         }));
@@ -1283,13 +920,6 @@ namespace by
         // because otherwise unwrapped reference_wrapper won't bind to
         // operator< in gt::operator<.
         return { x.get() };
-    }
-
-    /// @brief Compose key_fn with `by::decreasing`.
-    template<typename F>
-    impl::gt_fn<F> flipped(F key_fn)
-    {
-        return { std::move(key_fn) };
     }
 
     /// @brief Make binary comparison predicate from a key-function
@@ -1602,6 +1232,20 @@ namespace impl
     {
         Container dest;
 
+        // pass-through if dest is empty and same type.
+        Container operator()(Container src) && // rvalue-specific because dest will be moved-from
+        {
+            if(dest.empty()) {
+                return std::move(src);
+            }
+
+            for(auto&& x : src) {
+                dest.insert(dest.end(), std::move(x));
+            }       
+            return std::move(dest);
+        }
+
+
         template<typename Iterable>
         Container operator()(Iterable src) && // rvalue-specific because dest will be moved-from
         {
@@ -1671,10 +1315,10 @@ namespace impl
     template<typename F>
     struct for_each
     {
-        F fn;
+        F fn; // may be non-const, hence operator()s are also non-const.
 
         template<typename Iterable>
-        void operator()(Iterable&& src) const
+        void operator()(Iterable&& src)
         {
             for(auto it = src.begin(); it != src.end(); ++it) {
                 fn(*it);
@@ -1697,7 +1341,7 @@ namespace impl
 
         // See NB[3]
         template<typename Gen>
-        void operator()(seq<Gen> src) const
+        void operator()(seq<Gen> src)
         {
             for(auto x = src.get_gen()(); x; x = src.get_gen()()) {
                 fn(std::move(*x));
@@ -1705,6 +1349,30 @@ namespace impl
             }
         }
     };
+
+    template<typename F2>
+    struct for_each_adjacent
+    {
+        F2 fn2; // may be non-const, hence operator()s are also non-const.
+
+        template<typename Iterable>
+        void operator()(Iterable&& src)
+        {
+            impl::require_iterator_category_at_least<std::forward_iterator_tag>(src);
+
+            auto it2 = src.begin();
+            if(it2 == src.end()) {
+                return;
+            }
+            auto it1 = it2;
+            ++it2;
+
+            for(; it2 != src.end(); it1 = it2, ++it2) {
+                fn2(*it1, *it2);
+            }
+        }
+    };
+
 
     /////////////////////////////////////////////////////////////////////
     template<typename Ret, typename Op>
@@ -2009,104 +1677,11 @@ namespace impl
         RANGELESS_FN_OVERLOAD_FOR_SEQ( {}, {{}, {}}, win_size )
     };
 
-#if RANGELESS_FN_ENABLE_PARALLEL 
-
-    // Default implementation of Async for par_transform below.
-    struct std_async
-    {
-        template<typename NullaryCallable>
-        auto operator()(NullaryCallable gen) const -> std::future<decltype(gen())>
-        {
-            return std::async(std::launch::async, std::move(gen));
-        }
-    };
 
     /////////////////////////////////////////////////////////////////////
-    template<typename F, typename Async>
-    struct par_transform
-    {
-          const Async async;
-              const F map_fn;    // const, because expecting this to be thread-safe
-               size_t queue_cap; // 0 means in-this-thread.
-
-        par_transform& queue_capacity(size_t cap) 
-        {
-            queue_cap = cap;
-            return *this;
-        }
-
-        template<typename InGen>
-        struct gen
-        {
-                    InGen gen;
-              const Async async;
-                  const F map_fn;
-             const size_t queue_cap;
-
-            // TODO: with some handwaving may be able to use std::vector
-            using fmapped_t  = decltype(map_fn(std::move(*gen())));
-            using value_type = fmapped_t;
-            using queue_t    = std::deque<std::future<fmapped_t>>;
-
-                  queue_t queue;
-
-            auto operator()() -> maybe<value_type>
-            {
-                // behave like a plain impl::transform in in-this-thread mode
-                if(queue_cap == 0) {
-                    assert(queue.empty());
-                    auto x = gen();
-                    if(!x) {
-                        return { };
-                    } else {
-                        return map_fn(std::move(*x));
-                    }
-                }
-
-                struct job_t // wrapper for passing inp to fn by-move
-                {
-                    using input_t = typename InGen::value_type;
-
-                    const F& fn;
-                     input_t inp; 
-
-                    auto operator()() -> decltype(fn(std::move(inp)))
-                    {    
-                        return fn(std::move(inp));
-                    }    
-                };
-
-                // if have more inputs, top-off the queue with async-tasks.
-                while(queue.size() < queue_cap) {
-                    auto x = gen();
-                    
-                    if(!x) {
-                        break;
-                    }
-
-                    queue.emplace_back(
-                                 async(
-                                 job_t{ map_fn, std::move(*x) }));
-                }
-
-                if(queue.empty()) {
-                    return { };
-                }
-
-                auto ret = queue.front().get(); // this returns by-value
-                queue.pop_front();
-                return { ret };
-            }
-        };
-
-        RANGELESS_FN_OVERLOAD_FOR_SEQ(  async, map_fn, queue_cap, {} )
-        RANGELESS_FN_OVERLOAD_FOR_CONT( async, map_fn, queue_cap, {} )
-    };
-#endif
 
 #if 0
     Note: leaving the original implementation for reference.
-    /////////////////////////////////////////////////////////////////////
     template<typename F>
     struct adapt
     {
@@ -2219,7 +1794,7 @@ namespace impl
         RANGELESS_FN_OVERLOAD_FOR_CONT( fn, {}, false )
     };
 
-#endif
+#endif // adapt
    
     /////////////////////////////////////////////////////////////////////
     template<typename Pred>
@@ -2307,9 +1882,9 @@ namespace impl
 
             // in case cont is a view:
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
-            const auto size = std::distance(inps.begin(), inps.end());
+            const auto size = size_t(std::distance(inps.begin(), inps.end()));
 
-            if(decltype(size)(cap) < size) {
+            if(cap < size) {
                 auto it = inps.begin();
                 std::advance(it, size - cap);
                 inps.erase(inps.begin(), it);
@@ -2385,9 +1960,9 @@ namespace impl
 
             // in case cont is a view:
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
-            const auto size = std::distance(inps.begin(), inps.end());
+            const auto size = size_t(std::distance(inps.begin(), inps.end()));
 
-            if(decltype(size)(n) < size) {
+            if(n < size) {
                 auto it = inps.begin();
                 std::advance(it, size - n);
                 inps.erase(it, inps.end());
@@ -2513,7 +2088,7 @@ namespace impl
         Cont operator()(const Cont& cont) const
         {
             Cont ret{};
-            auto pred_copy = pred;
+            auto pred_copy = pred; // in case copy_if needs non-const access 
             std::copy_if(cont.begin(),
                          cont.end(), 
                          std::inserter(ret, ret.end()), 
@@ -2566,7 +2141,7 @@ namespace impl
         // High-priority overload for containers where can call remove_if.
         template<typename Cont>
         auto x_EraseFrom(Cont& cont, pr_high) const -> decltype(void(cont.front()))
-        {
+        {                                                         // ^^^^^^^^^^ discussion below
             // This overload must be made unpalatable to SFINAE unless 
             // std::remove_if is viable for Cont, e.g. feature-checking
             // as follows:
@@ -2578,9 +2153,9 @@ namespace impl
             //     -> decltype(void( *cont.begin() = std::move(*cont.begin()) ))
             //  or -> decltype(std::swap(*cont.begin(), *cont.begin()))
             //
-            // However, SFINAE still considers this overload viable for std::map
-            // even though map's value_type is not move-assignable, (due to key being const);
-            // i.e. the lines below should not and would not compile.
+            // For a std::map, even though map's value_type is not move-assignable, 
+            // (due to key being const, the lines below should not and would not compile, 
+            // and yet SFINAE still considers this overload viable (??)
             //
             //     std::remove(cont.begin(), cont.end(), *cont.begin());
             //     *cont.begin() = std::move(*cont.begin());
@@ -2593,7 +2168,8 @@ namespace impl
             // https://en.cppreference.com/w/cpp/named_req/SequenceContainer
             //
             // Update: This is no longer an issue with newer compilers, so this must have been
-            // a compiler bug. However, Leaving the cont.front() check in place for now.
+            // a compiler bug. However, Leaving the cont.front() check in place for now
+            // to support older compilers.
 
             x_EraseRemove(cont); 
         }
@@ -2692,8 +2268,6 @@ namespace impl
 
             return ret;
         }
-
-
 
         /////////////////////////////////////////////////////////////////
         template<typename Cont,
@@ -2801,6 +2375,7 @@ namespace impl
             return vec;
         }
 
+#if 0
         template<typename Iterable>
         struct reversed
         {
@@ -2834,7 +2409,7 @@ namespace impl
                 return src.crbegin();
             }
 
-            auto cend() const
+            const_iterator cend() const
             {
                 return src.crend();
             }
@@ -2845,6 +2420,20 @@ namespace impl
         {
             return reversed<Iterable>{ std::move(src) };
         }
+
+#else   // The above approach is more clever, and works for all containers that support bidirectional iteration.
+        // In practice, however, the input is a vector and the user programmer expects the reversed vector as output.
+        // So in the spirit of pragmatism, will expect a reversible sequence container as input, and reverse eagerly.
+        // (Since it costs at least O(n) to create a container, reversing in O(n) does not add
+        // to asymptotic complexity).
+
+        template<typename ReversibleContainer>
+        auto operator()(ReversibleContainer cont) const -> ReversibleContainer
+        {
+            std::reverse(cont.begin(), cont.end()); // compilation hint: expecting ReversibleContainer - consider fn::to_vector() first.
+            return cont;
+        }
+#endif
 
         template<typename Iterator>
         view<std::reverse_iterator<Iterator>> operator()(view<Iterator> v) const
@@ -2876,7 +2465,9 @@ namespace impl
     // partially differentiates between the objects, and a two objects
     // that are equivalent according to the sort key don't necessarily
     // compare equal, and so we shouldn't be swapping their relative order.
-    template<typename F>
+    struct stable_sort_tag {};
+    struct unstable_sort_tag {};
+    template<typename F, typename SortTag = stable_sort_tag>
     struct sort_by
     {
         const F key_fn;
@@ -2895,14 +2486,29 @@ namespace impl
             // this will fire if Iterable is std::map, where value_type is std::pair<const Key, Value>,
             // which is not move-assignable because of constness.
             static_assert(std::is_move_assignable<typename Iterable::value_type>::value, "value_type must be move-assignable.");
-            auto op_less = [this](const typename Iterable::value_type& x, 
-                                  const typename Iterable::value_type& y)
-            {
-                return lt{}(key_fn(x), key_fn(y));
-            };
 
-            std::stable_sort(src.begin(), src.end(), op_less); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
+            s_sort( src, 
+                    [this](const typename Iterable::value_type& x, 
+                           const typename Iterable::value_type& y)
+                    {
+                        return lt{}(key_fn(x), key_fn(y));
+                    }
+                    , SortTag{});
+
             return src;
+        }
+
+    private:
+        template<typename Iterable, typename Comp>
+        static void s_sort(Iterable& src, Comp comp, stable_sort_tag)
+        {
+            std::stable_sort(src.begin(), src.end(), std::move(comp)); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
+        }
+
+        template<typename Iterable, typename Comp>
+        static void s_sort(Iterable& src, Comp comp, unstable_sort_tag)
+        {
+            std::sort(src.begin(), src.end(), std::move(comp)); // [compilation-error-hint]: expecting sortable container; try fn::to_vector() first.
         }
     };
 
@@ -3058,12 +2664,12 @@ namespace impl
                  const F key_fn;
         const BinaryPred pred2;
 
-#if 1
         /////////////////////////////////////////////////////////////////////
         // A simple version that accumulates equivalent-group in a vector, 
         // and yield vector_t. This makes it easy to deal-with (no seq-of
         // seqs), but it needs to allocate a return std::vector per-group.
         // (Edit: unless the use-case supports recycling (see below))
+        //
         template<typename InGen>
         struct gen
         {
@@ -3123,34 +2729,6 @@ namespace impl
 
         // view may be an InputRange, so treat as seq.
         RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, {} )
-#else
-        // Experimental implementation returning non-allocating 
-        // seq-of-subseqs instead of seq-of-vectors.
-        //
-        // After trying it out in various use-cases,
-        // decided against it, because while elegant in theory,
-        // it is not very useful and finnicky in practice 
-        // due to subrange single-passness (think of it as if
-        // an element of a collection could only be accessed 
-        // once), so nearly every time this necessitates a
-        // conversion to vector to be able to do "real work"
-        // (e.g. to reorder subranges).
-        //
-        // Also:
-        //
-        // * Subranges depend on the lifetime of the parent.
-        //
-        // * Subranges must be consumed entirely and in order.
-        //
-        // * Not straightforward conversion to vector-of-vectors
-        //    (can't simply convert to vector-of-subseqs, because see above).
-        //    Calculation of type requires some recursive metafunction handwaving and recursive implicit conversions.
-       
-
-        [ implementation deleted ]
-
-        RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
-#endif
 
         /////////////////////////////////////////////////////////////////////
         template<typename Cont>
@@ -3184,6 +2762,85 @@ namespace impl
 
             return ret;
         }
+    };
+
+
+    /////////////////////////////////////////////////////////////////////
+    template<typename F, typename BinaryPred = impl::eq>
+    struct group_adjacent_as_subseqs_by
+    {
+                 const F key_fn;
+        const BinaryPred pred2;
+
+        template<typename InGen>
+        struct gen
+        {
+            // subgen for subseq - yield elements of the same group
+            struct subgen
+            {
+                using value_type = typename InGen::value_type;
+                gen* parent;
+
+                maybe<value_type> operator()()
+                {
+                    assert(parent);
+                    return parent->next();
+                }
+            };
+
+            /////////////////////////////////////////////////////////////////
+
+            using element_type = typename InGen::value_type;
+            using value_type = seq<subgen>;
+
+                          InGen in_gen;
+                        const F key_fn;
+               const BinaryPred pred2;   // returns true iff two elemens belong to same group
+            maybe<element_type> current; // current element of the current group
+                           bool reached_subend; 
+
+            /////////////////////////////////////////////////////////////////
+
+            maybe<element_type> next() // called from subgen::operator()()
+            {
+                if(!current || reached_subend) {
+                    reached_subend = true;
+                    return {};
+                }
+
+                auto next = in_gen();
+                reached_subend = !next || !pred2(key_fn(*current), key_fn(*next));
+                std::swap(current, next);
+                return std::move(next);
+            }
+            
+            maybe<value_type> operator()() // return seq for next group
+            {
+                if(!current) { // starting initial group
+                    current = in_gen();
+                } else {
+
+                    // NB: the user-code may have accessed the group only
+                    // partially (or not at all), in which case we must skip
+                    // over the rest elements in the group until we reach 
+                    // the next one.
+                    while(!reached_subend) {
+                        next();
+                    }
+                }
+
+                if(!current) { // reached final end
+                    return {};
+                }
+
+                reached_subend = false;
+                return { subgen{ this } };
+            }
+        };
+
+        RANGELESS_FN_OVERLOAD_FOR_SEQ(  key_fn, pred2, {}, false )
+        RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, false )
+        RANGELESS_FN_OVERLOAD_FOR_CONT( key_fn, pred2, {}, false )
     };
 
 
@@ -3467,18 +3124,6 @@ namespace impl
     {
         const F key_fn;
 
-#if 1
-        /*
-        Experimental lazy implementation for seq: keep a map of keys of seen elements
-        and skip if seen. We need to guard against the keys becoming dangling 
-        while in the map, e.g. if key_fn returns a type that is a reference, refence-wrapper,
-        or a value-type containing these (e.g. a tuple).
-
-        Can check against this by requiring the key-type to be default-constructible
-        (references, reference-wrappers, tuples-containing-references, etc. will not be).
-        Is this sufficient?
-        */
-
         template<typename InGen>
         struct gen
         {
@@ -3524,7 +3169,7 @@ namespace impl
         };
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( key_fn, {} )
-#endif
+
 
         template<typename Iterable>
         auto operator()(Iterable src) const
@@ -3636,10 +3281,10 @@ namespace impl
         template<typename Iterable>
         struct gen
         {    
-                                BinaryFn fn;
-                                Iterable src; 
-             typename Iterable::iterator it;
-                                    bool started;
+                              BinaryFn fn;
+                              Iterable src; 
+           typename Iterable::iterator it;
+                                  bool started;
 
             using value_type = decltype(fn(*it, *it));
 
@@ -3794,6 +3439,18 @@ namespace impl
 }   // namespace impl
 
     /////////////////////////////////////////////////////////////////////////
+
+    template<typename T>
+    using any_seq_t = impl::seq<impl::any_gen<T>>;
+
+    /// @brief Type-erase a `seq`.
+    ///
+    /// Wrap the underlying nullary invokable as std::function.
+    template<typename Gen, typename T = typename Gen::value_type>
+    inline any_seq_t<T> make_typerased(impl::seq<Gen> seq)
+    {
+        return { std::move(seq) };
+    }
 
     /// @defgroup to_vec to_vector/to_seq
     /// @{
@@ -4040,132 +3697,6 @@ namespace impl
 
 
 
-#if RANGELESS_FN_ENABLE_PARALLEL
-
-
-    /// @brief Parallelized version of `fn::transform`
-    ///
-    /// Requires `#define RANGELESS_FN_ENABLE_PARALLEL 1` before `#include fn.hpp` because
-    /// it brings in "heavy" STL `#include`s (`<future>` and `<thread>`).
-    ///
-    /// `queue_capacity` is the maximum number of simultaneosly-running `std::async`-tasks, each executing a single invocation of `map_fn`.
-    /// 
-    /// NB: if the execution time of `map_fn` is highly variable, having higher capacity may help, such that
-    /// tasks continue to execute while we're blocked waiting on a result from a long-running task. 
-    ///
-    /// NB: If the tasks are too small compared to overhead of running as async-task, 
-    /// it may be helpful to batch them (see `fn::in_groups_of`), have `map_fn` produce
-    /// a vector of outputs from a vector of inputs, and `fn::concat` the outputs.
-    /// 
-    /// `map_fn` is required to be thread-safe.
-    ///
-    /// NB: the body of the `map_fn` would normally compute the result in-place,
-    /// but it could also, for example, execute a subprocess do it, or offload it
-    /// to a cloud or a compute-farm, etc.
-    ///
-    /// ---
-    /// Q: Why do we need this? We have parallel `std::transform` and `std::transform_reduce` in c++17?
-    /// 
-    /// A: Parallel `std::transform` requires a multi-pass `ForwardRange`
-    /// rather than `InputRange`, and `std::terminate`s if any of the tasks throws.
-    /// `std::transform_reduce` requires `ForwardRange` and type-symmetric, associative, and commutative `BinaryOp`
-    /// (making it next-to-useless).
-    ///
-    /*!
-    @code
-    // Example: implement parallelized gzip compressor (a-la pigz)
-
-    #define RANGELESS_FN_ENABLE_PARALLEL 1
-    #include "fn.hpp"
-
-    #include <util/compress/stream_util.hpp>
-
-    int main()
-    {
-        auto& istr = std::cin;
-        auto& ostr = std::cout;
-
-        istr.exceptions(std::ios::badbit);
-        ostr.exceptions(std::ios::failbit | std::ios::badbit);
-
-        namespace fn = rangeless::fn;
-        using fn::operators::operator%;
-        using bytes_t = std::string;
-
-        fn::seq([&istr]() -> bytes_t
-        {
-            auto buf = bytes_t(1000000UL, '\0');
-            istr.read(&buf[0], std::streamsize(buf.size()));
-            buf.resize(size_t(istr.gcount()));
-            return !buf.empty() ? std::move(buf) : fn::end_seq();
-        })
-      
-      % fn::transform_in_parallel([](bytes_t buf) -> bytes_t
-        {
-            // compress the block.
-            std::ostringstream local_ostr;
-            ncbi::CCompressOStream{
-                local_ostr,
-                ncbi::CCompressOStream::eGZipFile } << buf;
-            return local_ostr.str();
-
-        }).queue_capacity( std::thread::hardware_concurrency() )
-
-      % fn::for_each([&ostr](bytes_t buf)
-        {
-            ostr.write(buf.data(), std::streamsize(buf.size()));
-        });
-
-        return istr.eof() && !istr.bad() ? 0 : 1;
-    }
-
-    @endcode
-
-    See an similar examples using [RaftLib](https://medium.com/cat-dev-urandom/simplifying-parallel-applications-for-c-an-example-parallel-bzip2-using-raftlib-with-performance-f69cc8f7f962)
-    or [TBB](https://software.intel.com/en-us/node/506068)
-    */
-    template<typename F> 
-    impl::par_transform<F, impl::std_async> transform_in_parallel(F map_fn)
-    {
-        return { impl::std_async{}, std::move(map_fn), std::thread::hardware_concurrency() };
-    }
-
-    
-    /// @brief A version of `transform_in_parallel` that uses a user-provided Async (e.g. backed by a fancy work-stealing thread-pool implementation).
-    ///
-    /// `Async` is a unary invokable having the following signature:
-    /// `template<typename NullaryInvokable> operator()(NullaryInvokable job) const -> std::future<decltype(job())>`
-    ///
-    /// NB: `Async` must be copy-constructible (may be passed via `std::ref` as appropriate). 
-    ///
-    /// A single-thread pool can be used to offload the transform-stage to a separate thread if `transform` is not parallelizeable.
-    /*!
-    @code
-        auto res2 = 
-            std::vector{{1,2,3,4,5}} // can be an InputRange
-
-          % fn::transform_in_parallel([](auto x)
-            {
-                return std::to_string(x);
-            },
-            [&my_thread_pool](auto job) -> std::future<decltype(job())>
-            {
-                return my_thread_pool.enqueue(std::move(job));
-            }).queue_capacity(10)
-
-          % fn::foldl_d([](std::string out, std::string in)
-            {
-                return std::move(out) + "," + in;
-            });
-        VERIFY(res2 == ",1,2,3,4,5");
-    @endcode
-    */
-    template<typename F, typename Async> 
-    impl::par_transform<F, Async> transform_in_parallel(F map_fn, Async async)
-    {
-        return { std::move(async), std::move(map_fn), std::thread::hardware_concurrency() };
-    }
-#endif
 
     /// @}
     /// @defgroup folding Folds and Loops
@@ -4280,6 +3811,16 @@ namespace impl
     impl::for_each<F> for_each(F fn)
     {
         return { std::move(fn) };
+    }
+
+
+    /// Invoke binary fn on each pair of adjacent elements.
+    ///
+    /// NB: the inputs must satisfy `ForwardRange` or stronger.
+    template<typename F2>
+    impl::for_each_adjacent<F2> for_each_adjacent(F2 fn2)
+    {
+        return { std::move(fn2) };
     }
 
     /// @}
@@ -4499,6 +4040,7 @@ namespace impl
         return { by::identity{} };
     }
 
+    /////////////////////////////////////////////////////////////////////////
 
     /// @brief Group adjacent elements.
     /// @see group_all_by
@@ -4519,10 +4061,46 @@ namespace impl
         return { std::move(key_fn), {} };
     }
 
+    /////////////////////////////////////////////////////////////////////////
+    /// @brief Group adjacent elements.
+    ///
+    /// This is similar to regular `group_adjacent_by`, except the result type
+    /// is a seq yielding subseqs of equivalent elements, rather than vectors.
+    /// @code
+    ///     fn::seq(...) 
+    ///   % fn::group_adjacent_by(key_fn, fn::to_seq()) 
+    ///   % fn::for_each([&](auto group_seq) // type of group_seq is a seq<...> instead of vector<...>
+    ///     {
+    ///         for(auto elem : group_seq) {
+    ///             // ...
+    ///         }
+    ///     });
+    /// @endcode
+    ///
+    /// This is useful for cases where a subseq can be arbitrarily large, and you want
+    /// to process grouped elements on-the-fly without accumulating them in a vector.
+    ///
+    /// This comes at the cost of more constrained functionality, since all groups and
+    /// all elements in each group can only be accessed once and in order.
+    template<typename F>
+    impl::group_adjacent_as_subseqs_by<F> group_adjacent_by(F key_fn, impl::to_seq)
+    {
+        return { std::move(key_fn), {} };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+
     inline impl::group_adjacent_by<by::identity> group_adjacent()
     {
         return { by::identity{}, {} };
     }
+
+    inline impl::group_adjacent_as_subseqs_by<by::identity> group_adjacent(impl::to_seq)
+    {
+        return { by::identity{}, {} };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
 
     /// @brief Group adjacent elements if binary predicate holds.
     template<typename BinaryPred>
@@ -4530,6 +4108,15 @@ namespace impl
     {
         return { {}, std::move(pred2) };
     }
+
+    /// @brief Group adjacent elements if binary predicate holds.
+    template<typename BinaryPred>
+    impl::group_adjacent_as_subseqs_by<fn::by::identity, BinaryPred> group_adjacent_if(BinaryPred pred2, impl::to_seq)
+    {
+        return { {}, std::move(pred2) };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
 
 
     /// @brief Group adjacent elements into chunks of specified size.
@@ -4584,16 +4171,29 @@ namespace impl
     Buffering space requirements for `seq`: `O(N)`.
     */
     template<typename F>
-    impl::sort_by<F> sort_by(F key_fn)
+    impl::sort_by<F, impl::stable_sort_tag> sort_by(F key_fn)
     {
         return { std::move(key_fn) };
     }
 
     /// @brief `sort_by with key_fn = by::identity`
-    inline impl::sort_by<by::identity> sort()
+    inline impl::sort_by<by::identity, impl::stable_sort_tag> sort()
     {
         return { by::identity{} };
     }
+
+
+    template<typename F>
+    impl::sort_by<F, impl::unstable_sort_tag> unstable_sort_by(F key_fn)
+    {
+        return { std::move(key_fn) };
+    }
+
+    inline impl::sort_by<by::identity, impl::unstable_sort_tag> unstable_sort()
+    {
+        return { by::identity{} };
+    }
+
 
     /// @brief Unstable lazy sort.
     ///
@@ -4734,7 +4334,7 @@ namespace impl
         return { std::move(second), std::move(fn) };
     }
 
-    // @brief Yield invocations of `fn` over pairs of adjacent inputs.
+    /// @brief Yield invocations of `fn` over pairs of adjacent inputs.
     template<typename BinaryFn>
     impl::zip_adjacent<BinaryFn> zip_adjacent(BinaryFn fn)
     {
@@ -4932,6 +4532,18 @@ namespace operators
     /// @brief `return std::forward<F>(fn)(std::forward<Arg>(arg))`
     ///
     /// This is similar to Haskell's operator `(&) :: a -> (a -> b) -> b |infix 1|` or F#'s operator `|>`
+    
+#if 0 && (defined(__GNUC__) || defined(__clang__))
+    __attribute__ ((warn_unused_result))
+    // A user may forget to iterate over the sequence, e.g.
+    //         std::move(inputs) % fn::transform(...); // creates and immediately destroys a lazy-seq.
+    // whereas the user code probably intended:
+    //         std::move(inputs) % fn::transform(...) % fn::for_each(...);
+    // 
+    // To deal with this we could make operator% nodiscard / warn_unused_result,
+    // but disabling for now because I can't figure out how to suppress the 
+    // warning from the final % for_each(...).
+#endif 
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)(std::forward<Arg>(arg)) )
     {
@@ -5015,6 +4627,348 @@ namespace operators
 
 } // namespace rangeless
         
+#if RANGELESS_ENABLE_TSV
+
+#include <string>
+#include <iostream>
+#include <cctype> // for MSVC v19.16
+#include <cstdlib>
+#include <cstring>
+
+namespace rangeless
+{
+namespace tsv
+{
+    using row_t = std::vector<std::string>;
+
+    struct params
+    {
+        std::string header = "";    
+        // If specified, throw unless it is encountered verbatim in data before first data-row.
+        // Used for checking that the file content corresponds to the program's expectations.
+        // Skipped, even if skip_comments = false.
+        //
+        //  e.g. "#Col1 name\tCol2 name"  - Column names are in a comment before the data rows.
+        //   or  "Col1 name\tCol2 name"   - Column names are in the first data-row.
+        //   or  "# File descriptor 42"   - some arbitrary comment. 
+
+        std::string filename  = "";    // Report filename in exception messages.
+                                        
+        bool skip_comments    = true;  // Skip lines starting with '#'.
+        bool truncate_blanks  = true;  // Truncate leading and trailing spaces.
+        bool skip_empty       = true;  // Skip lines that are empty (checked after truncate_blanks is applied).
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+
+    class get_next_line
+    {
+    public: 
+        get_next_line(std::istream& istr, params p = params{})
+            :   m_istr{ istr }
+            , m_params{ std::move(p) }
+        {}
+
+        auto operator()() -> std::reference_wrapper<const std::string>
+        {
+            if(!m_istr) {
+                throw std::runtime_error("Stream " + m_params.filename + " is not in good state before reading.");
+            }
+
+            m_line.clear();
+            while(std::getline(m_istr, m_line))
+                if(x_prepare())
+            {
+                return { m_line };
+            }
+
+            if(    m_istr.bad() 
+               || (m_istr.fail() && !m_istr.eof()) 
+               || !m_line.empty())
+            {
+                throw std::runtime_error("Stream " + m_params.filename + " terminated abnormally.");
+            } else {
+                rangeless::fn::end_seq(); // finished normally.
+            }
+
+            return { m_line };
+        }
+
+    private:
+        std::istream& m_istr;
+         const params m_params;
+                 bool m_found_header = false;
+          std::string m_line         = "";
+
+        // preprocess the line and return true iff returnable
+        bool x_prepare()
+        {
+            if(!m_line.empty() && m_line.back() == '\r') {
+                m_line.pop_back();
+            }
+
+            const bool is_comment = !m_line.empty() && m_line[0] == '#';
+
+            if(    !m_params.header.empty()
+                && !m_found_header
+                && m_line == m_params.header)
+            {
+                m_found_header = true;
+                m_line.clear();
+                return false;
+            }
+
+            if(m_params.truncate_blanks) {
+                while(!m_line.empty() && m_line.back() == ' ') {
+                    m_line.pop_back();
+                }
+
+                size_t i = 0;
+                while(i < m_line.size() && m_line[i] == ' ') {
+                    ++i;
+                }
+                m_line.erase(0, i);
+            }
+
+            if( (m_params.skip_empty    &&  m_line.empty())
+             || (m_params.skip_comments && !m_line.empty() && m_line[0] == '#'))
+            {
+                m_line.clear();
+                return false;
+            }
+
+            if(    !m_line.empty() && !is_comment // data-line
+                && !m_params.header.empty() && !m_found_header) // did not find expected header-line
+            {
+                throw std::runtime_error(
+                        "Did not find expected header: '" 
+                       + m_params.header + "'" 
+                       + (m_params.filename.empty() ? "" : ( " in file: " + m_params.filename)));
+            }
+
+            return true;
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+
+    class split_on_delim
+    {
+    private:
+        const char m_delim;
+        const bool m_truncate_blanks;
+        tsv::row_t m_row;
+
+    public:
+        split_on_delim(char delim = '\t', bool truncate_blanks = true)
+          : m_delim{ delim }
+          , m_truncate_blanks{ truncate_blanks }
+          , m_row{}
+        {}
+
+        // If we're an rvalue, support usage like `const auto row = tsv::split_on_delim{ ',' }("a,bb,ccc");` 
+        // or, if we want to reuse existing row's storage: `row = tsv::spit_on_delim{ ',' }("a,bb,ccc", std::move(row));`
+        auto operator()(const std::string& line, row_t ret = {}) const && -> tsv::row_t
+        {
+            ret.resize(size_t(1 + std::count(line.begin(), line.end(), m_delim)));
+
+            size_t i = 0;
+            auto capture_next = [&](size_t b, size_t e)
+            {
+                if(e == std::string::npos) {
+                    e = line.size();
+                }
+
+                while(m_truncate_blanks && b < e && line[b] == ' ') {
+                    ++b;
+                }
+                while(m_truncate_blanks && b < e && line[e-1] == ' ') {
+                    --e;
+                }
+
+                ret[i++].assign(line, b, e - b);
+            };
+
+            size_t start_pos = 0, end_pos = 0;
+
+            do {
+                end_pos = line.find(m_delim, start_pos);
+                capture_next(start_pos, end_pos);
+                start_pos = end_pos + 1;
+            } while(end_pos != std::string::npos);
+
+            return ret; // copy elision guaranteed here in c++11?
+        }
+
+        // The operator below is for repeated invocations when we're an lvalue.
+        //
+        // To prevent unnecesary heap allocatinos, instead of returning row_t,
+        // we return a const reference-wrapper, and reuse the allocated storage
+        // in m_row.
+        auto operator()(const std::string& line) & -> std::reference_wrapper<const tsv::row_t>
+        {
+            m_row = std::move(*this)(line, std::move(m_row));
+            return { m_row };
+        }
+    };
+
+    /// @brief Read tab-separated-values from stream.
+    /*!
+    @code
+    std::string result = "";
+    std::istringstream istr{"foo\n#comment\n\n\n  bar  \tbaz\n"};
+
+    for(const std::vector<std::string>& row : tsv::from(istr)) {
+        for(const auto& f : row) {
+            result += f;
+            result += "|";
+        }
+        result += ";";
+    });
+
+    VERIFY(result == "foo|;bar|baz|;");
+    @endcode
+    */
+    inline auto from(std::istream& istr, char delim = '\t', params params = {}) -> fn::impl::seq<fn::impl::transform<tsv::split_on_delim>::gen<fn::impl::catch_end<tsv::get_next_line> > >
+    {
+        return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
+                     fn::seq(  get_next_line{ istr,  std::move(params) }) );
+    }
+
+    /// @brief Utility to parse numbers.
+    ///
+    /// This is a dispatcher for `std::strto*` functions with additional functionality:
+    /// throws `std::domain_error` if can't parse, or out of bounds, or input has trailing non-whitespaces, or the destination type is unsigned and the input is a negative number.
+    /*!
+     * @code
+     * bouble   a = tsv::to_num("");         // throws - expected a number
+     * double   b = tsv::to_num(" 123xyz");  // throws - trailing garbage not allowed
+     * int8_t   c = tsv::to_num(" 12345 ");  // throws - out of range
+     * float    d = tsv::to_num("12e-456");  // throws - underflow
+     * uint16_t e = tsv::to_num("-1");       // throws - negative number while destination is unsigned
+     * @endcode
+     */
+    class to_num
+    {
+    public:
+        to_num(const to_num&) = delete; // prevent nonsense like auto x = tsv::num("123") from compiling
+        to_num& operator=(const to_num&) = delete;
+
+        explicit to_num(const char* str) 
+          : m_beg{ str }
+          , m_end{ m_beg + std::strlen(str) } 
+        {}
+
+        template<typename Str> // string, string_view, CTempString etc.
+        explicit to_num(const Str& str) 
+          : m_beg{ str.begin() == str.end() ? nullptr : &*str.begin() }
+          , m_end{ str.begin() == str.end() ? nullptr : &*str.begin() + str.size() }
+        {}
+
+        /// Conversion to an enum or enum-class
+        template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value>::type* = nullptr>
+        operator Enum() const && // rvalue-specific such that no possibility of m_beg/m_end becoming dangling
+        {
+            auto value = typename std::underlying_type<Enum>::type{};
+            value = std::move(*this);
+            return Enum(value);
+        }
+
+        /// Conversion to an arithmetic type
+        template<typename Number, typename std::enable_if<std::is_arithmetic<Number>::value>::type* = nullptr>
+        operator Number() const &&
+        {
+            auto ret = Number{};
+            char* endptr = nullptr;
+            
+            errno = 0;
+            x_parse(ret, &endptr);
+
+            throw_if(errno,                      ret, "under-or-overflow"); 
+            throw_if(!endptr || endptr == m_beg, ret, "could not interpret");
+            throw_if(endptr > m_end,             ret, "parsed past the end");
+
+            for(; endptr < m_end; ++endptr) { // verify that there's no garbage past the end
+                throw_if(!std::isspace(*endptr), ret, "trailing non-whitespace characters");
+            }
+            return ret;
+        }
+
+        /// Convert to `uint8_t` first; throw unless 0 or 1; return as bool.
+        operator bool() const &&
+        {
+            uint8_t ret = std::move(*this);
+            throw_if(ret != 0 && ret != 1, ret, "out of bounds");
+            return ret;
+        }
+
+    private:
+        const char* m_beg;
+        const char* m_end;
+
+        template<typename T>
+        void throw_if(bool cond, const T&, const char* message) const
+        {
+            if(cond) {
+                throw std::domain_error(
+                    "Can't parse '" 
+                  + std::string(m_beg, size_t(m_end-m_beg))
+                  + "' as numeric type '" + typeid(T).name() 
+                  + "' - " + message + ".");
+            }
+        }
+
+        void x_parse(long double& d, char** endptr) const
+        {
+            d = std::strtold(m_beg, endptr);
+        }
+
+        void x_parse(double & d, char** endptr) const
+        {
+            d = std::strtod(m_beg, endptr);
+        }
+        
+        void x_parse(float& d, char** endptr) const
+        {
+            d = std::strtof(m_beg, endptr);
+        }
+
+        template<typename Integral>
+        void x_parse(Integral& x, char** endptr) const
+        {
+            static_assert(std::is_integral<Integral>::value, "");
+
+            // NB: can do another round of static dispatching here,
+            // but chose pragmatic approach instead.
+
+            if(std::is_signed<Integral>::value) {
+
+                auto num = std::strtoll(m_beg, endptr, 10);
+                x = static_cast<Integral>(num);
+                throw_if(x != num, x, "overflow");
+
+            } else {
+
+                auto ptr = m_beg;
+                while(ptr < m_end && std::isspace(*ptr)) {
+                    ++ptr;
+                }
+                throw_if(ptr < m_end && *ptr == '-', x, "negative number in unsigned conversion");
+
+                auto num = std::strtoull(ptr, endptr, 10);
+                x = static_cast<Integral>(num);
+                throw_if(x != num, x, "overflow");
+            }
+        }
+    }; // to_num
+
+
+} // namespace tsv
+
+} // namespace rangeless
+
+#endif // ENABLE_TSV
+
 
 
 #if RANGELESS_FN_ENABLE_RUN_TESTS
@@ -5026,6 +4980,7 @@ namespace operators
 #include <iostream>
 #include <sstream>
 #include <cctype>
+#include <memory>
 
 #ifndef VERIFY
 #define VERIFY(expr) if(!(expr)) RANGELESS_FN_THROW("Assertion failed: ( "#expr" ).");
@@ -5127,31 +5082,6 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         VERIFY(res == 42123);
     };
 
-    tests["transform_in_parallel"] = [&]
-    {
-        auto res = make_inputs({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
-        % fn::transform_in_parallel([](X x) { return std::to_string(x); }).queue_capacity(10)
-        % fn::foldl_d([](std::string out, std::string in)
-        {
-            return std::move(out) + "," + in;
-        });
-        VERIFY(res == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
-
-
-#if __cplusplus >= 201402L
-        auto res2 = make_inputs({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
-        % fn::transform_in_parallel([](X x) { return std::to_string(x); },
-                                    [](auto job)
-                                    {
-                                        return std::async(std::launch::async, std::move(job));
-                                    }).queue_capacity(10)
-        % fn::foldl_d([](std::string out, std::string in)
-        {
-            return std::move(out) + "," + in;
-        });
-        VERIFY(res2 == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
-#endif
-    };
 
 
 
@@ -5418,7 +5348,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % fn::in_groups_of(2)
         % fn::transform([](Xs v)
         {
-            return v.size();
+            return int64_t(v.size());
         })
         % fold;
         VERIFY(res == 221);
@@ -5469,6 +5399,11 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % reverse()
         % fold;
         VERIFY(res == 54321);
+
+        res = make_inputs({3,2,4,1,5})
+        % unstable_sort()
+        % fold;
+        VERIFY(res == 12345);
     };
 
     tests["lazy_sort"] = [&]
@@ -5487,6 +5422,45 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         % fold;
         VERIFY(res == 345);
     };
+
+
+#if __cplusplus >= 201402L
+    tests["group_adjacent_as_subseqs"] = [&]
+    {
+        int res = 0;
+        int group_num = 0;
+
+        make_inputs({1,2,2,3,3,3,4,5})
+      % fn::group_adjacent(fn::to_seq())
+      % fn::for_each([&](auto subseq)
+        {
+            //subseq.size();  // sanity-check: this should not compile, because type is seq<...>
+
+            group_num++;
+            if(group_num == 4) {
+                return; // testing skipping a group without accessing it
+            }
+
+            size_t i = 0;
+            for(const auto x : subseq) {
+
+                // testing that things work as expected
+                // for partially-accessed groups leaving
+                // some elements unaccessed. Here we'll skip
+                // the last 3 in 333 subgroup.
+                if(i++ >= 2) {
+                    break;
+                }
+
+                res = res*10 + x;
+            }
+            res = res*10;
+        });
+
+        VERIFY(res == 1022033050);
+    };
+#endif
+
 
     tests["key_fn returning a reference_wrapper"] = [&]
     {
@@ -5507,6 +5481,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
         auto res = make_inputs({2,3,1,2}) % fn::to(std::set<int>{}) % fold;
         VERIFY(res == 123);
     };
+
 
     /////////////////////////////////////////////////////////////////////////
 #endif
@@ -5585,10 +5560,11 @@ static void run_tests()
 
     /////////////////////////////////////////////////////////////////////////
 
-    test_other["any_seq_t"] = [&]
+    test_other["typerased"] = [&]
     {
-        fn::any_seq_t<int> myseq = 
-            fn::seq([i = 0]() mutable
+        int i = 0;
+        fn::any_seq_t<int> myseq = //fn::make_typerased(
+            fn::seq([i]() mutable
             {
                 return i < 10 ? i++ : fn::end_seq();
             })
@@ -5607,13 +5583,26 @@ static void run_tests()
 
     test_other["for_each"] = [&]
     {
-        int res = 0;
-        vec_t{{1,2,3}} % fn::for_each([&res](int& x)
+        // NB: making sure that for_each compiles with mutable lambdas
+        auto vec = vec_t{{1,2,3}};
+        vec % fn::for_each([](int& x) mutable
         {
-            res = res*10 + x;
+            x *= 10;
         });
-        VERIFY(res == 123);
+        VERIFY(( vec == vec_t{{10,20,30}} ));
     };
+
+    test_other["for_each_adjacent"] = [&]
+    {
+        auto vec = vec_t{{1,2,3,4}};
+        vec % fn::for_each_adjacent([](int& x1, int& x2) mutable // making sure non-const-reference binds
+        {
+            return x2 = x1*10 + x2;
+        });
+
+        VERIFY(( vec == vec_t{{1,12,123,1234}} ));
+    };
+
 
     test_other["zip_adjacent"] = [&]
     {
@@ -5627,6 +5616,8 @@ static void run_tests()
 
         VERIFY(( res == std::vector<int>{{12,23,34}} ));
     };
+
+
 
     test_other["fold"] = [&]
     {
@@ -5852,7 +5843,7 @@ static void run_tests()
             {
                 in.reserve(64);
                 ptrs.insert(in.data());
-                return out*10 + in.size();
+                return out*10 + int64_t(in.size());
             });
 
         VERIFY((result == 2312));
@@ -5879,7 +5870,7 @@ static void run_tests()
 
         VERIFY(ret2 == expected);
 
-        auto ret3 = inp % fn::sort_by(fn::by::flipped([](const std::string& s)
+        auto ret3 = inp % fn::sort_by(fn::by::decreasing([](const std::string& s)
         {
             return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
         }));
@@ -6174,13 +6165,78 @@ static void run_tests()
         auto res = 
             vec_t{{ 1, 1,2, 1,2,3 }} 
           % fn::counts()
-          % fn::transform([](const auto& kv)
+          % fn::transform([](const std::map<int, size_t>::value_type& kv)
             {
                 return kv.first * 10 + int(kv.second);
             })
           % fn::to_vector();
         
         VERIFY((res == vec_t{{13, 22, 31}}));
+    };
+
+
+    test_other["tsv"] = [&]
+    {
+        std::string result = "";
+        std::istringstream istr{"Expected Header\n \t r1f1 \t \n#Comment: next line is empty, and next one is blanks\n\n  \n r2f1  \tr2f2\t  r2f3  "};
+
+        tsv::params params{};
+        params.header = "Expected Header";
+        params.filename = "filename";
+
+        tsv::from(istr, '\t', params)  // tsv::from(istr, '\t', { "Expected Header", "filename" }) // won't compile in c++11
+      % fn::for_each([&](const tsv::row_t& row)
+        {
+            for(const auto& f : row) {
+                result += f;
+                result += "|";
+            }
+            result += ";";
+        });
+
+        VERIFY(result == "|r1f1||;r2f1|r2f2|r2f3|;");
+
+        // test split_on_delim when it's an rvalue, returning row_t
+        const auto row = tsv::split_on_delim{ ',' }("a,bb,ccc");
+        VERIFY((row == tsv::row_t{{"a", "bb", "ccc"}}));
+    };
+
+    test_other["to_num"] = [&]
+    {
+        VERIFY(123  == int(tsv::to_num(" +123 ")));
+
+        double delta = 123.0 - double(tsv::to_num(" 123.0 "));
+        if(delta < 0) {
+            delta *= -1;
+        }
+        VERIFY(delta < 1e-10);
+
+        VERIFY(bool(tsv::to_num(" 1 ")));
+
+        try{
+            (void)int8_t(tsv::to_num("-129")); // overflow
+            VERIFY(false);
+        } catch(const std::domain_error&) {
+            ;
+        }
+
+        try{
+            (void)int(tsv::to_num("123 4")); // trailing garbage
+            VERIFY(false);
+        } catch(const std::domain_error&) {
+            ;
+        }
+
+        try{
+            (void)uint16_t(tsv::to_num("-123")); // negative number for unsigned
+            VERIFY(false);
+        } catch(const std::domain_error&) {
+            ;
+        }
+
+        enum class my_int_t : int{};
+        my_int_t my_int = tsv::to_num("42");
+        VERIFY(my_int == my_int_t(42));
     };
 
 
@@ -6213,6 +6269,1212 @@ static void run_tests()
 
 
 #endif //RANGELESS_FN_ENABLE_RUN_TESTS
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+//
+// synchronized_queue, to_async, transform_in_parallel below
+//
+//
+/////////////////////////////////////////////////////////////////////////////
+
+
+#if RANGELESS_FN_ENABLE_PARALLEL
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <future>
+#include <chrono>
+#include <memory>
+
+/////////////////////////////////////////////////////////////////////////////
+
+namespace rangeless
+{ 
+   
+namespace mt
+{ 
+
+/////////////////////////////////////////////////////////////////////////////
+/// \brief A simple timer.
+struct timer
+{
+    /// returns the time elapsed since timer's instantiation, in seconds.
+    /// To reset: `my_timer = mt::timer{}`.
+    operator double() const
+    {
+        return double(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            clock_t::now() - start_timepoint).count()) * 1e-9;
+    }
+private:
+    using clock_t = std::chrono::steady_clock;
+    clock_t::time_point start_timepoint = clock_t::now();
+};
+
+namespace lockables
+{
+
+class atomic_mutex // without alignas(cacheline_size) to avoid overaligned-new pre-c++17
+{                  // instead will add padding around the fields
+protected:
+    std::atomic<bool> m_locked = { false };
+
+public:
+    bool try_lock() noexcept
+    {
+        return !m_locked.load(std::memory_order_relaxed)
+            && !m_locked.exchange(true, std::memory_order_acquire);
+    }
+
+    void lock() noexcept
+    {
+        for(size_t i = 0; !try_lock(); i++) {
+            std::this_thread::sleep_for(
+                std::chrono::microseconds(5)); // the actual time is greater, depends on scheduler
+        }
+    }
+
+    void unlock() noexcept
+    {
+        m_locked.store(false, std::memory_order_release);
+    }
+};
+
+}
+
+class synchronized_queue_base
+{
+public:
+    enum class status { success, closed, timeout };
+
+    // deriving from end_seq::exception to enable
+    // adapting queue as input-seq: fn::seq(my_queue.pop) % fn::for_each(...)
+    // (push will throw queue_closed, which will terminate the seq).
+
+    class queue_closed : public rangeless::fn::end_seq::exception
+    {};
+
+    // NB: Core guideline T.62: Place non-dependent class template members in a non-templated base class
+};
+
+
+/////////////////////////////////////////////////////////////////////////////
+/*! \brief Optionally-bounded blocking concurrent MPMC queue.
+ *
+ *   - Supports not-copy-constructible/not-default-constructible value-types (just requires move-assigneable).
+ *   - Can be used with lockables other than `std::mutex`, e.g. `mt::atomic_lock`.
+ *   - Contention-resistant: when used with `mt::atomic_lock` the throughput is comparable to state-of-the-art lock-free implementations.
+ *   - Short and simple implementation using only c++11 standard library primitives.
+ *   - Provides RAII-based closing semantics to communicate end-of-inputs 
+ *     from the pushing end or failure/going-out-of-scope from the popping end.
+ *
+ * Related:
+ * <br> <a href="http://www.boost.org/doc/libs/1_66_0/libs/fiber/doc/html/fiber/synchronization/channels/buffered_channel.html">`boost::fibers::buffered_channel`</a>
+ * <br> <a href="http://www.boost.org/doc/libs/1_66_0/doc/html/thread/sds.html">`boost::sync_bounded_queue`</a>
+ * <br> <a href="http://www.boost.org/doc/libs/1_66_0/doc/html/boost/lockfree/queue.html">`boost::lockfree::queue`</a>
+ * <br> <a href="https://software.intel.com/en-us/node/506200">`tbb::concurrent_queue`</a>
+ * <br> <a href="https://github.com/cameron314/concurrentqueue">`moodycamel::BlockingConcurrentQueue`</a>
+ *
+@code
+    // A toy example to compute sum of lengths of strings in parallel.
+    //
+    // Spin-off a separate async-task that enqueues jobs 
+    // to process a single input, and enqueues the 
+    // futures into a synchronized queue, while accumulating 
+    // the ready results from the queue in this thread.
+
+    using queue_t = mt::synchronized_queue<std::future<size_t> >;
+    queue_t queue{ 10 };
+
+    auto fut = std::async(std::launch::async,[ &queue ]
+    {
+        auto close_on_exit = queue.close();
+
+        for(std::string line; std::getline(std::cin, line); ) {
+            queue <<= 
+                std::async(
+                    std::launch::async, 
+                    [](const std::string& s) { 
+                        return s.size(); 
+                    },
+                    std::move(line));
+        }
+    });
+
+    size_t total = 0;
+    queue >>= [&](queue_t::value_type x) { total += x.get(); };
+    fut.get(); // rethrow exception, if any.
+@endcode
+*/
+template <typename T, class BasicLockable = std::mutex>
+class synchronized_queue : public synchronized_queue_base
+{
+public:
+    using value_type = T;
+
+    ///@{ 
+
+    synchronized_queue(size_t cap = 1024)
+      : m_capacity{ cap }
+    {}
+
+    ~synchronized_queue() = default;
+    // What if there are elements in the queue? 
+    // If there are active poppers, we ought to 
+    // let them finish, but if there aren't any,
+    // this will block indefinitely, so we'll 
+    // leave it to the user code to manage the
+    // lifetime across multiple threads.
+    //
+    // Should we call x_close() ?
+    // No point - we're already destructing.
+    // (it also grabs the m_queue_mutex, which 
+    // theoretically may throw).
+
+
+    // After careful consideration, decided not to provide 
+    // move-semantics; copy and move constructors are implicitly
+    // deleted.
+    //
+    // A synchronized_queue can be thought of buffered mutex
+    // (i.e. a synchronization primitive rather than just a 
+    // data structure), and mutexes are not movable.
+    
+    ///@}
+    ///@{
+
+    // push and pop are implemented as callable function-objects fields
+    // rather than plain methods to enable usage like:
+    //
+    // Adapt queue as input-range:
+    // fn::seq(synchronized_queue.pop) % fn::for_each(...)
+    //
+    // Adapt queue as sink-function:
+    // std::move(inputs) % fn::for_each(my_queue.push);
+    //
+    // Adapt queue as output-iterator:
+    // std::copy(inputs.begin(), inputs.end(), my_queue.push);
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Implements insert_iterator and unary-invokable.
+    struct push_t
+    {
+        using iterator_category = std::output_iterator_tag;
+        using   difference_type = void;
+        using        value_type = synchronized_queue::value_type;
+        using           pointer = void;
+        using         reference = void;
+
+        synchronized_queue& m_queue;
+
+        push_t& operator=(value_type val)
+        {
+            this->operator()(std::move(val));
+            return *this;
+        }
+
+        push_t& operator*()     { return *this; }
+        push_t& operator++()    { return *this; }
+        push_t  operator++(int) { return *this; }
+
+        /// Blocking push. May throw `queue_closed`
+        void operator()(value_type val) noexcept(false)
+        {
+            // NB: if this throws, val is gone. If the user needs 
+            // to preserve it in case of failure (strong exception
+            // guarantee), it should be using try_push which takes 
+            // value by rvalue-reference and moves it only in case of success.
+            //
+            // We could do the same here, but that would mean
+            // that the user must always pass as rvalue, and 
+            // to pass by copy it would have to do so explicitly, e.g.
+            //
+            // void operator()(value_type&& val);
+            // queue.push(std::move(my_value));
+            // queue.push(my_const_ref); // won't compile.
+            // queue.push(queueue_t::value_type( my_const_ref )); // explicit copy
+            //
+            // I think this would actually be a good thing, as it 
+            // makes the copying visible, but all other synchronied-queue
+            // APIs allow pushing by const-or-forwarding-references, 
+            // so we have allow the same for the sake of consistency.
+
+            const status st = 
+                m_queue.try_push(std::move(val), no_timeout_sentinel_t{});
+
+            assert(st != status::timeout);
+
+            if(st == status::closed) {
+                throw queue_closed{};
+            }
+
+            assert(st == status::success);
+        }
+    };
+    friend struct push_t;
+
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Blocking push. May throw `queue_closed`.
+    push_t push = { *this };
+
+
+    /////////////////////////////////////////////////////////////////////////
+    struct pop_t
+    {
+        synchronized_queue& m_queue;
+
+        value_type operator()()
+        {
+            return m_queue.x_blocking_pop();
+        }
+    };
+
+    friend struct pop_t;
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Blocking pop. May throw `queue_closed`.
+    pop_t pop = { *this };
+
+
+    /////////////////////////////////////////////////////////////////////////
+
+    ///@}
+    ///@{
+
+    /// \brief pop() the values into the provided sink-function until closed and empty.
+    ///
+    /// e.g. `queue >>= [&out_it](T x){ *out_it++ = std::move(x); };`
+    /// <br>Queue is automatically closed if exiting via exception, unblocking the pushers.
+    template<typename F>
+    auto operator>>=(F&& sink) -> decltype((void)sink(this->pop()))
+    {
+        auto guard = this->close();
+
+        while(true) {
+            bool threw_in_pop = true;
+
+            try {
+                value_type val = this->pop();
+                threw_in_pop = false;
+                sink(std::move(val));
+
+            } catch(queue_closed&) {
+
+                if(threw_in_pop) {
+                    break; // threw in pop()
+                } else {
+                    throw; // threw in sink() - not our business - rethrow;
+                    //
+                    // This could be an unhandled exception from
+                    // sink that is from some different queue that we
+                    // shouldn't be intercepting.
+                    //
+                    // If sink intends to close the queue
+                    // (e.g. break-out), it can do it explicitly
+                    // via the close-guard;
+                }
+            }
+        }
+        
+        assert(closed() && m_queue.empty());
+    }
+
+    ///@}
+    ///@{ 
+
+
+    /////////////////////////////////////////////////////////////////////////
+    /// In case of success, the value will be moved-from.
+    template <typename Duration = std::chrono::milliseconds>
+    status try_push(value_type&& value, Duration timeout = {})
+    {
+        // NB: we could have taken value as value_type&, but
+        // the user-code may forget or not expect that the value 
+        // will be moved-from and may try to use it.
+        //
+        // With rvalue-reference the caller-code has to, e.g.
+        //     auto state = queue.try_push(std::move(x));
+        //
+        // making the move explicitly visible.
+
+        const guard_t contention_guard{ m_push_mutex };
+
+        lock_t queue_lock{ m_queue_mutex };
+
+        ++m_num_waiting_to_push;        
+        const bool ok = x_wait_until([this]
+            {
+                return m_queue.size() < m_capacity || !m_capacity;
+            }, 
+            m_can_push, queue_lock, timeout);
+        --m_num_waiting_to_push;        
+
+        if(!ok) {
+            return status::timeout;
+        }
+
+        if(!m_capacity) {
+             return status::closed;
+        }
+
+        assert(m_queue.size() < m_capacity); 
+
+        // if push throws, is the value moved-from?
+        // No. std::move is just an rvalue_cast - no-op
+        // if the move-assignment never happens.
+        m_queue.push(std::move(value));
+
+        const bool do_notify = m_num_waiting_to_pop > 0;
+        queue_lock.unlock();
+
+        if(do_notify) {
+            m_can_pop.notify_one();
+        }
+
+        return status::success;
+    }
+
+
+    /////////////////////////////////////////////////////////////////////////
+    /// In case of success, the value will be move-assigned.
+    template <typename Duration = std::chrono::milliseconds>
+    status try_pop(value_type& value, Duration timeout = {})
+    {
+        const guard_t contention_guard{ m_pop_mutex };
+
+        lock_t queue_lock{ m_queue_mutex };
+
+        ++m_num_waiting_to_pop;
+        bool ok = x_wait_until([this]
+            {
+                return !m_queue.empty() || !m_capacity;
+            },
+            m_can_pop, queue_lock, timeout);
+        --m_num_waiting_to_pop;
+
+        if(!ok) {
+            return status::timeout;
+        }
+
+        if(!m_queue.empty()) {
+            ;
+        } else if(!m_capacity) {
+            return status::closed;
+        } else {
+            assert(false);
+        }
+
+        value = std::move(m_queue.front());
+        m_queue.pop();
+
+        const bool do_notify = m_num_waiting_to_push > 0;
+        queue_lock.unlock();
+
+        if(do_notify) {
+            m_can_push.notify_one();
+        }
+
+        return status::success;
+    }
+
+    ///@}
+    ///@{ 
+
+    /////////////////////////////////////////////////////////////////////////
+    size_t approx_size() const noexcept
+    {
+        return m_queue.size();
+    }
+
+    size_t capacity() const noexcept
+    {
+        return m_capacity;
+    }
+
+    bool closed() const noexcept
+    {
+        return !m_capacity;
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    struct close_guard
+    {
+    private:
+        synchronized_queue* ptr;
+
+    public:
+        close_guard(synchronized_queue& queue) : ptr{ &queue }
+        {}
+
+        close_guard(const close_guard&) = default; // -Weffc++ warning
+        close_guard& operator=(const close_guard&) = default;
+
+        void reset()
+        {
+            ptr = nullptr;
+        }
+
+        ~close_guard()
+        {
+            if(ptr) {
+                ptr->x_close();
+            }
+        }
+    };
+
+    /// \brief Return an RAII object that will close the queue in its destructor.
+    /// 
+    /// @code
+    /// auto guard = queue.close(); // close the queue when leaving scope
+    /// queue.close(); // close the queue now (guard's is destroyed immediately)
+    /// @endcode
+    ///
+    /// <br> NB: closing is non-blocking.
+    /// <br>Blocked calls to try_push()/try_pop() shall return with status::closed.
+    /// <br>Blocked calls to push()/pop() shall throw `queue_closed`.
+    /// <br>Subsequent calls to push()/try_push() shall do as above.
+    /// <br>Subsequent calls to pop()/try_pop() will succeed
+    ///   until the queue becomes empty, and throw/return-closed thereafter.
+    close_guard close() noexcept
+    {
+       return close_guard{ *this };
+    }
+
+    ///@}
+
+private:
+    using guard_t = std::lock_guard<BasicLockable>;
+    using  lock_t = std::unique_lock<BasicLockable>;
+    using queue_t = std::queue<value_type>;
+
+    using condvar_t = typename std::conditional<
+        std::is_same<BasicLockable, std::mutex>::value,
+            std::condition_variable,
+            std::condition_variable_any        >::type;
+
+    struct no_timeout_sentinel_t
+    {};
+
+    template<typename F>
+    bool x_wait_until(F condition, condvar_t& cv, lock_t& lock, no_timeout_sentinel_t)
+    {    
+        cv.wait(lock, std::move(condition));
+        return true;
+    }    
+
+    template<typename Duration, typename F>
+    bool x_wait_until(F condition, condvar_t& cv, lock_t& lock, Duration duration)
+    {    
+        return cv.wait_for(lock, duration, std::move(condition));
+    } 
+
+    value_type x_blocking_pop()
+    {
+        const guard_t contention_guard{ m_pop_mutex };
+
+        lock_t queue_lock{ m_queue_mutex };
+
+        ++m_num_waiting_to_pop;
+        m_can_pop.wait(
+            queue_lock,
+            [this]
+            {
+                return !m_queue.empty() || !m_capacity;
+            });
+        --m_num_waiting_to_pop;
+
+        if(m_queue.empty()) {
+            throw queue_closed{};
+        }
+
+        value_type ret = std::move(m_queue.front());
+        m_queue.pop();
+
+        const bool do_notify = m_num_waiting_to_push > 0;
+        queue_lock.unlock();
+
+        if(do_notify) {
+            m_can_push.notify_one();
+        }
+
+        return ret;
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// \brief Closes the queue for more pushing.
+    ///
+    void x_close()
+    {
+        {
+            guard_t g{ m_queue_mutex }; 
+            m_capacity = 0;
+        }
+        m_can_pop.notify_all();
+        m_can_push.notify_all();
+    }
+
+    // NB: open() is not provided, such that if closed() returns true,
+    // we know for sure that it's staying that way. 
+
+    /////////////////////////////////////////////////////////////////////////
+
+       const char m_padding0[64]        = {};
+
+         uint32_t m_num_waiting_to_push = 0;
+         uint32_t m_num_waiting_to_pop  = 0;
+           size_t m_capacity            = size_t(-1); // 0 means closed
+          queue_t m_queue               = queue_t{};
+    BasicLockable m_queue_mutex         = {};
+    BasicLockable m_push_mutex          = {}; // for managing contention in SPMC/MPSC cases
+    BasicLockable m_pop_mutex           = {};
+        condvar_t m_can_push            = {};
+        condvar_t m_can_pop             = {};
+
+       const char m_padding1[64]        = {};
+}; // synchronized_queue
+
+} // namespace mt
+
+/////////////////////////////////////////////////////////////////////////////
+
+namespace fn
+{
+
+namespace impl
+{
+    struct async_wr
+    {
+        size_t queue_size;
+
+        template<typename InGen>
+        struct gen
+        {
+            using value_type = typename InGen::value_type;
+
+            using queue_t = mt::synchronized_queue<maybe<value_type>, mt::lockables::atomic_mutex>;
+
+                        InGen in_gen;      // nullary generator yielding maybe<...>
+                 const size_t queue_size;
+     std::unique_ptr<queue_t> queue;    // as unique-ptr, because non-moveable
+            std::future<void> fut;
+
+            auto operator()() -> maybe<value_type>
+            {
+                if(!queue) {
+                    queue.reset(new queue_t{ queue_size });
+                    fut = std::async(std::launch::async, [this]
+                    {
+                        auto guard = queue->close(); // close on scope-exit
+                        for(auto x = in_gen(); x; x = in_gen()) {
+                            queue->push(std::move(x));
+                        }
+                        queue->push({}); // last empty-maybe element
+                    });
+                }
+
+                try {
+                    auto x = queue->pop();
+                    if(!x) {
+                        fut.get(); // last element - allow future to rethrow
+                        assert(queue->closed());
+                    }
+                    return x;
+                } catch(mt::synchronized_queue_base::queue_closed) {
+                    // pop() threw queue_closed before we saw the last empty-maybe
+                    // - allow the future to rethrow.
+                    fut.get();
+                    throw;
+                }
+            }
+        };
+
+        RANGELESS_FN_OVERLOAD_FOR_SEQ(queue_size, {}, {})
+    };
+
+    /////////////////////////////////////////////////////////////////////////
+
+
+    // Default implementation of Async for par_transform below.
+    struct std_async
+    {
+        template<typename NullaryCallable>
+        auto operator()(NullaryCallable gen) const -> std::future<decltype(gen())>
+        {
+            return std::async(std::launch::async, std::move(gen));
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////////
+    template<typename F, typename Async>
+    struct par_transform
+    {
+         Async async;
+             F map_fn;    
+        size_t queue_cap; // 0 means in-this-thread.
+
+        par_transform&& queue_capacity(size_t cap) &&
+        {
+            queue_cap = cap;
+            return std::move(*this);
+        }
+
+#if __cplusplus >= 201402L 
+
+        /// If a job granularity is too small, combine work in batches per-async-task.
+        auto in_batches_of(size_t batch_size) && // rvalue-specific because will move-from
+        {
+            assert(batch_size >= 2);
+
+            return [ map_fn = std::move(this->map_fn), 
+                      async = std::move(this->async),
+                  queue_cap = std::move(this->queue_cap),
+                 batch_size
+                            ] (auto inputs)
+            {
+                // TODO: can capture map_fn and async below by-move and make this lambda mutable?
+
+                auto batch_transform = [ map_fn ](auto inputs_batch) // [ inputs ] -> [ outputs ]
+                {
+                    // NB:: since fn::transform is lazy, we need to force eager-evaluation
+                    // within the batch-transform function by converting to vector.
+                    return fn::to_vector()(
+                            fn::transform(map_fn)(
+                                std::move(inputs_batch)));
+                };
+
+                // par_batch_transform = fn::transform_in_parallel(...), but it has not been declared yet.
+                auto par_batch_transform = 
+                    impl::par_transform<decltype(batch_transform), Async>{ async, // by-move here?
+                                                                           std::move(batch_transform), 
+                                                                           queue_cap };
+
+                return fn::concat()(                      // flatten batches of outputs.
+                        std::move(par_batch_transform)(   // par-transform batches of inputs.
+                            fn::in_groups_of(batch_size)( // batch the inputs.
+                                std::move(inputs))));
+            };
+        }
+
+#endif // __cplusplus >= 201402L
+
+        template<typename InGen>
+        struct gen
+        {
+                    InGen gen;
+              const Async async;
+                  const F map_fn;
+             const size_t queue_cap;
+
+            using value_type = decltype(map_fn(std::move(*gen())));
+            
+#if 0
+            using queue_t = std::deque<std::future<value_type>>;
+#else
+            // Instead of assuming that async returns a std::future,
+            // support the usage of any future-like type,
+            // allowing integration of 3rd-party async-like libraries.
+            struct value_type_callable
+            {
+                // we only need this in decltype context, but won't link without the body definition.
+                value_type operator()() const
+                {
+                    return value_type{};
+                }
+            };
+            using future_like_t = decltype(async(value_type_callable{}));
+            using queue_t  = std::deque<future_like_t>;
+#endif
+          
+            queue_t queue;
+
+            /////////////////////////////////////////////////////////////////
+
+            auto operator()() -> maybe<value_type>
+            {
+                // behave like a plain impl::transform in in-this-thread mode
+                if(queue_cap == 0) {
+                    assert(queue.empty());
+                    auto x = gen();
+                    if(!x) {
+                        return { };
+                    } else {
+                        return map_fn(std::move(*x));
+                    }
+                }
+
+                struct job_t // wrapper for invoking fn on inp, passed by move
+                {
+                    using input_t = typename InGen::value_type;
+
+                    const F& fn;
+                     input_t inp; 
+
+                    auto operator()() -> decltype(fn(std::move(inp)))
+                    {    
+                        return fn(std::move(inp));
+                    }    
+                };
+
+                // if have more inputs, top-off the queue with async-tasks.
+                while(queue.size() < queue_cap) {
+                    auto x = gen();
+                    
+                    if(!x) {
+                        break;
+                    }
+
+                    queue.emplace_back( async( job_t{ map_fn, std::move(*x) }));
+                }
+
+                if(queue.empty()) {
+                    return { };
+                }
+
+                auto ret = queue.front().get(); // this returns by-value
+                queue.pop_front();
+                return { std::move(ret) };
+            }
+        };
+
+        RANGELESS_FN_OVERLOAD_FOR_SEQ(  async, map_fn, queue_cap, {} )
+        RANGELESS_FN_OVERLOAD_FOR_CONT( async, map_fn, queue_cap, {} )
+    };
+
+} // namespace impl
+
+
+    /// @defgroup parallel
+    /// @{
+
+
+    /// \brief Wrap generating `seq` in an async-task.
+    /*!
+    @code
+        long i = 0, res = 0;
+        fn::seq([&]{ return i < 9 ? i++ : fn::end_seq(); })
+      % fn::transform([](long x) { return x + 1; })
+      % fn::to_async(42) // the generator+transform will be offloaded to an async-task
+                         // and the elements will be yielded via 42-capacity blocking queue.
+                         // (If we wanted the generator and transform to be offloaded to
+                         // separate threads, we could insert another to_async() before transform()).
+      % fn::for_each([&](long x) {
+              res = res * 10 + x;
+        });
+        assert(res == 123456789);
+    @endcode
+    */
+    inline impl::async_wr to_async(size_t queue_size = 16)
+    {
+        return { queue_size };
+    }
+
+
+    /// @brief Parallelized version of `fn::transform`
+    ///
+    /// Requires `#define RANGELESS_FN_ENABLE_PARALLEL 1` before `#include fn.hpp` because
+    /// it brings in "heavy" STL `#include`s (`<future>` and `<thread>`).
+    ///
+    /// `queue_capacity` is the maximum number of simultaneosly-running `std::async`-tasks, each executing a single invocation of `map_fn`.
+    /// 
+    /// NB: if the execution time of `map_fn` is highly variable, having higher capacity may help, such that
+    /// tasks continue to execute while we're blocked waiting on a result from a long-running task. 
+    ///
+    /// NB: If the tasks are too small compared to overhead of running as async-task, 
+    /// it may be helpful to batch them (see `fn::in_groups_of`), have `map_fn` produce
+    /// a vector of outputs from a vector of inputs, and `fn::concat` the outputs.
+    /// 
+    /// `map_fn` is required to be thread-safe.
+    ///
+    /// NB: the body of the `map_fn` would normally compute the result in-place,
+    /// but it could also, for example, execute a subprocess do it, or offload it
+    /// to a cloud or a compute-farm, etc.
+    ///
+    /// ---
+    /// Q: Why do we need this? We have parallel `std::transform` and `std::transform_reduce` in c++17?
+    /// 
+    /// A: Parallel `std::transform` requires a multi-pass `ForwardRange`
+    /// rather than `InputRange`, and `std::terminate`s if any of the tasks throws.
+    /// `std::transform_reduce` requires `ForwardRange` and type-symmetric, associative, and commutative `BinaryOp`
+    /// (making it next-to-useless).
+    ///
+    /*!
+    @code
+    // Example: implement parallelized gzip compressor (a-la pigz)
+
+    #define RANGELESS_FN_ENABLE_PARALLEL 1
+    #include "fn.hpp"
+
+    #include <util/compress/stream_util.hpp>
+
+    int main()
+    {
+        auto& istr = std::cin;
+        auto& ostr = std::cout;
+
+        istr.exceptions(std::ios::badbit);
+        ostr.exceptions(std::ios::failbit | std::ios::badbit);
+
+        namespace fn = rangeless::fn;
+        using fn::operators::operator%;
+        using bytes_t = std::string;
+
+        fn::seq([&istr]() -> bytes_t
+        {
+            auto buf = bytes_t(1000000UL, '\0');
+            istr.read(&buf[0], std::streamsize(buf.size()));
+            buf.resize(size_t(istr.gcount()));
+            return !buf.empty() ? std::move(buf) : fn::end_seq();
+        })
+      
+      % fn::transform_in_parallel([](bytes_t buf) -> bytes_t
+        {
+            // compress the block.
+            std::ostringstream local_ostr;
+            ncbi::CCompressOStream{
+                local_ostr,
+                ncbi::CCompressOStream::eGZipFile } << buf;
+            return local_ostr.str();
+
+        }).queue_capacity( std::thread::hardware_concurrency() )
+
+      % fn::for_each([&ostr](bytes_t buf)
+        {
+            ostr.write(buf.data(), std::streamsize(buf.size()));
+        });
+
+        return istr.eof() && !istr.bad() ? 0 : 1;
+    }
+
+    @endcode
+
+    See an similar examples using [RaftLib](https://medium.com/cat-dev-urandom/simplifying-parallel-applications-for-c-an-example-parallel-bzip2-using-raftlib-with-performance-f69cc8f7f962)
+    or [TBB](https://software.intel.com/en-us/node/506068)
+    */
+    template<typename F> 
+    impl::par_transform<F, impl::std_async> transform_in_parallel(F map_fn)
+    {
+        return { impl::std_async{}, std::move(map_fn), std::thread::hardware_concurrency() };
+    }
+
+    
+    /// @brief A version of `transform_in_parallel` that uses a user-provided Async (e.g. backed by a fancy work-stealing thread-pool implementation).
+    ///
+    /// `Async` is a unary invokable having the following signature:
+    /// `template<typename NullaryInvokable> operator()(NullaryInvokable job) const -> std::future<decltype(job())>`
+    ///
+    /// NB: `Async` must be copy-constructible (may be passed via `std::ref` as appropriate). 
+    ///
+    /// A single-thread pool can be used to offload the transform-stage to a separate thread if `transform` is not parallelizeable.
+    /*!
+    @code
+        auto res2 = 
+            std::vector{{1,2,3,4,5}} // can be an InputRange
+
+          % fn::transform_in_parallel([](auto x)
+            {
+                return std::to_string(x);
+            },
+            [&my_thread_pool](auto job) -> std::future<decltype(job())>
+            {
+                return my_thread_pool.enqueue(std::move(job));
+            }).queue_capacity(10)
+
+          % fn::foldl_d([](std::string out, std::string in)
+            {
+                return std::move(out) + "," + in;
+            });
+        VERIFY(res2 == ",1,2,3,4,5");
+    @endcode
+    */
+    template<typename F, typename Async> 
+    impl::par_transform<F, Async> transform_in_parallel(F map_fn, Async async)
+    {
+        return { std::move(async), std::move(map_fn), std::thread::hardware_concurrency() };
+    }
+
+    ///@}
+    // defgroup parallel
+
+} // namespace fn
+} // namespace rangeless
+
+
+
+
+
+#if RANGELESS_FN_ENABLE_RUN_TESTS
+#include <string>
+#include <iostream>
+#include <cctype>
+
+#ifndef VERIFY
+#define VERIFY(expr) if(!(expr)) RANGELESS_FN_THROW("Assertion failed: ( "#expr" ).");
+#endif
+
+namespace rangeless
+{
+namespace mt
+{
+namespace impl
+{
+
+static void run_tests()
+{
+    // test that queue works with non-default-constructible types
+    {{ 
+        int x = 10;
+        mt::synchronized_queue<std::reference_wrapper<int> > queue;
+        queue.push( std::ref(x));
+        queue.push( std::ref(x));
+        queue.close();
+
+        auto y = queue.pop();
+        queue >>= [&](int& x_) { x_ = 20; };
+        VERIFY(x == 20);
+        VERIFY(y == 20);
+    }}
+
+    {{
+        synchronized_queue<std::string> q{1};
+        std::string s1 = "1";
+        std::string s2 = "2";
+
+        auto st1 = q.try_push(std::move(s1), std::chrono::milliseconds(10));
+        auto st2 = q.try_push(std::move(s2), std::chrono::milliseconds(10));
+
+        VERIFY(st1 == decltype(q)::status::success);
+        VERIFY(s1 == "");
+
+        VERIFY(st2 == decltype(q)::status::timeout);
+        VERIFY(s2 == "2");
+    }}
+
+    {{
+        std::cerr << "Testing queue...\n";
+        using queue_t = mt::synchronized_queue<long, mt::lockables::atomic_mutex>;
+
+        // test duration/timeout with try_pop
+        {{
+            queue_t q{ 10 };
+            auto task = std::async(std::launch::async, [&] {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(100));
+                q.push(1);
+                q.close();
+            });
+            long x = 0;
+            
+            auto res = q.try_pop(x, std::chrono::milliseconds(90));
+            VERIFY(res == queue_t::status::timeout);
+
+            auto res2 = q.try_pop(x, std::chrono::milliseconds(20)); // 110 milliseconds passed
+            VERIFY(res2 == queue_t::status::success);
+            VERIFY(x == 1);
+
+            VERIFY(q.try_pop(x) == queue_t::status::closed);
+            VERIFY(q.try_push(42) == queue_t::status::closed);
+        }}
+
+        // test duration/timeout with try_push
+        {{
+            queue_t q{ 1 };
+            q.push(1); // make full.
+
+            auto task = std::async(std::launch::async, [&] {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(100));
+                q.pop();
+            });
+
+            auto res = q.try_push(42, std::chrono::milliseconds(90));
+            VERIFY(res == queue_t::status::timeout);
+
+            auto res2 = q.try_push(42, std::chrono::milliseconds(20)); // 110 milliseconds passed
+            VERIFY(res2 == queue_t::status::success);
+            VERIFY(q.pop() == 42);
+        }}
+
+
+        {{ // test move, insert_iterator
+            queue_t q1{ 10 };
+
+            //*q1.inserter()++ = 123;
+            q1.push(123);
+            
+            //auto q2 = std::move(q1);
+            //assert(q1.empty());
+            auto& q2 = q1;
+
+            VERIFY(q2.approx_size() == 1);
+            VERIFY(q2.pop() == 123);
+        }}
+
+        queue_t queue{ 2048 };
+
+        mt::timer timer;
+
+        std::vector<std::future<void>> pushers;
+        std::vector<std::future<long>> poppers; 
+
+        const size_t num_cpus = std::thread::hardware_concurrency();
+        std::cerr << "hardware concurrency: " << num_cpus << "\n";
+        const size_t num_jobs = num_cpus / 2;
+        const int64_t num = 100000;
+
+        // using 16 push-jobs and 16 pop-jobs:
+        // In each pop-job accumulate partial sum.
+        for(size_t i = 0; i < num_jobs; i++) {
+            
+            // Using blocking push/pop
+            /////////////////////////////////////////////////////////////////
+
+            pushers.emplace_back(
+                std::async(std::launch::async, [&]
+                {
+                    for(long j = 0; j < num; j++) {
+                        queue.push(1);
+                    }
+                }));
+
+            poppers.emplace_back(
+                std::async(std::launch::async, [&]
+                {
+                    //return std::accumulate(queue.begin(), queue.end(), 0L);
+                    long acc = 0;
+                    queue >>= [&acc](long x){ acc += x; };
+                    return acc;
+                }));
+        }
+
+        // wait for all push-jobs to finish, and 
+        // close the queue, unblocking the poppers.
+        for(auto& fut : pushers) {
+            fut.wait();
+        }
+
+        queue.close(); // non-blocking; queue may still be non-empty
+        
+        //std::cerr << "Size after close:" << queue.approx_size() << "\n";
+
+        // pushing should now be prohibited,
+        // even if the queue is not empty
+        try {
+            long x = 0;
+            VERIFY(queue.try_push(std::move(x)) == queue_t::status::closed);
+            queue.push(std::move(x));
+            VERIFY(false);
+        } catch(queue_t::queue_closed&) {}
+
+        // collect subtotals accumulated from each pop-job.
+        int64_t total = 0;
+        for(auto& fut : poppers) {
+            total += fut.get();
+        }
+        VERIFY(queue.approx_size() == 0);
+
+#if 0
+        auto queue2 = std::move(queue); // test move-semantics
+        try {
+            long x = 0;
+            assert(queue2.try_pop(x) == queue_t::status::closed);
+            queue2.pop();
+            assert(false);
+        } catch(queue_t::closed&) {}
+#endif
+
+        const auto n = int64_t(num_jobs) * num;
+
+        VERIFY(total == n);
+
+        // of async-tasks (blocking and non-blocking versions)
+        std::cerr << "Queue throughput: "  <<  double(total)/timer << "/s.\n";
+    }}
+
+    // test timeout;
+    {{
+        using queue_t = synchronized_queue<int>;
+        queue_t queue{ 1 };
+
+        int x = 5;
+        auto res = queue.try_pop(x, std::chrono::milliseconds(10));
+        VERIFY(res == queue_t::status::timeout);
+        VERIFY(x == 5);
+
+        queue.push(10);
+        res = queue.try_push(10, std::chrono::milliseconds(10));
+        VERIFY(res == queue_t::status::timeout);
+    }}
+
+
+    namespace fn = rangeless::fn;
+    using fn::operators::operator%;
+
+    // test to_async
+    {{
+        long i = 0;
+        long res = 0;
+
+        timer timer{};
+
+        fn::seq([&]{ return i <= 1000000 ? i++ : fn::end_seq(); })
+      % fn::to_async(4096) // the generator+transform will be offloaded to an async-task
+                           // and the elements will be yielded via 2048-capacity blocking queue.
+                           // (If we wanted the generator and transform to be offloaded to
+                           // separate threads, we could insert another to_async() before transform()).
+      % fn::for_each([&](long x) {
+            res = res + x;
+        });
+        VERIFY(res == 500000500000);
+        std::cerr << "to_async throughput: " << double(1000000)/timer << "/s.\n";
+    }}
+
+    // test transform_in_parallel
+    {{
+        auto res = std::vector<int>({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
+        % fn::transform_in_parallel([](int x) { return x; }).queue_capacity(10)
+        % fn::foldl_d([](std::string out, int in)
+        {
+            return std::move(out) + "," + std::to_string(in);
+        });
+        VERIFY(res == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
+
+
+#if __cplusplus >= 201402L
+        auto res2 = std::vector<int>({1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20})
+        % fn::transform_in_parallel([](int x) { return std::to_string(x); },
+                                    [](auto job)
+                                    {
+                                        return std::async(std::launch::async, std::move(job));
+                                    }).queue_capacity(10)
+                                      .in_batches_of(2)
+        % fn::foldl_d([](std::string out, std::string in)
+        {
+            return std::move(out) + "," + in;
+        });
+        VERIFY(res2 == ",1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20");
+#endif
+    }}
+
+
+} // run_tests()
+
+} // namespace impl
+} // namespace mt
+} // namespace rangeless
+
+#endif // RANGELESS_FN_ENABLE_RUN_TESTS
+
+#endif // RANGELESS_FN_ENABLE_PAR
+
+
+
+
+
+
 
 #if defined(_MSC_VER)
 #   pragma warning(pop)
