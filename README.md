@@ -1,6 +1,11 @@
 # rangeless::fn
 ## `range`-free LINQ-like library of higher-order functions for manipulation of containers and lazy input-sequences.
 
+
+### [Documentation](https://ast-al.github.io/rangeless/docs/html/namespacerangeless_1_1fn.html)
+
+
+### What it's for
 - Reduce the amount of mutable state.
 - Flatten control-flow.
 - Lessen the need to deal with iterators directly.
@@ -14,10 +19,23 @@ Motivations:
 - https://aras-p.info/blog/2018/12/28/Modern-C-Lamentations/
 
 
+### Features
+- Portable c++11. (examples are c++14)
+- Single-header.
+- Minimal standard library dependencies.
+- No inheritance, polymorphism, type-erasures, ADL, advanced metaprogramming, enable_ifs, concepts, preprocessor magic, arcane programming techniques (for some definition of arcane), or compiler-specific workarounds.
+- Low `#include` and compile-time overhead.
+- Enables trivial parallelization (see [`fn::to_async and fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__parallel.html)).
+- Allows for trivial extension of functionality (see [`fn::adapt`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
+
+
 ### Simple examples
 ```cpp
 namespace fn = rangeless::fn;
 
+// A common complaint among c++ programmers is the verbosity of lambdas, which are used a lot with this library.
+// The macro can to alleviate it somewhat. I use it here just an example and am personally ambivalent about it. 
+// It is not defined in the library.
 #define LAMBDA(expr) ([&](const auto& _ ){ return expr; })
 
 struct employee_t
@@ -29,9 +47,9 @@ struct employee_t
 
 auto employees = std::vector<employee_t>{/*...*/};
 
-employees = fn::where LAMBDA( _.last_name != "Doe" )( std::move(employees));
-employees = fn::take_top_n_by(10, LAMBDA( _.years_onboard ))( std::move(employees));
-employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) )( std::move(employees));
+employees = fn::where LAMBDA( _.last_name != "Doe" )(                   std::move(employees) );
+employees = fn::take_top_n_by(10, LAMBDA( _.years_onboard ))(           std::move(employees) );
+employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) )( std::move(employees) );
 
 // or, as function-composition:
 
@@ -43,7 +61,7 @@ employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name))(
 
 How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns an overloaded unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value.
 
-`operator %` is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow. It is implemented as:
+`operator %` is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
 ```cpp
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)( std::forward<Arg>(arg)) )
@@ -70,9 +88,6 @@ employees = std::move(employees)
           % fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
 ```
 
-Note on the `LAMBDA` macro: a common complaint among c++ programmers is the verbosity of lambdas, which are used a lot with this library.
-The macro can to alleviate it somewhat. I'm personally ambivalent to it; it's not defined in the library.
-
 
 ### Example: Top-5 most frequent words chosen among the words of the same length.
 ```cpp
@@ -90,8 +105,8 @@ The macro can to alleviate it somewhat. I'm personally ambivalent to it; it's no
         
       % fn::transform LAMBDA( ('A' <= _ && _ <= 'Z') ? char(_ - ('Z' - 'z')) : _ ) // to-lower
       % fn::group_adjacent_by(my_isalnum)             // returns sequence-of-std::string
-      % fn::where LAMBDA( my_isalnum(_.front()))      // discard punctuation
-      % fn::counts()                                  // returns map:word->count
+      % fn::where LAMBDA( my_isalnum(_.front()))      // discard strings with punctuation
+      % fn::counts()                                  // returns map<string,size_t> of word->count
       % fn::group_all_by LAMBDA( _.first.size())      // returns [[(word, count)]], each subvector containing words of same length
       % fn::transform(                                // transform each sub-vector...
             fn::take_top_n_by(5UL, fn::by::second{})) // by filtering it taking top-5 by count.
@@ -109,26 +124,14 @@ The macro can to alleviate it somewhat. I'm personally ambivalent to it; it's no
     // sys    0m0.097s
 ```
 
-See [A rudimentary lazy TSV parser](https://godbolt.org/z/f6eptu).
+#### More examples
+- [A rudimentary lazy TSV parser](https://godbolt.org/z/f6eptu).
+- [calendar.cpp](test/calendar.cpp) vs. [Haskell](https://github.com/BartoszMilewski/Calendar/blob/master/Main.hs) vs. [range-v3 implementation](https://github.com/ericniebler/range-v3/blob/master/example/calendar.cpp).
+- [aln_filter.cpp](test/aln_filter.cpp) for more advanced examples of use.
 
-See [calendar.cpp](test/calendar.cpp) vs. [Haskell](https://github.com/BartoszMilewski/Calendar/blob/master/Main.hs) vs. [range-v3 implementation](https://github.com/ericniebler/range-v3/blob/master/example/calendar.cpp).
+### Description  
 
-See [aln_filter.cpp](test/aln_filter.cpp) for more advanced examples of use.
-
-See [full documentation](https://ast-al.github.io/rangeless/docs/html/namespacerangeless_1_1fn.html).
-  
-### Features
-- Portable c++11. (examples are c++14)
-- Single-header.
-- Minimal standard library dependencies.
-- No inheritance, polymorphism, type-erasures, ADL, advanced metaprogramming, enable_ifs, concepts, preprocessor magic, arcane programming techniques (for some definition of arcane), or compiler-specific workarounds.
-- Low `#include` and compile-time overhead.
-- Enables trivial parallelization (see [`fn::to_async and fn::transform_in_parallel`](https://ast-al.github.io/rangeless/docs/html/group__parallel.html)).
-- Allows for trivial extension of functionality (see [`fn::adapt`](https://ast-al.github.io/rangeless/docs/html/group__transform.html)).
-
-### Minimum supported compilers: MSVC-19.15, GCC-4.9.3, clang-3.7, ICC-18
-
-This is not a range library, like `range-v3`, as it is centered around value-semantics rather than reference-semantics. This library does not know or deal with the multitude of range concepts; rather, it deals with data transformations via higher-order functions. It differentiates between two types of inputs: a `Container` and a lazy `seq<NullaryInvokable>` satisfying single-pass forward-only `InputRange` semantics (also known as a data-stream). Most of the function-objects in this library have two overloads of `operator()` respectively. Rather than composing views over ranges as with `range-v3`, `operator()`s take inputs by value, operate on it eagerly or compose a lazy `seq`, as appropriate (following the Principle of Least Astonishment), and return the result by value (with move-semantics) to the next stage.
+Unlike `range-v3`, this library is centered around value-semantics rather than reference-semantics. This library does not know or deal with the multitude of range-related concepts; rather, it deals with data transformations via higher-order functions. It differentiates between two types of inputs: a `Container` and a lazy `seq<NullaryInvokable>` satisfying single-pass forward-only `InputRange` semantics (also known as a data-stream). Most of the function-objects in this library have two overloads of `operator()` respectively. Rather than composing views over ranges as with `range-v3`, `operator()`s take inputs by value, operate on it eagerly or compose a lazy `seq`, as appropriate (following the Principle of Least Astonishment), and return the result by value (with move-semantics) to the next stage.
 
 E.g.
 - `fn::where`
@@ -143,7 +146,7 @@ E.g.
   - given a container, passed by value, wraps it as `seq` and delegates to the above.
 
 
-Some functions in this library internally buffer elements, as appropriate, with single-pass streaming inputs, whereas `range-v3`, on the other hand, imposes multipass ForwardRange or stronger requirement on the inputs in situations that would otherwise require buffering. This makes this library conceptually more similar to UNIX pipelines than to c++ ranges.
+Some functions in this library internally buffer elements, as appropriate, with single-pass streaming inputs, whereas `range-v3`, on the other hand, imposes multipass ForwardRange or stronger requirement on the inputs in situations that would otherwise require buffering. This makes this library conceptually more similar to UNIX pipelines with eager `sort` and lazy `sed`, than to c++ ranges.
 
 | Operations | Buffering behavior | Laziness |
 | ---------- | ------------------ | -------- |
@@ -193,7 +196,6 @@ Note: `fn::from` can also be used to adapt an lvalue-reference to an `Iterable` 
 
 Despite packing a lot of functionality, `#include <fn.hpp>` adds only a tiny sliver (~0.03s) of compilation-time overhead in addition to the few common standard library include-s that it relies upon:
 
-"In God we trust, all others bring data":
 ```cpp
 // tmp.cpp
 
@@ -242,13 +244,12 @@ There are not many compiler-torturing metaprogramming techniques used by the lib
 
 
 ### Discussion
-There seems to be a lot of misunderstanding about the intended use-cases for this style of coding.
 
 Many programmers after getting introduced to toy examples get an impression that
 the intended usage is "to express the intent" or "better syntax" or to "separate the concerns", etc.  
 Others look at the toy examples and point out that they could be straightforwardly written
 as normal imperative code, and I tend to agree with them:
-Never write a code like:
+There's no real realon to write code like:
 ```cpp
     std::move(xs)
   % fn::where(     [](const auto& x) { return x % 2 == 0; })
@@ -262,58 +263,30 @@ for(const auto& x : xs)
     if(x % 2 == 0)
         std::cerr << x*x << "\n";
 ```
-If you are doing "functional style" for no good reason, you are doing it wrong - there's no value-added
-and you are paiyng compile-time, debugging-layers, and possibly run-time overhead.
+The "functional-style" equivalent just incurs additional compile-time, debugging-layers, and possibly run-time overhead.
 
 There are some scenarios where functional-style is useful:
 
-#### Const-correctness.
-By this I mean: when an lvalue is in the process of being built, it should be considered write only;
-when it is is being used, it should be read-only (declared const and enforced by the compiler, unless
-the intent is to `std::move` it).
-e.g. a contrived example
-```cpp
-map<std::string, size_t> word_counts{};
+#### Const-correctness and reduction of mutable state.
+When you declare a non-const variable in your code (or worse, when you have to deal with an API that forces you to do that),
+you introduce another "moving part" in your program. Having more things const makes your code more robust and easier to reason about.
 
-// modify the map of word-counts...
-// ...
-// ... many of code-lines later, that may or may not have modified word_counts...
-// ...
-// access word_counts
+With this library you can express complex data transformations as a single expression, assigning the result to a const variable
+(unless you intend to `std::move()` it, of course).
 
 ```
-If `word_counts` could be declared const, you could ignore all the code
-that may-or-may-not modify word_counts between declaration and usage, e.g.:
-```cpp
-const auto word_counts = words % fn::fold_d([](map<std::string, size_t> m, const auto& word)
-{
-    ++m[word];
-    return std::move(m);
-};
+const auto result = std::move(inputs) % stage1 % stage2 % ... ;
 ```
 
 Another code-pattern for this is immediately-executed-lambda.
 ```cpp
 const X x = [&]
 {
-    X x{}; // this shadows the outside-x above, and it's GOOD, 
-           // as we don't want to accidently access it here.
+    X x{};
 
     // build X...
     return x;
 }();
-```
-
-#### Reduction of mutable state.
-Non-composeable API force the programmer to declare mutable state that really should be temporary.
-e.g.
-```cpp
-auto values = get_values(); // has to be non-const, because will sort
-std::sort(values.begin(), values.end());
-```
-whereas a composeable API does not necessitate a mutation of an lvalue:
-```cpp
-const auto sorted_values = get_values() % fn::sort();
 ```
 
 #### Erase-remove idiom.
@@ -324,6 +297,9 @@ If you feel that the idiomatic way of filtering a container is an abomination th
 The most useful use-case is the scenarios for writing a functional pipeline
 over an infinite stream that you want to manipulate lazily, like a UNIX pipeline, e.g. the above-mentioned [aln_filter.cpp](test/aln_filter.cpp).
 
+#### Implement embarassingly-parallel problems trivially.
+
+Replacing `fn::transform` with `fn::transform_in_parallel` where appropriate may be all it takes to parallelize your code.
 
 ### Downsides and Caveats.
 Compilation errors related to templates are completely gnarly.
@@ -340,6 +316,8 @@ There's a possibility that a user may instantiate a `seq` and then forget to act
     // whereas the user code probably intended:
     std::move(inputs) % fn::transform(...) % fn::for_each(...);
 ```
+
+### Minimum supported compilers: MSVC-19.15, GCC-4.9.3, clang-3.7, ICC-18
 
 ### References:
 - [Haskell Data.List](https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-List.html)
