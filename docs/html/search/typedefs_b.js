@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['traits',['traits',['../structrangeless_1_1fn_1_1impl_1_1memoizer.html#abf8b6a52ea97521c84c6e3cc5871abe2',1,'rangeless::fn::impl::memoizer']]],
-  ['type',['type',['../structrangeless_1_1fn_1_1impl_1_1get__value__type.html#af03db0c4401126a82da47ec83d58bbbd',1,'rangeless::fn::impl::get_value_type::type()'],['../structrangeless_1_1fn_1_1impl_1_1get__value__type_3_01std_1_1function_3_01impl_1_1maybe_3_01T_01_4_07_08_4_01_4.html#aa801076a76759b70bc80f3a14d761437',1,'rangeless::fn::impl::get_value_type&lt; std::function&lt; impl::maybe&lt; T &gt;()&gt; &gt;::type()']]]
+  ['seen_5ft',['seen_t',['../structrangeless_1_1fn_1_1impl_1_1unique__all__by_1_1gen.html#aebf2fd7dea55740dab26948d1656e1cf',1,'rangeless::fn::impl::unique_all_by::gen']]],
+  ['seq_5fid_5ft',['seq_id_t',['../structexample_1_1aln__t.html#a680d851ea8e95c20b0c16dbd57e6a050',1,'example::aln_t']]],
+  ['state_5ft',['state_t',['../structrangeless_1_1fn_1_1impl_1_1unique__adjacent__by_1_1gen.html#ac58d141252c06d429a1ec484d7e34b45',1,'rangeless::fn::impl::unique_adjacent_by::gen']]]
 ];

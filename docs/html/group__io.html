@@ -98,7 +98,6 @@ $(document).ready(function(){initNavTree('group__io.html','');});
   <div class="summary">
 <a href="#namespaces">Namespaces</a> &#124;
 <a href="#nested-classes">Classes</a> &#124;
-<a href="#typedef-members">Typedefs</a> &#124;
 <a href="#func-members">Functions</a>  </div>
   <div class="headertitle">
 <div class="title">Inputs and Outputs</div>  </div>
@@ -117,13 +116,6 @@ Classes</h2></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return fn::end_seq() from input-range generator function to signal end-of-inputs.  <a href="structrangeless_1_1fn_1_1end__seq.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
-Typedefs</h2></td></tr>
-<tr class="memitem:ga5aa498e875d384f2814557bd24a67273"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:ga5aa498e875d384f2814557bd24a67273"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__io.html#ga5aa498e875d384f2814557bd24a67273">rangeless::fn::any_seq_t</a> = <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq.html">impl::seq</a>&lt; std::function&lt; <a class="el" href="classrangeless_1_1fn_1_1impl_1_1maybe.html">impl::maybe</a>&lt; T &gt;()&gt; &gt;</td></tr>
-<tr class="memdesc:ga5aa498e875d384f2814557bd24a67273"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type-erase a <code>seq</code>.  <a href="group__io.html#ga5aa498e875d384f2814557bd24a67273">More...</a><br /></td></tr>
-<tr class="separator:ga5aa498e875d384f2814557bd24a67273"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:gab5624a94f8786cb370675a260eb51928"><td class="memTemplParams" colspan="2">template&lt;typename NullaryInvokable &gt; </td></tr>
@@ -136,30 +128,6 @@ Functions</h2></td></tr>
 <tr class="separator:ga30da17b10bf0974dc17153792de3c3af"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<h2 class="groupheader">Typedef Documentation</h2>
-<a id="ga5aa498e875d384f2814557bd24a67273"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga5aa498e875d384f2814557bd24a67273">&#9670;&nbsp;</a></span>any_seq_t</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename T &gt; </div>
-      <table class="memname">
-        <tr>
-          <td class="memname">using <a class="el" href="group__io.html#ga5aa498e875d384f2814557bd24a67273">rangeless::fn::any_seq_t</a> = typedef <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq.html">impl::seq</a>&lt;std::function&lt;<a class="el" href="classrangeless_1_1fn_1_1impl_1_1maybe.html">impl::maybe</a>&lt;T&gt;()&gt; &gt;</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Type-erase a <code>seq</code>. </p>
-<p><code>any_seq_t</code> is implicitly constructible from any <code>seq</code>, wrapping the underlying <code>NullaryInvokable</code> as <code>std::function</code>.</p>
-<p>This may be useful when you want to declare a function or a method returning a seq, but don't want to define it with all the gory details in the header.</p>
-<p>NB: wrappnig a callable in a <code>std::function</code> is subject to performance-related considerations.</p>
-<div class="fragment"><div class="line"><a class="code" href="classrangeless_1_1fn_1_1impl_1_1seq.html">fn::any_seq_t&lt;int&gt;</a> myseq = </div><div class="line">    <a class="code" href="group__io.html#gab5624a94f8786cb370675a260eb51928">fn::seq</a>([i = 0]() <span class="keyword">mutable</span></div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> i &lt; 10 ? i++ : <a class="code" href="structrangeless_1_1fn_1_1end__seq.html">fn::end_seq</a>();</div><div class="line">    })</div><div class="line">  % <a class="code" href="group__filtering.html#ga85f0d030462ff19ba023f92d2b111210">fn::where</a>([](<span class="keywordtype">int</span> x)</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> x % 2 == 0;</div><div class="line">    });</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01051">1051</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
-
-</div>
-</div>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="ga30da17b10bf0974dc17153792de3c3af"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga30da17b10bf0974dc17153792de3c3af">&#9670;&nbsp;</a></span>refs()</h2>
@@ -181,7 +149,7 @@ template&lt;typename Iterable &gt; </div>
 
 <p>Adapt a reference to <code>Iterable</code> as <code>seq</code> yielding reference-wrappers. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01017">1017</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00687">687</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -205,7 +173,7 @@ template&lt;typename NullaryInvokable &gt; </div>
 
 <p>Adapt a generator function as <code>InputRange</code>. </p>
 <div class="fragment"><div class="line"><span class="keywordtype">int</span> i = 0;</div><div class="line"><span class="keywordtype">int</span> sum =</div><div class="line">    <a class="code" href="group__io.html#gab5624a94f8786cb370675a260eb51928">fn::seq</a>([&amp;i]</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> i &lt; 5 ? x++ : <a class="code" href="structrangeless_1_1fn_1_1end__seq.html">fn::end_seq</a>();</div><div class="line">    })</div><div class="line"></div><div class="line">  % <a class="code" href="group__filtering.html#ga85f0d030462ff19ba023f92d2b111210">fn::where</a>([](<span class="keywordtype">int</span> x)</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> x &gt; 2;</div><div class="line">    }) <span class="comment">// 3, 4</span></div><div class="line"></div><div class="line">  % <a class="code" href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b">fn::transform</a>([](<span class="keywordtype">int</span> x)</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> x + 1;</div><div class="line">    }) <span class="comment">// 4, 5</span></div><div class="line"></div><div class="line">  % <a class="code" href="group__folding.html#ga189f20f64389ca4d2d98b73127968f18">fn::foldl_d</a>([](<span class="keywordtype">int</span> out, <span class="keywordtype">int</span> in)</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> out * 10 + in;</div><div class="line">    });</div><div class="line">        </div><div class="line">VERIFY(sum == 45);</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01007">1007</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00677">677</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

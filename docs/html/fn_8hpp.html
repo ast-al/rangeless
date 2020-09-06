@@ -112,9 +112,20 @@ $(document).ready(function(){initNavTree('fn_8hpp.html','');});
 <code>#include &lt;map&gt;</code><br />
 <code>#include &lt;deque&gt;</code><br />
 <code>#include &lt;string&gt;</code><br />
+<code>#include &lt;iterator&gt;</code><br />
 <code>#include &lt;cassert&gt;</code><br />
-<code>#include &lt;future&gt;</code><br />
+<code>#include &lt;iostream&gt;</code><br />
+<code>#include &lt;cctype&gt;</code><br />
+<code>#include &lt;cstdlib&gt;</code><br />
+<code>#include &lt;cstring&gt;</code><br />
+<code>#include &lt;queue&gt;</code><br />
 <code>#include &lt;thread&gt;</code><br />
+<code>#include &lt;mutex&gt;</code><br />
+<code>#include &lt;condition_variable&gt;</code><br />
+<code>#include &lt;atomic&gt;</code><br />
+<code>#include &lt;future&gt;</code><br />
+<code>#include &lt;chrono&gt;</code><br />
+<code>#include &lt;memory&gt;</code><br />
 </div>
 <p><a href="fn_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -140,7 +151,7 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1catch__end.html">rangeless::fn::impl::catch_end&lt; Gen &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1get__value__type.html">rangeless::fn::impl::get_value_type&lt; Gen &gt;</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1any__gen.html">rangeless::fn::impl::any_gen&lt; T &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq.html">rangeless::fn::impl::seq&lt; Gen &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -153,8 +164,6 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1eq.html">rangeless::fn::impl::eq</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1gt.html">rangeless::fn::impl::gt&lt; T &gt;</a></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1gt__fn.html">rangeless::fn::impl::gt_fn&lt; F &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1comp.html">rangeless::fn::impl::comp&lt; F &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -194,6 +203,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each.html">rangeless::fn::impl::for_each&lt; F &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each__adjacent.html">rangeless::fn::impl::for_each_adjacent&lt; F2 &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1foldl.html">rangeless::fn::impl::foldl&lt; Ret, Op &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1foldl__d.html">rangeless::fn::impl::foldl_d&lt; Op &gt;</a></td></tr>
@@ -211,12 +222,6 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1sliding__window_1_1gen__c.html">rangeless::fn::impl::sliding_window::gen_c&lt; Iterable &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1sliding__window_1_1gen.html">rangeless::fn::impl::sliding_window::gen&lt; InGen &gt;</a></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1std__async.html">rangeless::fn::impl::std_async</a></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform.html">rangeless::fn::impl::par_transform&lt; F, Async &gt;</a></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html">rangeless::fn::impl::par_transform&lt; F, Async &gt;::gen&lt; InGen &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1adapt.html">rangeless::fn::impl::adapt&lt; F &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -250,9 +255,11 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1reverse.html">rangeless::fn::impl::reverse</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1reverse_1_1reversed.html">rangeless::fn::impl::reverse::reversed&lt; Iterable &gt;</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1stable__sort__tag.html">rangeless::fn::impl::stable_sort_tag</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1sort__by.html">rangeless::fn::impl::sort_by&lt; F &gt;</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1unstable__sort__tag.html">rangeless::fn::impl::unstable_sort_tag</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1sort__by.html">rangeless::fn::impl::sort_by&lt; F, SortTag &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1lazy__sort__by.html">rangeless::fn::impl::lazy_sort_by&lt; F &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -263,6 +270,12 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__by.html">rangeless::fn::impl::group_adjacent_by&lt; F, BinaryPred &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__by_1_1gen.html">rangeless::fn::impl::group_adjacent_by&lt; F, BinaryPred &gt;::gen&lt; InGen &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__as__subseqs__by.html">rangeless::fn::impl::group_adjacent_as_subseqs_by&lt; F, BinaryPred &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__as__subseqs__by_1_1gen.html">rangeless::fn::impl::group_adjacent_as_subseqs_by&lt; F, BinaryPred &gt;::gen&lt; InGen &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__as__subseqs__by_1_1gen_1_1subgen.html">rangeless::fn::impl::group_adjacent_as_subseqs_by&lt; F, BinaryPred &gt;::gen&lt; InGen &gt;::subgen</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1chunker.html">rangeless::fn::impl::chunker</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -308,6 +321,46 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1scope__guard.html">rangeless::fn::impl::scope_guard&lt; F &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1tsv_1_1params.html">rangeless::tsv::params</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1tsv_1_1get__next__line.html">rangeless::tsv::get_next_line</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1tsv_1_1split__on__delim.html">rangeless::tsv::split_on_delim</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1tsv_1_1to__num.html">rangeless::tsv::to_num</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Utility to parse numbers.  <a href="classrangeless_1_1tsv_1_1to__num.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1mt_1_1timer.html">rangeless::mt::timer</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">A simple timer.  <a href="structrangeless_1_1mt_1_1timer.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1mt_1_1lockables_1_1atomic__mutex.html">rangeless::mt::lockables::atomic_mutex</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1mt_1_1synchronized__queue__base.html">rangeless::mt::synchronized_queue_base</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1mt_1_1synchronized__queue__base_1_1queue__closed.html">rangeless::mt::synchronized_queue_base::queue_closed</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classrangeless_1_1mt_1_1synchronized__queue.html">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optionally-bounded blocking concurrent MPMC queue.  <a href="classrangeless_1_1mt_1_1synchronized__queue.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1push__t.html">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::push_t</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements insert_iterator and unary-invokable.  <a href="structrangeless_1_1mt_1_1synchronized__queue_1_1push__t.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1pop__t.html">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::pop_t</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1close__guard.html">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::close_guard</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1async__wr.html">rangeless::fn::impl::async_wr</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1async__wr_1_1gen.html">rangeless::fn::impl::async_wr::gen&lt; InGen &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1std__async.html">rangeless::fn::impl::std_async</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform.html">rangeless::fn::impl::par_transform&lt; F, Async &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html">rangeless::fn::impl::par_transform&lt; F, Async &gt;::gen&lt; InGen &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen_1_1value__type__callable.html">rangeless::fn::impl::par_transform&lt; F, Async &gt;::gen&lt; InGen &gt;::value_type_callable</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="namespaces"></a>
 Namespaces</h2></td></tr>
@@ -327,11 +380,19 @@ Namespaces</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:namespacerangeless_1_1fn_1_1operators"><td class="memItemLeft" align="right" valign="top"> &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn_1_1operators.html">rangeless::fn::operators</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespacerangeless_1_1tsv"><td class="memItemLeft" align="right" valign="top"> &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1tsv.html">rangeless::tsv</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespacerangeless_1_1mt"><td class="memItemLeft" align="right" valign="top"> &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1mt.html">rangeless::mt</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespacerangeless_1_1mt_1_1lockables"><td class="memItemLeft" align="right" valign="top"> &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1mt_1_1lockables.html">rangeless::mt::lockables</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="define-members"></a>
 Macros</h2></td></tr>
 <tr class="memitem:a1e42569ee0262b1da2752d98bfac6d56"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="fn_8hpp.html#a1e42569ee0262b1da2752d98bfac6d56">RANGELESS_FN_ENABLE_PARALLEL</a>&#160;&#160;&#160;1</td></tr>
 <tr class="separator:a1e42569ee0262b1da2752d98bfac6d56"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a22a7e6a323fe7ef48e5e6954ca941df1"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="fn_8hpp.html#a22a7e6a323fe7ef48e5e6954ca941df1">RANGELESS_ENABLE_TSV</a>&#160;&#160;&#160;1</td></tr>
+<tr class="separator:a22a7e6a323fe7ef48e5e6954ca941df1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5b44b7323bd0d2a50efcb400efa9bb45"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="fn_8hpp.html#a5b44b7323bd0d2a50efcb400efa9bb45">RANGELESS_FN_THROW</a>(msg)&#160;&#160;&#160;throw std::logic_error( std::string{} + __FILE__ + &quot;:&quot; + std::to_string(__LINE__) + &quot;: &quot;#msg );</td></tr>
 <tr class="separator:a5b44b7323bd0d2a50efcb400efa9bb45"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a536113c3c2c80d3e7de84d366f7496ff"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="fn_8hpp.html#a536113c3c2c80d3e7de84d366f7496ff">RANGELESS_FN_OVERLOAD_FOR_SEQ</a>(...)</td></tr>
@@ -345,10 +406,11 @@ Macros</h2></td></tr>
 Typedefs</h2></td></tr>
 <tr class="memitem:a6488371bfb9ec6ba35a3ef746f1180c3"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn_1_1impl.html#a6488371bfb9ec6ba35a3ef746f1180c3">rangeless::fn::impl::resolve_overload</a> = pr_highest</td></tr>
 <tr class="separator:a6488371bfb9ec6ba35a3ef746f1180c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga5aa498e875d384f2814557bd24a67273"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:ga5aa498e875d384f2814557bd24a67273"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__io.html#ga5aa498e875d384f2814557bd24a67273">rangeless::fn::any_seq_t</a> = impl::seq&lt; std::function&lt; impl::maybe&lt; T &gt;()&gt; &gt;</td></tr>
-<tr class="memdesc:ga5aa498e875d384f2814557bd24a67273"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type-erase a <code>seq</code>.  <a href="group__io.html#ga5aa498e875d384f2814557bd24a67273">More...</a><br /></td></tr>
-<tr class="separator:ga5aa498e875d384f2814557bd24a67273"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6bf34473843ba5f767ff470a4e397078"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a6bf34473843ba5f767ff470a4e397078"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn.html#a6bf34473843ba5f767ff470a4e397078">rangeless::fn::any_seq_t</a> = impl::seq&lt; impl::any_gen&lt; T &gt; &gt;</td></tr>
+<tr class="separator:a6bf34473843ba5f767ff470a4e397078"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a42b742c98628711444b3be8371f45b76"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1tsv.html#a42b742c98628711444b3be8371f45b76">rangeless::tsv::row_t</a> = std::vector&lt; std::string &gt;</td></tr>
+<tr class="separator:a42b742c98628711444b3be8371f45b76"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
@@ -379,10 +441,6 @@ Functions</h2></td></tr>
 <tr class="memitem:a25cd0c9334903cbcad1d71ac84f49ff6"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a25cd0c9334903cbcad1d71ac84f49ff6"><td class="memTemplItemLeft" align="right" valign="top">impl::gt&lt; const T &amp; &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn_1_1by.html#a25cd0c9334903cbcad1d71ac84f49ff6">rangeless::fn::by::decreasing</a> (std::reference_wrapper&lt; T &gt; x)</td></tr>
 <tr class="separator:a25cd0c9334903cbcad1d71ac84f49ff6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae6888f75ddbd91755cc24afa0e946e57"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
-<tr class="memitem:ae6888f75ddbd91755cc24afa0e946e57"><td class="memTemplItemLeft" align="right" valign="top">impl::gt_fn&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn_1_1by.html#ae6888f75ddbd91755cc24afa0e946e57">rangeless::fn::by::flipped</a> (F key_fn)</td></tr>
-<tr class="memdesc:ae6888f75ddbd91755cc24afa0e946e57"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compose key_fn with <code><a class="el" href="namespacerangeless_1_1fn_1_1by.html#a1613ba958df569e7e746241e0ea661d9" title="Wraps the passed value and exposes inverted operator&lt;.">by::decreasing</a></code>.  <a href="namespacerangeless_1_1fn_1_1by.html#ae6888f75ddbd91755cc24afa0e946e57">More...</a><br /></td></tr>
-<tr class="separator:ae6888f75ddbd91755cc24afa0e946e57"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a89a8c471da40aa0cfbc0fa7dee235b3f"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
 <tr class="memitem:a89a8c471da40aa0cfbc0fa7dee235b3f"><td class="memTemplItemLeft" align="right" valign="top">impl::comp&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn_1_1by.html#a89a8c471da40aa0cfbc0fa7dee235b3f">rangeless::fn::by::make_comp</a> (F key_fn)</td></tr>
 <tr class="memdesc:a89a8c471da40aa0cfbc0fa7dee235b3f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Make binary comparison predicate from a key-function.  <a href="namespacerangeless_1_1fn_1_1by.html#a89a8c471da40aa0cfbc0fa7dee235b3f">More...</a><br /></td></tr>
@@ -405,6 +463,10 @@ Functions</h2></td></tr>
 <tr class="memitem:ga2ca6028fafc3067870b76bc78684c0fc"><td class="memTemplParams" colspan="2">template&lt;typename Iterable , typename Iterator  = typename Iterable::const_iterator&gt; </td></tr>
 <tr class="memitem:ga2ca6028fafc3067870b76bc78684c0fc"><td class="memTemplItemLeft" align="right" valign="top">constexpr view&lt; Iterator &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__view.html#ga2ca6028fafc3067870b76bc78684c0fc">rangeless::fn::cfrom</a> (const Iterable &amp;src) noexcept</td></tr>
 <tr class="separator:ga2ca6028fafc3067870b76bc78684c0fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2c4bfdeca70af3cbc592e1a2c6d9e38b"><td class="memTemplParams" colspan="2">template&lt;typename Gen , typename T  = typename Gen::value_type&gt; </td></tr>
+<tr class="memitem:a2c4bfdeca70af3cbc592e1a2c6d9e38b"><td class="memTemplItemLeft" align="right" valign="top">any_seq_t&lt; T &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn.html#a2c4bfdeca70af3cbc592e1a2c6d9e38b">rangeless::fn::make_typerased</a> (impl::seq&lt; Gen &gt; seq)</td></tr>
+<tr class="memdesc:a2c4bfdeca70af3cbc592e1a2c6d9e38b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type-erase a <code>seq</code>.  <a href="namespacerangeless_1_1fn.html#a2c4bfdeca70af3cbc592e1a2c6d9e38b">More...</a><br /></td></tr>
+<tr class="separator:a2c4bfdeca70af3cbc592e1a2c6d9e38b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaed63bb21cc79709c4d88a9d385a13aaf"><td class="memItemLeft" align="right" valign="top">impl::to_vector&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__to__vec.html#gaed63bb21cc79709c4d88a9d385a13aaf">rangeless::fn::to_vector</a> ()</td></tr>
 <tr class="memdesc:gaed63bb21cc79709c4d88a9d385a13aaf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move elements of an <code>Iterable</code> to std::vector.  <a href="group__to__vec.html#gaed63bb21cc79709c4d88a9d385a13aaf">More...</a><br /></td></tr>
 <tr class="separator:gaed63bb21cc79709c4d88a9d385a13aaf"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -426,14 +488,6 @@ Functions</h2></td></tr>
 <tr class="memitem:ga979427b87c75f4d09f0a6db776b47f3b"><td class="memTemplItemLeft" align="right" valign="top">impl::transform&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b">rangeless::fn::transform</a> (F map_fn)</td></tr>
 <tr class="memdesc:ga979427b87c75f4d09f0a6db776b47f3b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a <code>seq</code> yielding results of applying the transform functions to input-elements.  <a href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b">More...</a><br /></td></tr>
 <tr class="separator:ga979427b87c75f4d09f0a6db776b47f3b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga406bfcec6a4930bdc714536bf35e7f46"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
-<tr class="memitem:ga406bfcec6a4930bdc714536bf35e7f46"><td class="memTemplItemLeft" align="right" valign="top">impl::par_transform&lt; F, impl::std_async &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__transform.html#ga406bfcec6a4930bdc714536bf35e7f46">rangeless::fn::transform_in_parallel</a> (F map_fn)</td></tr>
-<tr class="memdesc:ga406bfcec6a4930bdc714536bf35e7f46"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parallelized version of <code><a class="el" href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b" title="Create a seq yielding results of applying the transform functions to input-elements.">fn::transform</a></code>  <a href="group__transform.html#ga406bfcec6a4930bdc714536bf35e7f46">More...</a><br /></td></tr>
-<tr class="separator:ga406bfcec6a4930bdc714536bf35e7f46"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="memTemplParams" colspan="2">template&lt;typename F , typename Async &gt; </td></tr>
-<tr class="memitem:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="memTemplItemLeft" align="right" valign="top">impl::par_transform&lt; F, Async &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__transform.html#gae9441c1e2ac00c852a64cb35e584b6e1">rangeless::fn::transform_in_parallel</a> (F map_fn, Async async)</td></tr>
-<tr class="memdesc:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">A version of <code>transform_in_parallel</code> that uses a user-provided Async (e.g. backed by a fancy work-stealing thread-pool implementation).  <a href="group__transform.html#gae9441c1e2ac00c852a64cb35e584b6e1">More...</a><br /></td></tr>
-<tr class="separator:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gafbadb1cf1eb98ace402b08a0041ca402"><td class="memTemplParams" colspan="2">template&lt;typename Result , typename Op &gt; </td></tr>
 <tr class="memitem:gafbadb1cf1eb98ace402b08a0041ca402"><td class="memTemplItemLeft" align="right" valign="top">impl::foldl&lt; Result, Op &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__folding.html#gafbadb1cf1eb98ace402b08a0041ca402">rangeless::fn::foldl</a> (Result init, Op binary_op)</td></tr>
 <tr class="memdesc:gafbadb1cf1eb98ace402b08a0041ca402"><td class="mdescLeft">&#160;</td><td class="mdescRight">Range-based version of c++20 (copy-free) <code>std::accumulate</code>  <a href="group__folding.html#gafbadb1cf1eb98ace402b08a0041ca402">More...</a><br /></td></tr>
@@ -451,6 +505,9 @@ Functions</h2></td></tr>
 <tr class="memitem:ga8568617f52b0e084f2c1303d71705b69"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
 <tr class="memitem:ga8568617f52b0e084f2c1303d71705b69"><td class="memTemplItemLeft" align="right" valign="top">impl::for_each&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__folding.html#ga8568617f52b0e084f2c1303d71705b69">rangeless::fn::for_each</a> (F fn)</td></tr>
 <tr class="separator:ga8568617f52b0e084f2c1303d71705b69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gafa506807825e692e36b3226235a335f4"><td class="memTemplParams" colspan="2">template&lt;typename F2 &gt; </td></tr>
+<tr class="memitem:gafa506807825e692e36b3226235a335f4"><td class="memTemplItemLeft" align="right" valign="top">impl::for_each_adjacent&lt; F2 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__folding.html#gafa506807825e692e36b3226235a335f4">rangeless::fn::for_each_adjacent</a> (F2 fn2)</td></tr>
+<tr class="separator:gafa506807825e692e36b3226235a335f4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga1b8fd02fe6abd5defa5f5a6839e5b614"><td class="memTemplParams" colspan="2">template&lt;typename P &gt; </td></tr>
 <tr class="memitem:ga1b8fd02fe6abd5defa5f5a6839e5b614"><td class="memTemplItemLeft" align="right" valign="top">impl::take_while&lt; P &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__filtering.html#ga1b8fd02fe6abd5defa5f5a6839e5b614">rangeless::fn::take_while</a> (P pred)</td></tr>
 <tr class="memdesc:ga1b8fd02fe6abd5defa5f5a6839e5b614"><td class="mdescLeft">&#160;</td><td class="mdescRight">Yield elements until pred evaluates to false.  <a href="group__filtering.html#ga1b8fd02fe6abd5defa5f5a6839e5b614">More...</a><br /></td></tr>
@@ -513,25 +570,40 @@ Functions</h2></td></tr>
 <tr class="memitem:ga95a5c85e062778a92a1d3e689109d6c9"><td class="memTemplItemLeft" align="right" valign="top">impl::group_adjacent_by&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__grouping.html#ga95a5c85e062778a92a1d3e689109d6c9">rangeless::fn::group_adjacent_by</a> (F key_fn)</td></tr>
 <tr class="memdesc:ga95a5c85e062778a92a1d3e689109d6c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Group adjacent elements.  <a href="group__grouping.html#ga95a5c85e062778a92a1d3e689109d6c9">More...</a><br /></td></tr>
 <tr class="separator:ga95a5c85e062778a92a1d3e689109d6c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga23e4b2f276d394d6e8c6c88a95f668e6"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
+<tr class="memitem:ga23e4b2f276d394d6e8c6c88a95f668e6"><td class="memTemplItemLeft" align="right" valign="top">impl::group_adjacent_as_subseqs_by&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__grouping.html#ga23e4b2f276d394d6e8c6c88a95f668e6">rangeless::fn::group_adjacent_by</a> (F key_fn, impl::to_seq)</td></tr>
+<tr class="memdesc:ga23e4b2f276d394d6e8c6c88a95f668e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Group adjacent elements.  <a href="group__grouping.html#ga23e4b2f276d394d6e8c6c88a95f668e6">More...</a><br /></td></tr>
+<tr class="separator:ga23e4b2f276d394d6e8c6c88a95f668e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gab276ddd399223b4ff410de08a62f398b"><td class="memItemLeft" align="right" valign="top">impl::group_adjacent_by&lt; by::identity &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__grouping.html#gab276ddd399223b4ff410de08a62f398b">rangeless::fn::group_adjacent</a> ()</td></tr>
 <tr class="separator:gab276ddd399223b4ff410de08a62f398b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga61c5db8af9447a02a424f1eb2a59054a"><td class="memItemLeft" align="right" valign="top">impl::group_adjacent_as_subseqs_by&lt; by::identity &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__grouping.html#ga61c5db8af9447a02a424f1eb2a59054a">rangeless::fn::group_adjacent</a> (impl::to_seq)</td></tr>
+<tr class="separator:ga61c5db8af9447a02a424f1eb2a59054a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga3c75fd51da6da7e1cb3519435fe41f24"><td class="memTemplParams" colspan="2">template&lt;typename BinaryPred &gt; </td></tr>
 <tr class="memitem:ga3c75fd51da6da7e1cb3519435fe41f24"><td class="memTemplItemLeft" align="right" valign="top">impl::group_adjacent_by&lt; fn::by::identity, BinaryPred &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__grouping.html#ga3c75fd51da6da7e1cb3519435fe41f24">rangeless::fn::group_adjacent_if</a> (BinaryPred pred2)</td></tr>
 <tr class="memdesc:ga3c75fd51da6da7e1cb3519435fe41f24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Group adjacent elements if binary predicate holds.  <a href="group__grouping.html#ga3c75fd51da6da7e1cb3519435fe41f24">More...</a><br /></td></tr>
 <tr class="separator:ga3c75fd51da6da7e1cb3519435fe41f24"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga6ac71df99690f34fdbb9ad5fd8184864"><td class="memTemplParams" colspan="2">template&lt;typename BinaryPred &gt; </td></tr>
+<tr class="memitem:ga6ac71df99690f34fdbb9ad5fd8184864"><td class="memTemplItemLeft" align="right" valign="top">impl::group_adjacent_as_subseqs_by&lt; fn::by::identity, BinaryPred &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__grouping.html#ga6ac71df99690f34fdbb9ad5fd8184864">rangeless::fn::group_adjacent_if</a> (BinaryPred pred2, impl::to_seq)</td></tr>
+<tr class="memdesc:ga6ac71df99690f34fdbb9ad5fd8184864"><td class="mdescLeft">&#160;</td><td class="mdescRight">Group adjacent elements if binary predicate holds.  <a href="group__grouping.html#ga6ac71df99690f34fdbb9ad5fd8184864">More...</a><br /></td></tr>
+<tr class="separator:ga6ac71df99690f34fdbb9ad5fd8184864"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga274ee29d818836d6ba1e8b0b862b85df"><td class="memItemLeft" align="right" valign="top">impl::group_adjacent_by&lt; impl::chunker &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__grouping.html#ga274ee29d818836d6ba1e8b0b862b85df">rangeless::fn::in_groups_of</a> (size_t n)</td></tr>
 <tr class="memdesc:ga274ee29d818836d6ba1e8b0b862b85df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Group adjacent elements into chunks of specified size.  <a href="group__grouping.html#ga274ee29d818836d6ba1e8b0b862b85df">More...</a><br /></td></tr>
 <tr class="separator:ga274ee29d818836d6ba1e8b0b862b85df"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gad6a4e5ec290bdc1517bea932acb62415"><td class="memItemLeft" align="right" valign="top">impl::reverse&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ordering.html#gad6a4e5ec290bdc1517bea932acb62415">rangeless::fn::reverse</a> ()</td></tr>
 <tr class="memdesc:gad6a4e5ec290bdc1517bea932acb62415"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reverse the elements in the input container.  <a href="group__ordering.html#gad6a4e5ec290bdc1517bea932acb62415">More...</a><br /></td></tr>
 <tr class="separator:gad6a4e5ec290bdc1517bea932acb62415"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaae21820457a98e1860d67e599638c6e1"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
-<tr class="memitem:gaae21820457a98e1860d67e599638c6e1"><td class="memTemplItemLeft" align="right" valign="top">impl::sort_by&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__ordering.html#gaae21820457a98e1860d67e599638c6e1">rangeless::fn::sort_by</a> (F key_fn)</td></tr>
-<tr class="memdesc:gaae21820457a98e1860d67e599638c6e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">stable-sort and return the input.  <a href="group__ordering.html#gaae21820457a98e1860d67e599638c6e1">More...</a><br /></td></tr>
-<tr class="separator:gaae21820457a98e1860d67e599638c6e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaec02a6adf83765e9a0a51d3bafe68354"><td class="memItemLeft" align="right" valign="top">impl::sort_by&lt; by::identity &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ordering.html#gaec02a6adf83765e9a0a51d3bafe68354">rangeless::fn::sort</a> ()</td></tr>
-<tr class="memdesc:gaec02a6adf83765e9a0a51d3bafe68354"><td class="mdescLeft">&#160;</td><td class="mdescRight"><code>sort_by with key_fn = <a class="el" href="structrangeless_1_1fn_1_1by_1_1identity.html">by::identity</a></code>  <a href="group__ordering.html#gaec02a6adf83765e9a0a51d3bafe68354">More...</a><br /></td></tr>
-<tr class="separator:gaec02a6adf83765e9a0a51d3bafe68354"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gacdb4c259d22527440d63b856cf4b7292"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
+<tr class="memitem:gacdb4c259d22527440d63b856cf4b7292"><td class="memTemplItemLeft" align="right" valign="top">impl::sort_by&lt; F, impl::stable_sort_tag &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__ordering.html#gacdb4c259d22527440d63b856cf4b7292">rangeless::fn::sort_by</a> (F key_fn)</td></tr>
+<tr class="memdesc:gacdb4c259d22527440d63b856cf4b7292"><td class="mdescLeft">&#160;</td><td class="mdescRight">stable-sort and return the input.  <a href="group__ordering.html#gacdb4c259d22527440d63b856cf4b7292">More...</a><br /></td></tr>
+<tr class="separator:gacdb4c259d22527440d63b856cf4b7292"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga41164a4ddefc2905489197e6959d00a1"><td class="memItemLeft" align="right" valign="top">impl::sort_by&lt; by::identity, impl::stable_sort_tag &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ordering.html#ga41164a4ddefc2905489197e6959d00a1">rangeless::fn::sort</a> ()</td></tr>
+<tr class="memdesc:ga41164a4ddefc2905489197e6959d00a1"><td class="mdescLeft">&#160;</td><td class="mdescRight"><code>sort_by with key_fn = <a class="el" href="structrangeless_1_1fn_1_1by_1_1identity.html">by::identity</a></code>  <a href="group__ordering.html#ga41164a4ddefc2905489197e6959d00a1">More...</a><br /></td></tr>
+<tr class="separator:ga41164a4ddefc2905489197e6959d00a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga648cb1e78ccb4e739c76e856ba42fcfb"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
+<tr class="memitem:ga648cb1e78ccb4e739c76e856ba42fcfb"><td class="memTemplItemLeft" align="right" valign="top">impl::sort_by&lt; F, impl::unstable_sort_tag &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__ordering.html#ga648cb1e78ccb4e739c76e856ba42fcfb">rangeless::fn::unstable_sort_by</a> (F key_fn)</td></tr>
+<tr class="separator:ga648cb1e78ccb4e739c76e856ba42fcfb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gae3e9bac11a4c72931ee99559f245b694"><td class="memItemLeft" align="right" valign="top">impl::sort_by&lt; by::identity, impl::unstable_sort_tag &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__ordering.html#gae3e9bac11a4c72931ee99559f245b694">rangeless::fn::unstable_sort</a> ()</td></tr>
+<tr class="separator:gae3e9bac11a4c72931ee99559f245b694"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga964dd9abe1db18e5482ccfd67d15c376"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
 <tr class="memitem:ga964dd9abe1db18e5482ccfd67d15c376"><td class="memTemplItemLeft" align="right" valign="top">impl::lazy_sort_by&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__ordering.html#ga964dd9abe1db18e5482ccfd67d15c376">rangeless::fn::lazy_sort_by</a> (F key_fn)</td></tr>
 <tr class="memdesc:ga964dd9abe1db18e5482ccfd67d15c376"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unstable lazy sort.  <a href="group__ordering.html#ga964dd9abe1db18e5482ccfd67d15c376">More...</a><br /></td></tr>
@@ -571,6 +643,7 @@ Functions</h2></td></tr>
 <tr class="separator:ga94d75058d6bbca457cf3252f347f7bca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="memTemplParams" colspan="2">template&lt;typename BinaryFn &gt; </td></tr>
 <tr class="memitem:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="memTemplItemLeft" align="right" valign="top">impl::zip_adjacent&lt; BinaryFn &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__concat.html#ga4f7bcb20a9e0a8749832fb8b3eadd218">rangeless::fn::zip_adjacent</a> (BinaryFn fn)</td></tr>
+<tr class="memdesc:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="mdescLeft">&#160;</td><td class="mdescRight">Yield invocations of <code>fn</code> over pairs of adjacent inputs.  <a href="group__concat.html#ga4f7bcb20a9e0a8749832fb8b3eadd218">More...</a><br /></td></tr>
 <tr class="separator:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaa253f6bb1aa611b1e44f249efc63ac2c"><td class="memTemplParams" colspan="2">template&lt;typename Iterable , typename BinaryFn &gt; </td></tr>
 <tr class="memitem:gaa253f6bb1aa611b1e44f249efc63ac2c"><td class="memTemplItemLeft" align="right" valign="top">impl::cartesian_product_with&lt; Iterable, BinaryFn &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__concat.html#gaa253f6bb1aa611b1e44f249efc63ac2c">rangeless::fn::cartesian_product_with</a> (Iterable second, BinaryFn fn)</td></tr>
@@ -625,8 +698,38 @@ Functions</h2></td></tr>
 <tr class="memitem:a00b8955c578f678789c071eeb075f4e8"><td class="memTemplParams" colspan="2">template&lt;class Container &gt; </td></tr>
 <tr class="memitem:a00b8955c578f678789c071eeb075f4e8"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1fn_1_1operators.html#a00b8955c578f678789c071eeb075f4e8">rangeless::fn::operators::operator&lt;&lt;=</a> (Container &amp;cont, typename Container::value_type el)</td></tr>
 <tr class="separator:a00b8955c578f678789c071eeb075f4e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afbee7a3234e1e4e09bf75c2d0736a380"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacerangeless_1_1tsv.html#afbee7a3234e1e4e09bf75c2d0736a380">rangeless::tsv::from</a> (std::istream &amp;istr, char delim='\t', params params={}) -&gt; fn::impl::seq&lt; fn::impl::transform&lt; tsv::split_on_delim &gt;::gen&lt; fn::impl::catch_end&lt; tsv::get_next_line &gt; &gt; &gt;</td></tr>
+<tr class="memdesc:afbee7a3234e1e4e09bf75c2d0736a380"><td class="mdescLeft">&#160;</td><td class="mdescRight">Read tab-separated-values from stream.  <a href="namespacerangeless_1_1tsv.html#afbee7a3234e1e4e09bf75c2d0736a380">More...</a><br /></td></tr>
+<tr class="separator:afbee7a3234e1e4e09bf75c2d0736a380"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga2ebd2c2484c72a500e23c95deeac51f9"><td class="memItemLeft" align="right" valign="top">impl::async_wr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__parallel.html#ga2ebd2c2484c72a500e23c95deeac51f9">rangeless::fn::to_async</a> (size_t queue_size=16)</td></tr>
+<tr class="memdesc:ga2ebd2c2484c72a500e23c95deeac51f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wrap generating <code>seq</code> in an async-task.  <a href="group__parallel.html#ga2ebd2c2484c72a500e23c95deeac51f9">More...</a><br /></td></tr>
+<tr class="separator:ga2ebd2c2484c72a500e23c95deeac51f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga406bfcec6a4930bdc714536bf35e7f46"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
+<tr class="memitem:ga406bfcec6a4930bdc714536bf35e7f46"><td class="memTemplItemLeft" align="right" valign="top">impl::par_transform&lt; F, impl::std_async &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__parallel.html#ga406bfcec6a4930bdc714536bf35e7f46">rangeless::fn::transform_in_parallel</a> (F map_fn)</td></tr>
+<tr class="memdesc:ga406bfcec6a4930bdc714536bf35e7f46"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parallelized version of <code><a class="el" href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b" title="Create a seq yielding results of applying the transform functions to input-elements.">fn::transform</a></code>  <a href="group__parallel.html#ga406bfcec6a4930bdc714536bf35e7f46">More...</a><br /></td></tr>
+<tr class="separator:ga406bfcec6a4930bdc714536bf35e7f46"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="memTemplParams" colspan="2">template&lt;typename F , typename Async &gt; </td></tr>
+<tr class="memitem:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="memTemplItemLeft" align="right" valign="top">impl::par_transform&lt; F, Async &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__parallel.html#gae9441c1e2ac00c852a64cb35e584b6e1">rangeless::fn::transform_in_parallel</a> (F map_fn, Async async)</td></tr>
+<tr class="memdesc:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">A version of <code>transform_in_parallel</code> that uses a user-provided Async (e.g. backed by a fancy work-stealing thread-pool implementation).  <a href="group__parallel.html#gae9441c1e2ac00c852a64cb35e584b6e1">More...</a><br /></td></tr>
+<tr class="separator:gae9441c1e2ac00c852a64cb35e584b6e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Macro Definition Documentation</h2>
+<a id="a22a7e6a323fe7ef48e5e6954ca941df1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a22a7e6a323fe7ef48e5e6954ca941df1">&#9670;&nbsp;</a></span>RANGELESS_ENABLE_TSV</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define RANGELESS_ENABLE_TSV&#160;&#160;&#160;1</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00043">43</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+
+</div>
+</div>
 <a id="a1e42569ee0262b1da2752d98bfac6d56"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1e42569ee0262b1da2752d98bfac6d56">&#9670;&nbsp;</a></span>RANGELESS_FN_ENABLE_PARALLEL</h2>
 
@@ -639,7 +742,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00041">41</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00042">42</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -659,7 +762,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Cont&gt;                                                \</div><div class="line">    auto operator()(Cont cont) <span class="keyword">const</span> -&gt; seq&lt;gen&lt;to_seq::gen&lt;Cont&gt;&gt;&gt;        \</div><div class="line">    {                                                                      \</div><div class="line">        return { { { std::move(cont), { }, <span class="keyword">false</span> }, __VA_ARGS__ } };       \</div><div class="line">    }                                                                      \</div></div><!-- fragment -->
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01851">1851</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01519">1519</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -679,7 +782,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> InGen&gt;                                               \</div><div class="line">    auto operator()(seq&lt;InGen&gt; in) <span class="keyword">const</span> -&gt; seq&lt;gen&lt;InGen&gt;&gt;                \</div><div class="line">    {                                                                      \</div><div class="line">        return { { std::move(in.get_gen()), __VA_ARGS__ } };               \</div><div class="line">    }</div></div><!-- fragment -->
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01839">1839</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01507">1507</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -699,7 +802,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Iterator&gt;                                            \</div><div class="line">    auto operator()(view&lt;Iterator&gt; v) <span class="keyword">const</span>                                \</div><div class="line">     -&gt; seq&lt;gen&lt;to_seq::gen&lt;view&lt;Iterator&gt;&gt;&gt;&gt;                              \</div><div class="line">    {                                                                      \</div><div class="line">        return { { { std::move(v), { }, <span class="keyword">false</span> }, __VA_ARGS__ } };          \</div><div class="line">    }</div></div><!-- fragment -->
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01864">1864</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l01532">1532</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -719,7 +822,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00057">57</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00052">52</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

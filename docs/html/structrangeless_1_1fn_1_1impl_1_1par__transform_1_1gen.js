@@ -1,8 +1,9 @@
 var structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen =
 [
-    [ "fmapped_t", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#aef39812d78233a9a222e970061837a4d", null ],
-    [ "queue_t", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#ad3236c93be99d34017a108342a8d247e", null ],
-    [ "value_type", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#a252d9c8e838cb41ee0212d0ae1decf6d", null ],
+    [ "value_type_callable", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen_1_1value__type__callable.html", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen_1_1value__type__callable" ],
+    [ "future_like_t", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#a1a9efa82b46ff8be16abf8059505093b", null ],
+    [ "queue_t", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#ae0e921ca3bfd2ad645bdd0032b705bed", null ],
+    [ "value_type", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#aad827de996ad7ab3d3fe6fb616601a25", null ],
     [ "operator()", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#a5cb55da1164144aa5dd6d62a9b88ed91", null ],
     [ "async", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#a104be8703f3046860f5d718793c4af93", null ],
     [ "gen", "structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#a418217200a901667be3813660f204ccc", null ],

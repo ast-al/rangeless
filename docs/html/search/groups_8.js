@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['views',['Views',['../group__view.html',1,'']]]
+  ['util',['Util',['../group__other.html',1,'']]],
+  ['uniquefying',['Uniquefying',['../group__uniq.html',1,'']]]
 ];

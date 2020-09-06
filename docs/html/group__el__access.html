@@ -149,7 +149,7 @@ template&lt;typename Container &gt; </div>
 
 <p>e.g. <code>const CConstRef&lt;CSeq_align&gt; aln = first_or_default( get_alns_annot(...)-&gt;Get() );</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04850">4850</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04450">4450</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -182,7 +182,7 @@ template&lt;typename Container , typename Pred &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04856">4856</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04456">4456</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -218,7 +218,7 @@ template&lt;typename Container , typename P &gt; </div>
 <p>Access unique element matching the predicate. </p>
 <p>Throw unless found exactly one element matching the predicate. Returns const or non-const reference depending on the constness of the container. </p><dl class="section see"><dt>See also</dt><dd><a class="el" href="group__el__access.html#ga912d51ddeb8fab42305f0a4ca9b3ddb9" title="Similar to get_unique, but end-insert an element if missing.">set_unique</a> <div class="fragment"><div class="line"><span class="keyword">const</span> CConstRef&lt;CUser_object&gt;&amp; model_evidence_uo = </div><div class="line">    <a class="code" href="group__el__access.html#ga63abd81017cc385fc9ef9175e6133e42">fn::get_unique</a>(seq_feat.GetExts(), [](CConstRef&lt;CUser_object&gt; uo)</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> uo-&gt;GetType().GetStr() == <span class="stringliteral">&quot;ModelEvidence&quot;</span>;</div><div class="line">    });</div></div><!-- fragment --> </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04770">4770</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04370">4370</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -241,7 +241,7 @@ template&lt;typename Container &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04863">4863</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04463">4463</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -274,7 +274,7 @@ template&lt;typename Container , typename Pred &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04869">4869</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04469">4469</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -315,7 +315,7 @@ template&lt;typename Container , typename P , typename Construct &gt; </div>
 
 <p>Similar to get_unique, but end-insert an element if missing. </p>
 <div class="fragment"><div class="line">CRef&lt;CSeqdesc&gt;&amp; gb_desc =</div><div class="line">    <a class="code" href="group__el__access.html#ga912d51ddeb8fab42305f0a4ca9b3ddb9">fn::set_unique</a>(seq_entry.SetDescr().Set(), [](CConstRef&lt;CSeqdesc&gt; d)</div><div class="line">    {    </div><div class="line">        <span class="keywordflow">return</span> d-&gt;IsGenbank();</div><div class="line">    },   </div><div class="line">    [] <span class="comment">// add if missing (must satisfy pred)</span></div><div class="line">    {    </div><div class="line">        <span class="keyword">auto</span> g = Ref(<span class="keyword">new</span> CSeqdesc);</div><div class="line">        g-&gt;SetGenbank();</div><div class="line">        <span class="keywordflow">return</span> g;</div><div class="line">    });  </div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04813">4813</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04413">4413</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

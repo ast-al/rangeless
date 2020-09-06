@@ -1,6 +1,4 @@
 var searchData=
 [
-  ['refs_5fgen',['refs_gen',['../structrangeless_1_1fn_1_1impl_1_1refs__gen.html',1,'rangeless::fn::impl']]],
-  ['reverse',['reverse',['../structrangeless_1_1fn_1_1impl_1_1reverse.html',1,'rangeless::fn::impl']]],
-  ['reversed',['reversed',['../structrangeless_1_1fn_1_1impl_1_1reverse_1_1reversed.html',1,'rangeless::fn::impl::reverse']]]
+  ['queue_5fclosed',['queue_closed',['../classrangeless_1_1mt_1_1synchronized__queue__base_1_1queue__closed.html',1,'rangeless::mt::synchronized_queue_base']]]
 ];

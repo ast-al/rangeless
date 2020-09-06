@@ -101,10 +101,21 @@ $(document).ready(function(){initNavTree('functions_o.html','');});
 <li>operator *()
 : <a class="el" href="classrangeless_1_1fn_1_1impl_1_1maybe.html#ad0c7347eddb73b86f304b28c479dc8dc">rangeless::fn::impl::maybe&lt; T &gt;</a>
 , <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq_1_1iterator.html#ab91af6cbbc259b7033074b83bd8b8a00">rangeless::fn::impl::seq&lt; Gen &gt;::iterator</a>
+, <a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1push__t.html#a8e86aedfc2dca79f339fabb1778a71cf">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::push_t</a>
 </li>
 <li>operator bool()
 : <a class="el" href="structrangeless_1_1fn_1_1impl_1_1adapt_1_1gen_1_1gen__wr.html#a2399f8e0297d6753b6e8dc8a7f8a35a1">rangeless::fn::impl::adapt&lt; F &gt;::gen&lt; InGen &gt;::gen_wr</a>
 , <a class="el" href="classrangeless_1_1fn_1_1impl_1_1maybe.html#adbbe474a8442e72021714c0150bbe401">rangeless::fn::impl::maybe&lt; T &gt;</a>
+, <a class="el" href="classrangeless_1_1tsv_1_1to__num.html#a3804145a3b21995ee128c879721c7799">rangeless::tsv::to_num</a>
+</li>
+<li>operator double()
+: <a class="el" href="structrangeless_1_1mt_1_1timer.html#aa3508a6a2e9b4b1b5c0b2322bee2d4ca">rangeless::mt::timer</a>
+</li>
+<li>operator Enum()
+: <a class="el" href="classrangeless_1_1tsv_1_1to__num.html#ab6c2e67eb9a0a0a207a8a2f9ffc8a065">rangeless::tsv::to_num</a>
+</li>
+<li>operator Number()
+: <a class="el" href="classrangeless_1_1tsv_1_1to__num.html#acc4eba59fbfaa2300417b6c9b9f44a33">rangeless::tsv::to_num</a>
 </li>
 <li>operator std::vector&lt; value_type &gt;()
 : <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq.html#ad1fe3fac0edc1c5b997c568aec63c174">rangeless::fn::impl::seq&lt; Gen &gt;</a>
@@ -131,9 +142,12 @@ $(document).ready(function(){initNavTree('functions_o.html','');});
 , <a class="el" href="structrangeless_1_1fn_1_1get_1_1second.html#a7a1d17ce3469f65a95b3d8878a6fff70">rangeless::fn::get::second</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1adapt_1_1gen_1_1gen__wr.html#a0c762bd90b4e743c086c8e9342f8090c">rangeless::fn::impl::adapt&lt; F &gt;::gen&lt; InGen &gt;::gen_wr</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1adapt_1_1gen.html#a63e2ef4dc357ce48408aec88e6971889">rangeless::fn::impl::adapt&lt; F &gt;::gen&lt; InGen &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1adapt.html#acb7b64570a9d596717c7935550ead8da">rangeless::fn::impl::adapt&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1adapt.html#a9368a3d4895dff2194466addf8f50012">rangeless::fn::impl::adapt&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1any__gen.html#a8d57d19d34eab6a110c7acc67de5f27a">rangeless::fn::impl::any_gen&lt; T &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1append_1_1gen.html#ac26ee92f29f3e8f7d0ea3077c1ef616a">rangeless::fn::impl::append&lt; Iterable2 &gt;::gen&lt; Iterable1 &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1append.html#ae9785c7dba3e5fa7de494e9d774f5fb9">rangeless::fn::impl::append&lt; Iterable2 &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1async__wr_1_1gen.html#aa013ad82b5312c2bdbc570414ff7f41e">rangeless::fn::impl::async_wr::gen&lt; InGen &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1async__wr.html#a1a0d87dedb7cf0130582ae7fd33ff215">rangeless::fn::impl::async_wr</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1call__count__lt.html#a1b641e99ce2995d801ac196588d253e9">rangeless::fn::impl::call_count_lt</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1cartesian__product__with_1_1gen.html#af3ec19b1fa06aa48e145adb19562ade5">rangeless::fn::impl::cartesian_product_with&lt; Iterable2, BinaryFn &gt;::gen&lt; Iterable1 &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1cartesian__product__with.html#adf41dfae54fcbd0da6fc4c1734081c90">rangeless::fn::impl::cartesian_product_with&lt; Iterable2, BinaryFn &gt;</a>
@@ -146,45 +160,50 @@ $(document).ready(function(){initNavTree('functions_o.html','');});
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1drop__last_1_1gen.html#a6501f654437047c0738fd7f132ef1958">rangeless::fn::impl::drop_last::gen&lt; InGen &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1drop__last.html#a2e8a93eb6694cd43caf60324983aee41">rangeless::fn::impl::drop_last</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1drop__while_1_1gen.html#ab95af5cf38796848c50a7de6100433d4">rangeless::fn::impl::drop_while&lt; Pred &gt;::gen&lt; InGen &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1drop__while.html#ae554438996836b90715e1cd8a123a3d0">rangeless::fn::impl::drop_while&lt; Pred &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1eq.html#a74db6170f668cad1d7450f0d9c94cac6">rangeless::fn::impl::eq</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1drop__while.html#ac1ab82ad92fd29ea56427c414ac90657">rangeless::fn::impl::drop_while&lt; Pred &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1eq.html#a49f376290c1ecd05a8145f64c39d8ca1">rangeless::fn::impl::eq</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1exists__where.html#af8353c3fcbfaf73f2bca7235c76868b7">rangeless::fn::impl::exists_where&lt; Pred &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1foldl.html#a3c61df5c41195d6d22c16c44cfc3665a">rangeless::fn::impl::foldl&lt; Ret, Op &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1foldl__1.html#a66dd7dd0d2a584eba28db20c13d9f191">rangeless::fn::impl::foldl_1&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1foldl__d.html#ab521edfadd5e5c39893e2eb12bed188f">rangeless::fn::impl::foldl_d&lt; Op &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each.html#aef3b28ffc8ab29b7d27f3ce43fd7de85">rangeless::fn::impl::for_each&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each.html#a81b98aacc0fa7c7e31c2948b92f4b01b">rangeless::fn::impl::for_each&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each__adjacent.html#af93debd2094458154584f707424dbd1c">rangeless::fn::impl::for_each_adjacent&lt; F2 &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__as__subseqs__by_1_1gen.html#a30b8ddc3e1e61fd0241986ebcf4addaa">rangeless::fn::impl::group_adjacent_as_subseqs_by&lt; F, BinaryPred &gt;::gen&lt; InGen &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__as__subseqs__by_1_1gen_1_1subgen.html#ae58a129210e871704ba1f4797ba43984">rangeless::fn::impl::group_adjacent_as_subseqs_by&lt; F, BinaryPred &gt;::gen&lt; InGen &gt;::subgen</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__as__subseqs__by.html#a1eb44addb87d020e766daa3691298177">rangeless::fn::impl::group_adjacent_as_subseqs_by&lt; F, BinaryPred &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__by_1_1gen.html#af69a89a9a4ce8c96136e53186395fafe">rangeless::fn::impl::group_adjacent_by&lt; F, BinaryPred &gt;::gen&lt; InGen &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__by.html#a6911975bcf2ebec2b3f5d6113e5043b2">rangeless::fn::impl::group_adjacent_by&lt; F, BinaryPred &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__all__by.html#a188508094b4410e76a1a208cfe1d8420">rangeless::fn::impl::group_all_by&lt; F &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1gt__fn.html#afbbfb99f5b18067420df543901160a0f">rangeless::fn::impl::gt_fn&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__adjacent__by.html#a01e3d383d82722c03dc1e370f72c9095">rangeless::fn::impl::group_adjacent_by&lt; F, BinaryPred &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1group__all__by.html#aadbfe195b431d1803397e5f4438c74b4">rangeless::fn::impl::group_all_by&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1gt.html#a30ae7b6ed7c0b059796548714f99761f">rangeless::fn::impl::gt&lt; T &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1in__sorted__by.html#ab364f1ae06d195c6d9caccdbaf27bb88">rangeless::fn::impl::in_sorted_by&lt; SortedRange, F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1lazy__sort__by_1_1gen.html#a2a6b9da38a16e2bb5d34138782d0c315">rangeless::fn::impl::lazy_sort_by&lt; F &gt;::gen&lt; InGen &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1lazy__sort__by.html#a45bbd9e927437a3a9c22de96df4bba47">rangeless::fn::impl::lazy_sort_by&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1lt.html#af1857b45a2fbac832ba07a923e7e0297">rangeless::fn::impl::lt</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1memoizer.html#ac9a2f48072ab8368c10b8ad609fbe8c8">rangeless::fn::impl::memoizer&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#a5cb55da1164144aa5dd6d62a9b88ed91">rangeless::fn::impl::par_transform&lt; F, Async &gt;::gen&lt; InGen &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform.html#a349120f1990fcab8b3d9e8b509d5040b">rangeless::fn::impl::par_transform&lt; F, Async &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen_1_1value__type__callable.html#ac0a5b510b99497a78c6d2607f761852c">rangeless::fn::impl::par_transform&lt; F, Async &gt;::gen&lt; InGen &gt;::value_type_callable</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1par__transform.html#a322a57bb900cbf1a733dcea13aa262ae">rangeless::fn::impl::par_transform&lt; F, Async &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1refs__gen.html#a615e20a075f4bb7e0eee17cfd09d0b3d">rangeless::fn::impl::refs_gen&lt; Iterable &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1reverse.html#a1b3df4ad476af6fac835d99004255729">rangeless::fn::impl::reverse</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1sliding__window_1_1gen.html#ac5f244b89439a877a1135b5c04cbe159">rangeless::fn::impl::sliding_window::gen&lt; InGen &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1sliding__window_1_1gen__c.html#a02de63ef2a8f9f011395611b0bdfb76c">rangeless::fn::impl::sliding_window::gen_c&lt; Iterable &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1sliding__window.html#a66a3e1c91566c96e2f00223a2496bb00">rangeless::fn::impl::sliding_window</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1sort__by.html#a1f562b19fd6ac457d710dff91f56798d">rangeless::fn::impl::sort_by&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1sort__by.html#a425aa4e4cd1e70134e66978acbd41093">rangeless::fn::impl::sort_by&lt; F, SortTag &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1std__async.html#a4887f75115c72d98dbac5b4327a52a11">rangeless::fn::impl::std_async</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1take__last.html#ab8f0c00a2b6b1a8d03ffbfee2dd39e5f">rangeless::fn::impl::take_last</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1take__last.html#a4d75bd7854e8d0e5cf5696c023fc8020">rangeless::fn::impl::take_last</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1take__top__n__by.html#a20ae555059a365725e0d4fc04643ad2d">rangeless::fn::impl::take_top_n_by&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1take__while_1_1gen.html#a1bb8d6ad402a9735b8e2abd84e0e259e">rangeless::fn::impl::take_while&lt; Pred &gt;::gen&lt; InGen &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1take__while.html#a0402cc84a7285893a3b559e53fac45f0">rangeless::fn::impl::take_while&lt; Pred &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1to.html#a37dc86cb43d9cb580453fa154db01dad">rangeless::fn::impl::to&lt; Container &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1to.html#a25303a6358aa5645de59c6dea6bde76c">rangeless::fn::impl::to&lt; Container &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1to__seq_1_1gen.html#ac7fb93aca726c27e7302a9bff2124b6d">rangeless::fn::impl::to_seq::gen&lt; Iterable &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1to__seq.html#a027947dc183793c087cb158f64b4536b">rangeless::fn::impl::to_seq</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1to__vector.html#aa68d069a30de6d14e18ee12340dac308">rangeless::fn::impl::to_vector</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1to__vector.html#aca15665e5e5f70273c04aa55b119dda3">rangeless::fn::impl::to_vector</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1transform_1_1gen.html#ac716c90c16140bfbf64fc9295d5e2a77">rangeless::fn::impl::transform&lt; F &gt;::gen&lt; InGen &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1transform.html#a731825801d90b61e91c7804b574e5e71">rangeless::fn::impl::transform&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1unique__adjacent__by_1_1gen.html#ab0337209b986ec6514ab307db231b09f">rangeless::fn::impl::unique_adjacent_by&lt; F &gt;::gen&lt; InGen &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1unique__adjacent__by.html#a6b91e87090395d11df4b57984ebb9f7a">rangeless::fn::impl::unique_adjacent_by&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1unique__adjacent__by.html#afc8424a91753476fe55a20d3581cf922">rangeless::fn::impl::unique_adjacent_by&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1unique__all__by_1_1gen.html#ab8a77c298b3e50cca91380e489382030">rangeless::fn::impl::unique_all_by&lt; F &gt;::gen&lt; InGen &gt;</a>
-, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1unique__all__by.html#a220c1a667c3f8a2454d049b57da0f96a">rangeless::fn::impl::unique_all_by&lt; F &gt;</a>
+, <a class="el" href="structrangeless_1_1fn_1_1impl_1_1unique__all__by.html#a37c8f089a213166e8c290a15f96ecbc2">rangeless::fn::impl::unique_all_by&lt; F &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1where_1_1gen.html#aac1c86502fb3780485deca993b18fbdf">rangeless::fn::impl::where&lt; Pred &gt;::gen&lt; InGen &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1where.html#a53362f266c4223a341a265b04e822dfe">rangeless::fn::impl::where&lt; Pred &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1where__max__by.html#a0bcdd4cd94ec9d33f9f99d07cb3331f1">rangeless::fn::impl::where_max_by&lt; F &gt;</a>
@@ -192,9 +211,14 @@ $(document).ready(function(){initNavTree('functions_o.html','');});
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1zip__adjacent.html#af0cbd171f1b586e92af81b3c8d4cfbf3">rangeless::fn::impl::zip_adjacent&lt; BinaryFn &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1zip__with_1_1gen.html#ab2b83daf03d9ca96db339a36dadb21e1">rangeless::fn::impl::zip_with&lt; Iterable2, BinaryFn &gt;::gen&lt; Iterable1 &gt;</a>
 , <a class="el" href="structrangeless_1_1fn_1_1impl_1_1zip__with.html#a8d8e6bfbdab8035b70d9350bb5473a13">rangeless::fn::impl::zip_with&lt; Iterable2, BinaryFn &gt;</a>
+, <a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1pop__t.html#a688c6283e5cbe9c8c6e73f88168803ed">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::pop_t</a>
+, <a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1push__t.html#a5b62830b3ad9afc2ee9e4a67d20497b5">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::push_t</a>
+, <a class="el" href="classrangeless_1_1tsv_1_1get__next__line.html#a716567a405842510e4037eaa6a570ac0">rangeless::tsv::get_next_line</a>
+, <a class="el" href="classrangeless_1_1tsv_1_1split__on__delim.html#af7ae2734b371b019383bb4bd37702368">rangeless::tsv::split_on_delim</a>
 </li>
 <li>operator++()
-: <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq_1_1iterator.html#a6fece5b781a1b9854c49999bfab84890">rangeless::fn::impl::seq&lt; Gen &gt;::iterator</a>
+: <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq_1_1iterator.html#a362b29df0da8c23dfc684619283f46c9">rangeless::fn::impl::seq&lt; Gen &gt;::iterator</a>
+, <a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1push__t.html#a93d860d4431c328899d10c027edcee8b">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::push_t</a>
 </li>
 <li>operator-&gt;()
 : <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq_1_1iterator.html#ac99b6634cdc0b98cd19f10004569f2de">rangeless::fn::impl::seq&lt; Gen &gt;::iterator</a>
@@ -204,12 +228,18 @@ $(document).ready(function(){initNavTree('functions_o.html','');});
 </li>
 <li>operator=()
 : <a class="el" href="structexample_1_1aln__t.html#a55d00fe8ce8a486a3b161d20afc3ffd2">example::aln_t</a>
-, <a class="el" href="classrangeless_1_1fn_1_1impl_1_1maybe.html#a7c0d5315e619eabe2187e5d920d6db37">rangeless::fn::impl::maybe&lt; T &gt;</a>
-, <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq.html#ae7c0238e0ca744e00fe5ddae6be75fc5">rangeless::fn::impl::seq&lt; Gen &gt;</a>
+, <a class="el" href="classrangeless_1_1fn_1_1impl_1_1maybe.html#a2f5f46170aad391df6e25c7eb0e38677">rangeless::fn::impl::maybe&lt; T &gt;</a>
+, <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq.html#aa0b124f1027a8458d47995f6c9d9ca23">rangeless::fn::impl::seq&lt; Gen &gt;</a>
+, <a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1close__guard.html#a06a81dcba913a6d5bd70a3ccfef49768">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::close_guard</a>
+, <a class="el" href="structrangeless_1_1mt_1_1synchronized__queue_1_1push__t.html#a854465c0dc69fb95385fbd30f8b47b5b">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;::push_t</a>
+, <a class="el" href="classrangeless_1_1tsv_1_1to__num.html#ae61b4dca1bfb63bb98a0c64c205f81bc">rangeless::tsv::to_num</a>
 </li>
 <li>operator==()
 : <a class="el" href="structrangeless_1_1fn_1_1impl_1_1gt.html#ad20fba6fa839bd85342744d5df0cb659">rangeless::fn::impl::gt&lt; T &gt;</a>
 , <a class="el" href="classrangeless_1_1fn_1_1impl_1_1seq_1_1iterator.html#a6a6fbfa193a5b31ee241c5afdf60cee9">rangeless::fn::impl::seq&lt; Gen &gt;::iterator</a>
+</li>
+<li>operator&gt;&gt;=()
+: <a class="el" href="classrangeless_1_1mt_1_1synchronized__queue.html#a81f00275d2d5b4d3bd78c94848f14589">rangeless::mt::synchronized_queue&lt; T, BasicLockable &gt;</a>
 </li>
 </ul>
 </div><!-- contents -->

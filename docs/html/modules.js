@@ -11,5 +11,6 @@ var modules =
     [ "Uniquefying", "group__uniq.html", "group__uniq" ],
     [ "Combining", "group__concat.html", "group__concat" ],
     [ "Element Access", "group__el__access.html", "group__el__access" ],
-    [ "Util", "group__other.html", "group__other" ]
+    [ "Util", "group__other.html", "group__other" ],
+    [ "Parallel", "group__parallel.html", "group__parallel" ]
 ];

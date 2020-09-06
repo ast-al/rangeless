@@ -159,7 +159,7 @@ template&lt;typename Arg , typename F &gt; </div>
 <p><code>return std::forward&lt;F&gt;(fn)(std::forward&lt;Arg&gt;(arg))</code> </p>
 <p>This is similar to Haskell's operator <code>(&amp;) :: a -&gt; (a -&gt; b) -&gt; b |infix 1|</code> or F#'s operator <code>|&gt;</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04936">4936</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04548">4548</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -195,7 +195,7 @@ template&lt;typename Arg , typename F &gt; </div>
 <p><code>arg = <a class="el" href="group__to__vec.html#ga744aa87b855c9fa082b3ac4c864b7e9a" title="e.g. auto set_of_ints = fn::seq(...) % ... % fn::to(std::set&lt;int&gt;{});">fn::to</a>(Arg{})(std::forward&lt;F&gt;(fn)(std::move(arg)));</code> </p>
 <p><code>strs %= <a class="el" href="group__filtering.html#ga85f0d030462ff19ba023f92d2b111210" title="Filter elements.">fn::where</a>([](const std::string&amp; s){ return !s.empty(); }); // drop empty strings</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04949">4949</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04561">4561</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -230,7 +230,7 @@ template&lt;class Container1 , class Container2 &gt; </div>
 
 <p>End-insert elements of cont2 into cont1 by-move. </p>
 <div class="fragment"><div class="line">out &lt;&lt;= GetItems();</div><div class="line"></div><div class="line"><span class="comment">// equivalent of:</span></div><div class="line">{{</div><div class="line">    <span class="keyword">auto</span> items = GetItems();</div><div class="line">    <span class="keywordflow">for</span>(<span class="keyword">auto</span>&amp;&amp; item : items) {</div><div class="line">        out.insert(out.end(), std::move(item));</div><div class="line">    }</div><div class="line">}}</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04972">4972</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04584">4584</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -263,7 +263,7 @@ template&lt;class Container1 , class Container2 &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04988">4988</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04600">4600</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -295,7 +295,7 @@ template&lt;class Container1 , class Gen &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l05001">5001</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04613">4613</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -327,7 +327,7 @@ template&lt;class Container &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l05007">5007</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04619">4619</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

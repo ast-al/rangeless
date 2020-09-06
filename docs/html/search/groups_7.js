@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['util',['Util',['../group__other.html',1,'']]],
-  ['uniquefying',['Uniquefying',['../group__uniq.html',1,'']]]
+  ['to_5fvector_2fto_5fseq',['to_vector/to_seq',['../group__to__vec.html',1,'']]],
+  ['transform_20and_20adapt',['Transform and Adapt',['../group__transform.html',1,'']]]
 ];

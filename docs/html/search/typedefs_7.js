@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['pointer',['pointer',['../classrangeless_1_1fn_1_1impl_1_1seq_1_1iterator.html#ab5ca5d3b27fd047fb131daae4c477928',1,'rangeless::fn::impl::seq::iterator']]],
-  ['pos_5ft',['pos_t',['../structexample_1_1aln__t.html#a4dd698ab8e7a17b09aaf37266d5587ed',1,'example::aln_t']]]
+  ['key_5ft',['key_t',['../structrangeless_1_1fn_1_1impl_1_1unique__all__by_1_1gen.html#ad88be6ba6c7a6cad53be7a0e5a5fe598',1,'rangeless::fn::impl::unique_all_by::gen']]]
 ];

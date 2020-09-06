@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['val',['val',['../structrangeless_1_1fn_1_1impl_1_1gt.html#a51e965ca5185fea96adf9694ef5db1b6',1,'rangeless::fn::impl::gt']]]
+  ['truncate_5fblanks',['truncate_blanks',['../structrangeless_1_1tsv_1_1params.html#a6015f11c1a3438100a6e525e0a8c828e',1,'rangeless::tsv::params']]]
 ];

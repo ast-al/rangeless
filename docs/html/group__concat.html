@@ -117,6 +117,7 @@ Functions</h2></td></tr>
 <tr class="separator:ga94d75058d6bbca457cf3252f347f7bca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="memTemplParams" colspan="2">template&lt;typename BinaryFn &gt; </td></tr>
 <tr class="memitem:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1zip__adjacent.html">impl::zip_adjacent</a>&lt; BinaryFn &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__concat.html#ga4f7bcb20a9e0a8749832fb8b3eadd218">rangeless::fn::zip_adjacent</a> (BinaryFn fn)</td></tr>
+<tr class="memdesc:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="mdescLeft">&#160;</td><td class="mdescRight">Yield invocations of <code>fn</code> over pairs of adjacent inputs.  <a href="group__concat.html#ga4f7bcb20a9e0a8749832fb8b3eadd218">More...</a><br /></td></tr>
 <tr class="separator:ga4f7bcb20a9e0a8749832fb8b3eadd218"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaa253f6bb1aa611b1e44f249efc63ac2c"><td class="memTemplParams" colspan="2">template&lt;typename Iterable , typename BinaryFn &gt; </td></tr>
 <tr class="memitem:gaa253f6bb1aa611b1e44f249efc63ac2c"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1cartesian__product__with.html">impl::cartesian_product_with</a>&lt; Iterable, BinaryFn &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__concat.html#gaa253f6bb1aa611b1e44f249efc63ac2c">rangeless::fn::cartesian_product_with</a> (Iterable second, BinaryFn fn)</td></tr>
@@ -144,7 +145,7 @@ template&lt;typename Iterable &gt; </div>
 
 <p>Yield elements of next after elements of arg. </p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> res = vec_t{{1,2}}</div><div class="line">         % <a class="code" href="group__concat.html#ga684e699a03b03315755b643f6708e411">fn::append</a>( vec_t{{3}} )</div><div class="line">         % <a class="code" href="group__to__vec.html#gaed63bb21cc79709c4d88a9d385a13aaf">fn::to_vector</a>();</div><div class="line"></div><div class="line">VERIFY((res == vec_t{{1,2,3}}));</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04707">4707</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04307">4307</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -176,7 +177,7 @@ template&lt;typename Iterable , typename BinaryFn &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04746">4746</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04346">4346</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -207,7 +208,7 @@ template&lt;typename Iterable , typename BinaryFn &gt; </div>
 <p>Given a <code>ContainerA&lt;ContainerB&lt;...&gt;&gt;</code>, move all elements and return <code>ContainerB&lt;...&gt;</code>.</p>
 <p>Given a seq-of-iterables <code>seq&lt;In&gt;</code>, compose <code>seq&lt;Out&gt;</code> that will lazily yield elements of each iterable in seq. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04691">4691</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04291">4291</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -229,7 +230,9 @@ template&lt;typename BinaryFn &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04739">4739</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p>Yield invocations of <code>fn</code> over pairs of adjacent inputs. </p>
+
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04339">4339</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -263,7 +266,7 @@ template&lt;typename Iterable , typename BinaryFn &gt; </div>
 
 <p>Yield pairs of elements, (up to end of the shorter range) </p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> res = vec_t{{1,2}}</div><div class="line">         % <a class="code" href="group__concat.html#ga94d75058d6bbca457cf3252f347f7bca">fn::zip_with</a>( vec_t{{3,4,5}}, [](<span class="keywordtype">int</span> x, <span class="keywordtype">int</span> y)</div><div class="line">           {</div><div class="line">                <span class="keywordflow">return</span> x*10 + y;</div><div class="line">           })</div><div class="line">         % <a class="code" href="group__to__vec.html#gaed63bb21cc79709c4d88a9d385a13aaf">fn::to_vector</a>();</div><div class="line"></div><div class="line">VERIFY((res == vec_t{{13, 24}}));</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04726">4726</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04326">4326</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

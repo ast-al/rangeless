@@ -185,7 +185,7 @@ Functions</h2></td></tr>
 
 <p>Drop first <code>n</code> elements. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04318">4318</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03859">3859</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -216,7 +216,7 @@ Functions</h2></td></tr>
 <p>Drop last <code>n</code> elements. </p>
 <p>Buffering space requirements for <code>seq</code>: <code>O(n)</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04326">4326</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03867">3867</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -240,7 +240,7 @@ template&lt;typename P &gt; </div>
 
 <p>Drop elements until pred evaluates to false. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04312">4312</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03853">3853</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -262,7 +262,7 @@ template&lt;typename Pred &gt; </div>
       </table>
 </div><div class="memdoc">
 <div class="fragment"><div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> any  = vals %  <a class="code" href="group__filtering.html#gaf638c2c305d322ffa9bf52ffd8e5434d">fn::exists_where</a>(pred);</div><div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> none = vals % !<a class="code" href="group__filtering.html#gaf638c2c305d322ffa9bf52ffd8e5434d">fn::exists_where</a>(pred);</div><div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> all =  vals % !<a class="code" href="group__filtering.html#gaf638c2c305d322ffa9bf52ffd8e5434d">fn::exists_where</a>(not_pred);</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04456">4456</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03997">3997</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -292,7 +292,7 @@ template&lt;typename Pred &gt; </div>
 
 <p>Yield first <code>n</code> elements. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04297">4297</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03838">3838</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -323,7 +323,7 @@ template&lt;typename Pred &gt; </div>
 <p>Yield last <code>n</code> elements. </p>
 <p>Buffering space requirements for <code>seq</code>: <code>O(n)</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04305">4305</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03846">3846</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -347,7 +347,7 @@ template&lt;typename P &gt; </div>
 
 <p>Yield elements until pred evaluates to false. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04291">4291</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03832">3832</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -372,7 +372,7 @@ template&lt;typename P &gt; </div>
 <p>Filter elements. </p>
 <p>Returns a unary function-object.</p>
 <div class="fragment"><div class="line"><span class="comment">// 1) If arg is a container passed by lvalue-reference,</span></div><div class="line"><span class="comment">// return a copy of the container with elements </span></div><div class="line"><span class="comment">// satisfying the predicate:</span></div><div class="line"><span class="keyword">auto</span> nonempty_strs = strs % <a class="code" href="group__filtering.html#ga85f0d030462ff19ba023f92d2b111210">fn::where</a>([](<span class="keyword">auto</span>&amp;&amp; s) { <span class="keywordflow">return</span> !s.empty(); });</div><div class="line"></div><div class="line"><span class="comment">// 2.1) If arg is a sequence container passed by rvalue,</span></div><div class="line"><span class="comment">// remove the unsatisfying elements using erase-remove idiom and return the container.</span></div><div class="line"><span class="comment">//</span></div><div class="line"><span class="comment">// 2.2) If arg is a container having equal_range method (sets, associative containers, etc),</span></div><div class="line"><span class="comment">// remove the unsatisfying elements using iterate-erase idiom and return the container.</span></div><div class="line">strs = std::move(strs) % <a class="code" href="group__filtering.html#ga85f0d030462ff19ba023f92d2b111210">fn::where</a>([](<span class="keyword">auto</span>&amp;&amp; s) { <span class="keywordflow">return</span> !s.empty(); });</div><div class="line"></div><div class="line"><span class="comment">// 3) If arg is a seq&lt;G&gt;, return adapted seq&lt;...&gt; that shall </span></div><div class="line"><span class="comment">// yield elements satisfying the predicate:</span></div><div class="line"><span class="keyword">auto</span> res = <a class="code" href="group__io.html#gab5624a94f8786cb370675a260eb51928">fn::seq</a>([i = 0]</div><div class="line">{</div><div class="line">    <span class="keywordflow">return</span> i &lt; 5 ? i++ : <a class="code" href="structrangeless_1_1fn_1_1end__seq.html">fn::end_seq</a>();</div><div class="line"></div><div class="line">}) % <a class="code" href="group__filtering.html#ga85f0d030462ff19ba023f92d2b111210">fn::where</a>(     [](<span class="keywordtype">int</span> x) { <span class="keywordflow">return</span> x &gt; 2; }) <span class="comment">// 3, 4</span></div><div class="line">   % <a class="code" href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b">fn::transform</a>( [](<span class="keywordtype">int</span> x) { <span class="keywordflow">return</span> x + 1; }) <span class="comment">// 4, 5</span></div><div class="line">   % <a class="code" href="group__folding.html#ga189f20f64389ca4d2d98b73127968f18">fn::foldl_d</a>(   [](<span class="keywordtype">int</span> out, <span class="keywordtype">int</span> in) { <span class="keywordflow">return</span> out*10 + in; });</div><div class="line">VERIFY(res == 45);</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04362">4362</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03903">3903</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -397,7 +397,7 @@ template&lt;typename SortedForwardRange &gt; </div>
 <p>Intersect with a sorted range. </p>
 <p><code>elems %= fn::where_in_sorted(whitelist);</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04379">4379</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03920">3920</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -430,7 +430,7 @@ template&lt;typename SortedForwardRange , typename F &gt; </div>
 </div><div class="memdoc">
 <dl class="section see"><dt>See also</dt><dd><code><a class="el" href="group__filtering.html#ga76866b34f229dc524795e13698b67432" title="Intersect with a sorted range.">where_in_sorted</a></code> </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04369">4369</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03910">3910</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -457,7 +457,7 @@ template&lt;typename SortedForwardRange , typename F &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04432">4432</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03973">3973</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -484,7 +484,7 @@ template&lt;typename F &gt; </div>
 <code>[1,0,1,1,0,1,1,9]: k = 5</code> <br />
 <code>[1,3,1,1,3,1,1,9]: k = 2</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04427">4427</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03968">3968</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -511,7 +511,7 @@ template&lt;typename F &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04445">4445</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03986">3986</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -534,7 +534,7 @@ template&lt;typename F &gt; </div>
 </div><div class="memdoc">
 <p>Filter elements to those having maximum value of fn. </p><dl class="section see"><dt>See also</dt><dd><a class="el" href="group__filtering.html#ga752fe1dd9e169a1546fe578fbbb7c01c" title="Filter elements to those having maximum value of fn.">where_max_by</a> </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04440">4440</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03981">3981</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -559,7 +559,7 @@ template&lt;typename SortedForwardRange &gt; </div>
 <p>Subtract a sorted range. </p>
 <p><code>elems %= fn::where_not_in_sorted(blacklist);</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04396">4396</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03937">3937</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -592,7 +592,7 @@ template&lt;typename SortedForwardRange , typename F &gt; </div>
 </div><div class="memdoc">
 <dl class="section see"><dt>See also</dt><dd><code><a class="el" href="group__filtering.html#gae02f9b150d54986252718bfe16fe4eb3" title="Subtract a sorted range.">where_not_in_sorted</a></code> </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04386">4386</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03927">3927</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

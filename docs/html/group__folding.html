@@ -121,6 +121,9 @@ Functions</h2></td></tr>
 <tr class="memitem:ga8568617f52b0e084f2c1303d71705b69"><td class="memTemplParams" colspan="2">template&lt;typename F &gt; </td></tr>
 <tr class="memitem:ga8568617f52b0e084f2c1303d71705b69"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each.html">impl::for_each</a>&lt; F &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__folding.html#ga8568617f52b0e084f2c1303d71705b69">rangeless::fn::for_each</a> (F fn)</td></tr>
 <tr class="separator:ga8568617f52b0e084f2c1303d71705b69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gafa506807825e692e36b3226235a335f4"><td class="memTemplParams" colspan="2">template&lt;typename F2 &gt; </td></tr>
+<tr class="memitem:gafa506807825e692e36b3226235a335f4"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each__adjacent.html">impl::for_each_adjacent</a>&lt; F2 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__folding.html#gafa506807825e692e36b3226235a335f4">rangeless::fn::for_each_adjacent</a> (F2 fn2)</td></tr>
+<tr class="separator:gafa506807825e692e36b3226235a335f4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <h2 class="groupheader">Function Documentation</h2>
@@ -158,7 +161,7 @@ template&lt;typename Result , typename Op &gt; </div>
 <a class="el" href="group__folding.html#ga849ca371afeb040398b801329e8399db" title="Init-free version of foldl (first element is used as init); requires at least one element.">foldl_1</a> <div class="fragment"><div class="line"><span class="keyword">using namespace </span>fn::operators;</div><div class="line"><span class="keyword">const</span> std::string x = vec_t{ 1, 2, 3 }</div><div class="line">  % <a class="code" href="group__folding.html#gafbadb1cf1eb98ace402b08a0041ca402">fn::foldl</a>(std::string{<span class="stringliteral">&quot;^&quot;</span>},         <span class="comment">// init</span></div><div class="line">           [](std::string out, <span class="keywordtype">int</span> in)  <span class="comment">// fold-op</span></div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> std::move(out) + <span class="stringliteral">&quot;|&quot;</span> + std::to_string(in);</div><div class="line">    });</div><div class="line"></div><div class="line">VERIFY(x == <span class="stringliteral">&quot;^|1|2|3&quot;</span>);</div></div><!-- fragment --></dd></dl>
 <p>NB: The body of the fold-loop is <code>init = binary_op(std::move(init), *it);</code> If <code>it</code> is a <code>move</code>-ing iterator, like that of an <code>seq</code>, you'd take <code>in</code> by value or rvalue-reference in your binary operator, whereas if it's a regular iterator yielding lvalue-references, you'd take it by const or non-const reference. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04198">4198</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03729">3729</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -185,7 +188,7 @@ template&lt;typename Op &gt; </div>
 <dd>
 <a class="el" href="group__folding.html#ga189f20f64389ca4d2d98b73127968f18" title="Fold-Left-with-Default: this version uses default-initialized value for init.">foldl_d</a></dd></dl>
 <div class="fragment"><div class="line"><span class="keyword">const</span> <span class="keyword">auto</span> min_int = </div><div class="line">    std::vector&lt;std::string&gt;{{ <span class="stringliteral">&quot;11&quot;</span>, <span class="stringliteral">&quot;-333&quot;</span>, <span class="stringliteral">&quot;22&quot;</span> }}</div><div class="line">% <a class="code" href="group__transform.html#ga979427b87c75f4d09f0a6db776b47f3b">fn::transform</a>([](<span class="keyword">const</span> <span class="keywordtype">string</span>&amp; s) { <span class="keywordflow">return</span> std::stoi(s); })</div><div class="line">% <a class="code" href="group__folding.html#ga849ca371afeb040398b801329e8399db">fn::foldl_1</a>([](<span class="keywordtype">int</span> out, <span class="keywordtype">int</span> in)   { <span class="keywordflow">return</span> std::min(out, in); });</div><div class="line"></div><div class="line">VERIFY(min_int == -333);</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04247">4247</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03778">3778</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -212,7 +215,7 @@ template&lt;typename Op &gt; </div>
 <dd>
 <a class="el" href="group__folding.html#ga849ca371afeb040398b801329e8399db" title="Init-free version of foldl (first element is used as init); requires at least one element.">foldl_1</a> <div class="fragment"><div class="line"><span class="keyword">const</span> std::string x = vec_t{ 1, 2, 3 }</div><div class="line">% <a class="code" href="group__folding.html#ga189f20f64389ca4d2d98b73127968f18">fn::foldl_d</a>(</div><div class="line">    [](std::string out, <span class="keywordtype">int</span> in)</div><div class="line">    {</div><div class="line">        <span class="keywordflow">return</span> std::move(out) + <span class="stringliteral">&quot;|&quot;</span> + std::to_string(in);</div><div class="line">    });</div><div class="line"></div><div class="line">VERIFY(x == <span class="stringliteral">&quot;|1|2|3&quot;</span>);</div></div><!-- fragment --> </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04226">4226</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03757">3757</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -236,7 +239,31 @@ template&lt;typename F &gt; </div>
 <p>Invoke fn on each element.</p>
 <p>NB: this is similar to a left-fold with binary-op <code>(nullptr_t, x) -&gt; nullptr_t</code> where <code>x</code> is consumed by-side-effect, and the binary-op is simplified to unary <code>(x)-&gt;void</code>. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04280">4280</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03811">3811</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+
+</div>
+</div>
+<a id="gafa506807825e692e36b3226235a335f4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gafa506807825e692e36b3226235a335f4">&#9670;&nbsp;</a></span>for_each_adjacent()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename F2 &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structrangeless_1_1fn_1_1impl_1_1for__each__adjacent.html">impl::for_each_adjacent</a>&lt;F2&gt; rangeless::fn::for_each_adjacent </td>
+          <td>(</td>
+          <td class="paramtype">F2&#160;</td>
+          <td class="paramname"><em>fn2</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Invoke binary fn on each pair of adjacent elements.</p>
+<p>NB: the inputs must satisfy <code>ForwardRange</code> or stronger. </p>
+
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03821">3821</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -266,7 +293,7 @@ template&lt;typename F &gt; </div>
 <p>Return a <code>seq</code> yielding a view of a fixed-sized sliding window over elements.</p>
 <p>If the input is a <code>seq</code>, last <code>win_size</code> elements are internally cached in a deque.</p>
 <div class="fragment"><div class="line"><span class="keyword">const</span> <span class="keyword">auto</span> result = </div><div class="line">    make_inputs({ 1,2,3,4 })</div><div class="line">  % <a class="code" href="group__folding.html#ga15effd1a66f5375a3b89fa10fddd5bb5">fn::sliding_window</a>(2)</div><div class="line">  % <a class="code" href="group__folding.html#gafbadb1cf1eb98ace402b08a0041ca402">fn::foldl</a>(0L, [](<span class="keywordtype">long</span> out, <span class="keyword">auto</span> v)</div><div class="line">    { </div><div class="line">        VERIFY(std::distance(v.begin(), v.end()) == 2);</div><div class="line">        <span class="keyword">auto</span> it = v.begin();</div><div class="line">        <span class="keywordflow">return</span> (out * 1000) + (*it * 10) + *std::next(it);</div><div class="line">    });</div><div class="line">VERIFY(result == 12023034);</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04270">4270</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l03801">3801</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

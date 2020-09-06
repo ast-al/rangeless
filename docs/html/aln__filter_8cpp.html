@@ -129,6 +129,8 @@ Namespaces</h2></td></tr>
 Macros</h2></td></tr>
 <tr class="memitem:a1e42569ee0262b1da2752d98bfac6d56"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="aln__filter_8cpp.html#a1e42569ee0262b1da2752d98bfac6d56">RANGELESS_FN_ENABLE_PARALLEL</a>&#160;&#160;&#160;1</td></tr>
 <tr class="separator:a1e42569ee0262b1da2752d98bfac6d56"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a57cabb8d6dc2bad330754354503ad737"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="aln__filter_8cpp.html#a57cabb8d6dc2bad330754354503ad737">LAMBDA</a>(expr)&#160;&#160;&#160;([&amp;](const auto&amp; _){ return expr; })</td></tr>
+<tr class="separator:a57cabb8d6dc2bad330754354503ad737"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
 Typedefs</h2></td></tr>
@@ -156,10 +158,32 @@ Variables</h2></td></tr>
 <tr class="separator:a7e30cb4cd76ed1118b37be0d06f3e85e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a24ad1c3f2d88aa62f347e2d4eae2f49d"><td class="memItemLeft" align="right" valign="top">static auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceexample_1_1my.html#a24ad1c3f2d88aa62f347e2d4eae2f49d">example::my::lazy_transform_in_parallel</a></td></tr>
 <tr class="separator:a24ad1c3f2d88aa62f347e2d4eae2f49d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa9dbc6495cbe49f915d90a87bfcc35a5"><td class="memItemLeft" align="right" valign="top">static auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceexample_1_1my.html#aa9dbc6495cbe49f915d90a87bfcc35a5">example::my::batched_lazy_transform_in_parallel</a></td></tr>
+<tr class="separator:aa9dbc6495cbe49f915d90a87bfcc35a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec0762dd4cbcd40a7a78898b9c65efb6"><td class="memItemLeft" align="right" valign="top">static auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceexample.html#aec0762dd4cbcd40a7a78898b9c65efb6">example::aln_filter</a></td></tr>
 <tr class="separator:aec0762dd4cbcd40a7a78898b9c65efb6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Macro Definition Documentation</h2>
+<a id="a57cabb8d6dc2bad330754354503ad737"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a57cabb8d6dc2bad330754354503ad737">&#9670;&nbsp;</a></span>LAMBDA</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define LAMBDA</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">expr</td><td>)</td>
+          <td>&#160;&#160;&#160;([&amp;](const auto&amp; _){ return expr; })</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="aln__filter_8cpp_source.html#l00240">240</a> of file <a class="el" href="aln__filter_8cpp_source.html">aln_filter.cpp</a>.</p>
+
+</div>
+</div>
 <a id="a1e42569ee0262b1da2752d98bfac6d56"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1e42569ee0262b1da2752d98bfac6d56">&#9670;&nbsp;</a></span>RANGELESS_FN_ENABLE_PARALLEL</h2>
 
@@ -192,7 +216,7 @@ Variables</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="aln__filter_8cpp_source.html#l00356">356</a> of file <a class="el" href="aln__filter_8cpp_source.html">aln_filter.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="aln__filter_8cpp_source.html#l00358">358</a> of file <a class="el" href="aln__filter_8cpp_source.html">aln_filter.cpp</a>.</p>
 
 </div>
 </div>

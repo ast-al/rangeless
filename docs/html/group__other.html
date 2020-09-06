@@ -135,7 +135,7 @@ template&lt;typename F &gt; </div>
 
 <p>Memoizing wrapper for non-recursive non-mutable unary lambdas (not synchronized). </p>
 <div class="fragment"><div class="line"><span class="keywordtype">size_t</span> exec_count = 0;</div><div class="line"><span class="keyword">auto</span> <a class="code" href="namespacerangeless_1_1fn.html">fn</a> = <a class="code" href="group__other.html#ga4bff7774bbf18a6e35ca490bd6f2cf0c">make_memoized</a>([&amp;](<span class="keywordtype">int</span> x){ exec_count++; <span class="keywordflow">return</span> x*2; });</div><div class="line"></div><div class="line">VERIFY(<a class="code" href="namespacerangeless_1_1fn.html">fn</a>(1) == 2);</div><div class="line">VERIFY(<a class="code" href="namespacerangeless_1_1fn.html">fn</a>(2) == 4);</div><div class="line">VERIFY(<a class="code" href="namespacerangeless_1_1fn.html">fn</a>(1) == 2);</div><div class="line">VERIFY(exec_count == 2);</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04892">4892</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04492">4492</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -159,7 +159,7 @@ template&lt;typename F &gt; </div>
 
 <p>Basic scope guard - execute some code in guard`s destructor. </p>
 <div class="fragment"><div class="line">{{</div><div class="line">    <span class="comment">// ...</span></div><div class="line"></div><div class="line">    <span class="keyword">auto</span> on_exit = <a class="code" href="group__other.html#gadd093a249768037adcacb820a17236e9">fn::make_scope_guard</a>([&amp;]</div><div class="line">    {</div><div class="line">        std::cerr &lt;&lt; <span class="stringliteral">&quot;Executing clean-up or roll-back...\n&quot;</span>;</div><div class="line">    });</div><div class="line"></div><div class="line">    on_exit.dismiss(); <span class="comment">// Cancel if no longer applicable.</span></div><div class="line">}}</div></div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04914">4914</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l04514">4514</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>

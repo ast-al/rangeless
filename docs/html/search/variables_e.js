@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['r',['r',['../structrangeless_1_1fn_1_1impl_1_1in__sorted__by.html#af6d3f325055c5716cc309137066c78bd',1,'rangeless::fn::impl::in_sorted_by']]],
-  ['ret',['ret',['../structrangeless_1_1fn_1_1impl_1_1exists__where.html#a18ddf069c3bbe994284b6c3cc45b079e',1,'rangeless::fn::impl::exists_where']]]
+  ['queue',['queue',['../structrangeless_1_1fn_1_1impl_1_1sliding__window_1_1gen.html#a668a184fef8e4f2668fab55f32202c12',1,'rangeless::fn::impl::sliding_window::gen::queue()'],['../structrangeless_1_1fn_1_1impl_1_1drop__last_1_1gen.html#adb18e28eace9f5a313a1496bc0e9d613',1,'rangeless::fn::impl::drop_last::gen::queue()'],['../structrangeless_1_1fn_1_1impl_1_1async__wr_1_1gen.html#ac75de7c17e8348c0eb7e98469f2fbf6a',1,'rangeless::fn::impl::async_wr::gen::queue()'],['../structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#aa57feabeb12e3ace9fb9cb6f3d2a98f3',1,'rangeless::fn::impl::par_transform::gen::queue()']]],
+  ['queue_5fcap',['queue_cap',['../structrangeless_1_1fn_1_1impl_1_1par__transform.html#a401aca5dc1e485865a237ee720b0d412',1,'rangeless::fn::impl::par_transform::queue_cap()'],['../structrangeless_1_1fn_1_1impl_1_1par__transform_1_1gen.html#ae6bd1e17c443dd9b1807846f85639fec',1,'rangeless::fn::impl::par_transform::gen::queue_cap()']]],
+  ['queue_5fsize',['queue_size',['../structrangeless_1_1fn_1_1impl_1_1async__wr.html#a4320c789faaa263b730e71bf96fe771e',1,'rangeless::fn::impl::async_wr::queue_size()'],['../structrangeless_1_1fn_1_1impl_1_1async__wr_1_1gen.html#aec42e298c733ab6b07cdec6ad9281a69',1,'rangeless::fn::impl::async_wr::gen::queue_size()']]]
 ];

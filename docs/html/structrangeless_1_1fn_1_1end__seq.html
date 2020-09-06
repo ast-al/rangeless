@@ -126,7 +126,7 @@ Public Member Functions</h2></td></tr>
 <div class="textblock"><p>Return fn::end_seq() from input-range generator function to signal end-of-inputs. </p>
 <div class="fragment"><div class="line"><a class="code" href="group__io.html#gab5624a94f8786cb370675a260eb51928">fn::seq</a>([]{ ... }) % ... <span class="comment">// as input-range from a nullary invokable</span></div><div class="line">    std::move(vec) % ... <span class="comment">// pass by-move</span></div><div class="line">              vec  % ... <span class="comment">// pass by-copy</span></div><div class="line">     <a class="code" href="group__view.html#ga9243f1562b82e61f7554101d304a41de">fn::from</a>(vec) % ... <span class="comment">// as view yielding elements by-move (or copy-view, if vec is const)</span></div><div class="line">    <a class="code" href="group__view.html#ga2ca6028fafc3067870b76bc78684c0fc">fn::cfrom</a>(vec) % ... <span class="comment">// as const view yielding elements by-copy (regardless of whether vec is const)</span></div><div class="line">     <a class="code" href="group__io.html#ga30da17b10bf0974dc17153792de3c3af">fn::refs</a>(vec) % ... <span class="comment">// as seq yielding reference-wrappers</span></div></div><!-- fragment --><p>This throws <a class="el" href="structrangeless_1_1fn_1_1end__seq_1_1exception.html">fn::end_seq::exception</a> on construction, and is interpreted internally as end-of-inputs. This exception does not propagate outside of the API's boundaries. </p>
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00611">611</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00281">281</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a0c671850dcf1d6b4bd82ef27267dd8f0"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a0c671850dcf1d6b4bd82ef27267dd8f0">&#9670;&nbsp;</a></span>end_seq()</h2>
@@ -151,7 +151,7 @@ Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00652">652</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00322">322</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
@@ -181,7 +181,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00665">665</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="fn_8hpp_source.html#l00335">335</a> of file <a class="el" href="fn_8hpp_source.html">fn.hpp</a>.</p>
 
 </div>
 </div>
