@@ -16,6 +16,7 @@ This library is intended for moderate to advanced-level c++ programmers that lik
 Motivations:
 - https://www.fluentcpp.com/2019/09/13/the-surprising-limitations-of-c-ranges-beyond-trivial-use-cases/
 - https://brevzin.github.io/c++/2020/07/06/split-view/
+- https://vector-of-bool.github.io/2019/10/21/rngs-static-ovr.html
 - https://aras-p.info/blog/2018/12/28/Modern-C-Lamentations/
 
 
@@ -33,8 +34,9 @@ Motivations:
 ```cpp
 namespace fn = rangeless::fn;
 
-// A common complaint among c++ programmers is the verbosity of lambdas, which are used a lot with this library.
-// The macro can to alleviate it somewhat. I use it here just an example and am personally ambivalent about it. 
+// A common complaint among c++ programmers is the verbosity of lambdas, 
+// which are used a lot with this library. The macro can to alleviate it somewhat. 
+// I use it here just for demonstration and am personally ambivalent about it. 
 // It is not defined in the library.
 #define LAMBDA(expr) ([&](const auto& _ ){ return expr; })
 
@@ -51,7 +53,7 @@ employees = fn::where LAMBDA( _.last_name != "Doe" )(                   std::mov
 employees = fn::take_top_n_by(10, LAMBDA( _.years_onboard ))(           std::move(employees) );
 employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) )( std::move(employees) );
 
-// or, as function-composition:
+// or, as single nested function call:
 
 employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name))(
                 fn::take_top_n_by(10, LAMBDA( _.years_onboard ))(
@@ -59,9 +61,9 @@ employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name))(
                         std::move(employees) )));
 ```
 
-How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns an overloaded unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value.
+How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns a unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value.
 
-`operator %` is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
+`operator %`, invoked as `arg % unary_function`, is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
 ```cpp
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)( std::forward<Arg>(arg)) )
@@ -73,8 +75,8 @@ How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function
 The original example can then be written as:
 ```cpp
 
-using fn::operators::operator%;   // arg % f % g % h; // h( g( f( std::forward<Arg>(arg))));
-using fn::operators::operator%=;  // arg %= fn;       // arg = fn( std::move(arg));
+using fn::operators::operator%;
+using fn::operators::operator%=;  // arg %= fn; // arg = fn( std::move(arg));
 
 employees %= fn::where LAMBDA( _.last_name != "Doe" );
 employees %= fn::take_top_n_by(10, LAMBDA( _.years_onboard ));
@@ -249,7 +251,7 @@ Many programmers after getting introduced to toy examples get an impression that
 the intended usage is "to express the intent" or "better syntax" or to "separate the concerns", etc.  
 Others look at the toy examples and point out that they could be straightforwardly written
 as normal imperative code, and I tend to agree with them:
-There's no real realon to write code like:
+There's no real reason to write code like:
 ```cpp
     std::move(xs)
   % fn::where(     [](const auto& x) { return x % 2 == 0; })
@@ -289,8 +291,22 @@ const X x = [&]
 }();
 ```
 
-#### Erase-remove idiom.
-If you feel that the idiomatic way of filtering a container is an abomination that should have never seen the light of day, then you'll find this library useful for that alone.
+#### Reduced boilerplate.
+E.g. compare
+```cpp
+employees %= fn::where LAMBDA( _.last_name != "Doe" );
+```
+vs. idiomatic c++ way:
+```cpp
+employees.erase(
+    std::remove_if( employees.begin(), 
+                    employees.end(), 
+                    [](const employee_t& e)
+                    {
+                        return e.last_name == "Doe"; 
+                    }), 
+    employees.end());
+```
 
 #### Transformations over infinite (arbitrarily large) streams (`InputRange`s)
 
