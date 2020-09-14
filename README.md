@@ -428,6 +428,7 @@ c++ -specific (in no particular order):
 - [simonask/rx-ranges](https://github.com/simonask/rx-ranges)
 - [ReactiveX/RxCpp](https://github.com/ReactiveX/RxCpp)
 - [arximboldi/zug](https://github.com/arximboldi/zug)
+- [MarcDirven/cpp-lazy](https://github.com/MarcDirven/cpp-lazy)
 
 
 Recommended blogs:
