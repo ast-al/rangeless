@@ -42,10 +42,17 @@ namespace fn = rangeless::fn;
 
 struct employee_t
 {
+            int id;
     std::string last_name;
     std::string first_name;
             int years_onboard;
+
+    bool operator<(const employee_t& other) const
+    {
+        return id < other.id;
+    }
 };
+
 
 auto employees = std::vector<employee_t>{/*...*/};
 
@@ -193,6 +200,65 @@ fn::from(it_beg, it_end) % ... // as a move-view into range (std::move will make
 ```
 Note: `fn::from` can also be used to adapt an lvalue-reference to an `Iterable` that implements
 `begin()` and `end()` as free-functions rather than methods.
+
+
+### Primer on using projections
+Groping/sorting/uniqing functions take a projection function rather than a binary comparator as in `std::` algorithms.
+```cpp
+
+    // Sort by employee_t::operator<.
+    employees %= fn::sort();
+
+    // Sort by a projection involving multiple fields (first by last_name, then by first_name)
+    employees %= fn::sort_by LAMBDA( std::make_pair( _.last_name, _.first_name) );
+
+    // The above may be inefficient (makes copies); prefer returning a tuple of references.
+    employees %= fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
+
+    // If need to create a mixed tuple of values and references, use std::ref() as appropriate.
+    employees %= fn::sort_by LAMBDA( std::make_tuple(   
+                                     _.last_name.size(),
+                           std::ref( _.last_name ),
+                           std::ref( _.first_name ) ));
+
+    // If need to sort in reverse order, the projection can be wrapped with
+    // fn::by::decreasing() that returns a wrapped projection with inverted operator<.
+    employees %= fn::sort_by(
+          fn::by::decreasing LAMBDA( std::make_tuple(   
+                                     _.last_name.size(),
+                           std::ref( _.last_name ),
+                           std::ref( _.first_name ) )));
+
+    // fn::by::decreasing() can also wrap individual values or references-wrappers.
+    // The wrapper captures the value or reference and exposes inverted operator<.
+    // E.g. to sort by (last_name's length, last_name descending, first_name):
+    employees %= fn::sort_by LAMBDA( std::make_tuple(  
+                                     _.last_name.size(),
+       fn::by::decreasing( std::ref( _.last_name )),
+                           std::ref( _.first_name ) ));
+
+    // If the projection function is expensive, and you want to invoke it once per element:
+    auto expensive_key_fn = [](const employee_t& e) { return ... };
+
+    employees = std::move(employees)
+              % fn::transform([&](employee_t e)
+                {
+                    auto key = expensive_key_fn(e);
+                    return std::make_pair(std::move(e), std::move(key));
+                })
+              % fn::sort_by( fn::by::second{})   // or LAMBDA( std::ref(_.second) )
+              % fn::transform( fn::get::first{}) // or LAMBDA( std::move(_.first) )
+              % fn::to_vector();
+
+    // Alternatively, the results of expensive_key_fn can be memoized
+    // (results are internally cached in std::map and subsequent lookups are log-time).
+    employees %= fn::sort_by( fn::make_memoized( expensive_key_fn ));
+
+    // fn::make_comp() takes a projection and creates a binary Comparator object
+    // that can be passed to algorithms that require one.
+    gfx::timsort(employees.begin(), employees.end(),
+                 fn::by::make_comp LAMBDA( std::tie( _.last_name, _.first_name) ));
+```
 
 ### `#include` and compilation-time overhead
 
