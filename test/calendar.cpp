@@ -19,39 +19,34 @@ static void MakeCalendar(const uint16_t year,
     namespace fn = rangeless::fn;
     using fn::operators::operator%;
 
-    fn::seq([year, date = date_t( year, greg::Jan, 1 )]() mutable
+    fn::seq( [year, date = date_t( year, greg::Jan, 1 )]() mutable
     {
         auto ret = date;
         date = date + greg::date_duration{ 1 };
         return ret.year() == year ? ret : fn::end_seq();
     })
 
-  % fn::group_adjacent_by([](const date_t& d)
+  % fn::group_adjacent_by( [](const date_t& d)
     {
         return std::make_pair(d.month(), d.week_number());
     })
 
     // format a line for a week, e.g. "       1  2  3  4  5"
-  % fn::transform([&](dates_t wk_dates) -> std::pair<date_t::month_type, std::string>
+  % fn::transform( [&](dates_t wk_dates) -> std::pair<date_t::month_type, std::string>
     {
-        const auto left_pad_amt =
-            size_t(3 * ((wk_dates.front().day_of_week() + 7 - 1) % 7));
-
-        return { wk_dates.front().month(),
-                 wk_dates % fn::foldl(std::string(left_pad_amt, ' '),
-                                   [](std::string ret_wk, const date_t& d)
-                    {
-                        return std::move(ret_wk)
-                             + (d.day() < 10 ? "  " : " ")
-                             + std::to_string(d.day());
-                    }) };
+        auto dates_str = wk_dates % fn::foldl_d( [](std::string ret, const date_t& d)
+        {
+            return std::move(ret) + (d.day() < 10 ? "  " : " ") + std::to_string(d.day());
+        });
+        const auto prefix_len = size_t(3 * ((wk_dates.front().day_of_week() + 7 - 1) % 7));
+        return { wk_dates.front().month(), std::string(prefix_len, ' ') + std::move(dates_str) };
     })
 
-  % fn::group_adjacent_by(fn::by::first{}) // by month
+  % fn::group_adjacent_by( fn::by::first{}) // by month
 
   % fn::in_groups_of(num_months_horizontally)
 
-  % fn::for_each([&](const auto& group) // group: vec<vec<(month, formatted-week-string)>>
+  % fn::for_each( [&](const auto& group) // group: vec<vec<(month, formatted-week-string)>>
     {
         static const std::array<std::string, 12> s_month_names{
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
