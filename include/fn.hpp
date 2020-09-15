@@ -813,7 +813,7 @@ namespace by
     struct dereferenced
     {
         template<typename P> // any dereferenceable type
-        auto operator()(const P& ptr) const -> decltype(*ptr)
+        auto operator()(const P& ptr) const -> decltype(*ptr) // NB: decltype computes a reference
         {
             return *ptr;
         }
@@ -938,6 +938,7 @@ namespace get
         template<typename P> // any dereferenceable type
         auto operator()(P ptr) const -> typename std::remove_reference<decltype(std::move(*ptr))>::type
         {
+
             return std::move(*ptr);
         }
     };
@@ -1113,7 +1114,7 @@ namespace impl
             using value_type = typename Iterable::value_type;
             using iterator   = typename Iterable::iterator;
 
-            Iterable src_range;
+            Iterable inps;
             iterator it;
                 bool started;
 
@@ -1121,18 +1122,18 @@ namespace impl
             {
                 if(!started) {
                     started = true;
-                    it = src_range.begin(); 
+                    it = inps.begin(); 
                         // r might not be a container (i.e. some input-range
                         // and begin()  may be non-const, so deferring until
                         // the first call to operator() rather than
                         // initializing it{ r.begin() } in constructor.
-                } else if(it == src_range.end()) {
+                } else if(it == inps.end()) {
                     ; // may be equal to end in case of repeated calls to operator() after ended
                 } else {
                     ++it;
                 }
 
-                if(it == src_range.end()) {
+                if(it == inps.end()) {
                     return { };
                 } else {
                     return { std::move(*it) };
@@ -1514,11 +1515,12 @@ namespace impl
     // Default implementation of operator() for cases where 
     // there's no eager logic for Container-arg, and
     // we want to treat it the same as seq (overload above)
-    // so we wrap Cont as to_seq::gen and do same as above.
+    // so we wrap Container as to_seq::gen and do same as above.
     //
 #define RANGELESS_FN_OVERLOAD_FOR_CONT(...)                                \
-    template<typename Cont>                                                \
-    auto operator()(Cont cont) const -> seq<gen<to_seq::gen<Cont>>>        \
+    template<typename Container>                                           \
+    auto operator()(Container cont) const                                  \
+      -> seq<gen<to_seq::gen<Container>>>                                  \
     {                                                                      \
         return { { { std::move(cont), { }, false }, __VA_ARGS__ } };       \
     }                                                                      \
@@ -1590,7 +1592,7 @@ namespace impl
             using iterator = typename Iterable::iterator;
             using value_type = view<iterator>;
 
-                Iterable cont;
+                Iterable inps;
                 iterator win_beg;
                 iterator win_end;
                     bool started;
@@ -1601,12 +1603,12 @@ namespace impl
                 if(!started) {
                     started = true;
 
-                    win_beg = cont.begin();
-                    win_end = cont.begin();
+                    win_beg = inps.begin();
+                    win_end = inps.begin();
 
                     // advance view's it_end by win_size
                     size_t n = 0;
-                    for(size_t i = 0; i < win_size && win_end != cont.end(); ++i) {
+                    for(size_t i = 0; i < win_size && win_end != inps.end(); ++i) {
                         ++win_end;
                         ++n;
                     }
@@ -1618,7 +1620,7 @@ namespace impl
                     }
                 }
 
-                if(win_end == cont.end()) {
+                if(win_end == inps.end()) {
                     return { };
                 }
 
@@ -1633,11 +1635,8 @@ namespace impl
         auto operator()(Iterable inps) const -> seq<gen_c<Iterable>>
         {
             impl::require_iterator_category_at_least<std::forward_iterator_tag>(inps);
-
-            return { { std::move(inps), 
-                       {}, {}, // iteratos
-                       false,  // started
-                       win_size } };
+            return { { std::move(inps), {}, {}, false, win_size } };
+                          // iterators: ^^  ^^, ^started
         }
 
         /////////////////////////////////////////////////////////////////////
@@ -1828,8 +1827,8 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( pred, false )
 
-        template<typename Cont>
-        Cont operator()(Cont cont) const
+        template<typename Container>
+        Container operator()(Container cont) const
         {
             auto it = std::find_if_not(cont.begin(), cont.end(), pred);
             cont.erase(it, cont.end()); 
@@ -1892,10 +1891,10 @@ namespace impl
             return std::move(inps);
         }
 
-        template<typename Cont>
-        Cont operator()(const Cont& cont) const
+        template<typename Container>
+        Container operator()(const Container& cont) const
         {
-            Cont ret{};
+            Container ret{};
 
             if(cap < cont.size()) {
                 auto it = cont.begin();
@@ -1974,10 +1973,10 @@ namespace impl
         }
 
 
-        template<typename Cont>
-        Cont operator()(const Cont& cont) const
+        template<typename Container>
+        Container operator()(const Container& cont) const
         {
-            Cont ret{};
+            Container ret{};
 
             if(n < cont.size()) {
                 auto it = cont.begin();
@@ -2084,10 +2083,10 @@ namespace impl
         // If cont is passed as const-reference, 
         // make another container, copying only the
         // elements satisfying the predicate.
-        template<typename Cont>
-        Cont operator()(const Cont& cont) const
+        template<typename Container>
+        Container operator()(const Container& cont) const
         {
-            Cont ret{};
+            Container ret{};
             auto pred_copy = pred; // in case copy_if needs non-const access 
             std::copy_if(cont.begin(),
                          cont.end(), 
@@ -2098,10 +2097,10 @@ namespace impl
 
         // Why the above overload won't bind to non-const-reference args,
         // necessitating this overload?
-        template<typename Cont>
-        Cont operator()(Cont& cont) const
+        template<typename Container>
+        Container operator()(Container& cont) const
         {
-            const Cont& const_cont = cont;
+            const Container& const_cont = cont;
             return this->operator()(const_cont);
         }
 
@@ -2109,25 +2108,25 @@ namespace impl
         // erase elements not satisfying predicate.
         // (this also supports the case of container
         // with move-only value-type).
-        template<typename Cont>
-        Cont operator()(Cont&& cont) const //-> typename std::enable_if<std::is_rvalue_reference<Cont&&>::value, Cont>::type
+        template<typename Container>
+        Container operator()(Container&& cont) const //-> typename std::enable_if<std::is_rvalue_reference<Container&&>::value, Container>::type
         {
-            static_assert(std::is_rvalue_reference<Cont&&>::value, "");
+            static_assert(std::is_rvalue_reference<Container&&>::value, "");
 
             x_EraseFrom(cont, impl::resolve_overload{}); // SFINAE-dispatch to erase-remove or iterate-erase overload.
-            return std::move(cont); // must move, because Cont may contain move-only elements
-                                    // (e.g. won't compile otherwise with Cont=std::vector<std::unique_ptr<int>>)
+            return std::move(cont); // must move, because Container may contain move-only elements
+                                    // (e.g. won't compile otherwise with Container=std::vector<std::unique_ptr<int>>)
         }
 
     private:
-        template<typename Cont>
-        void x_EraseRemove(Cont& cont) const
+        template<typename Container>
+        void x_EraseRemove(Container& cont) const
         {
             auto pred_copy = pred;
             cont.erase(
                 std::remove_if(
                     cont.begin(), cont.end(),
-                    [&pred_copy](const typename Cont::value_type& x)
+                    [&pred_copy](const typename Container::value_type& x)
                     {
                         return !pred_copy(x);
                     }),
@@ -2135,15 +2134,16 @@ namespace impl
 
            // Using std::not1(pred) instead of the lambda above won't compile:
            // error: no type named 'argument_type'...
+           // Can't use std::not_fn because that's c++17.
         }
 
 
         // High-priority overload for containers where can call remove_if.
-        template<typename Cont>
-        auto x_EraseFrom(Cont& cont, pr_high) const -> decltype(void(cont.front()))
+        template<typename Container>
+        auto x_EraseFrom(Container& cont, pr_high) const -> decltype(void(cont.front()))
         {                                                         // ^^^^^^^^^^ discussion below
             // This overload must be made unpalatable to SFINAE unless 
-            // std::remove_if is viable for Cont, e.g. feature-checking
+            // std::remove_if is viable for Container, e.g. feature-checking
             // as follows:
             //
             // A) Can call std::remove:
@@ -2189,11 +2189,11 @@ namespace impl
         // the container has equal_range method (e.g. set and associative
         // containers) so it is reasonable to expect that iterate-erase
         // idiom is applicable.
-        template<typename Cont>
-        auto x_EraseFrom(Cont& cont, pr_low) const
+        template<typename Container>
+        auto x_EraseFrom(Container& cont, pr_low) const
           -> decltype(void(
                 cont.equal_range(
-                    std::declval<typename Cont::key_type const&>())))
+                    std::declval<typename Container::key_type const&>())))
         {
             auto pred_copy = pred;
             for(auto it = cont.begin(), it_end =cont.end(); 
@@ -2205,11 +2205,11 @@ namespace impl
             }
         }
 
-        template<typename NotACont>
-        static void x_EraseFrom(NotACont&, pr_lowest)
+        template<typename NotAContainer>
+        static void x_EraseFrom(NotAContainer&, pr_lowest)
         {
-            static_assert(sizeof(NotACont) == 0, "The argument to fn::impl::where is expected to be either a seq<...> or a sequence container or an associative container having equal_range method.");
-            TheTypeInQuestionIs<NotACont>{};
+            static_assert(sizeof(NotAContainer) == 0, "The argument to fn::impl::where is expected to be either a seq<...> or a sequence container or an associative container having equal_range method.");
+            TheTypeInQuestionIs<NotAContainer>{};
         }
     };
 
@@ -2270,11 +2270,11 @@ namespace impl
         }
 
         /////////////////////////////////////////////////////////////////
-        template<typename Cont,
-                 typename Ret = std::vector<typename Cont::value_type> >
-        Ret operator()(Cont cont) const
+        template<typename Container,
+                 typename Ret = std::vector<typename Container::value_type> >
+        Ret operator()(Container cont) const
         {
-            // TODO: Take Cont as forwarding reference instead of by value
+            // TODO: Take Container as forwarding reference instead of by value
             // such that if it is passed by lvalue-reference we don't need to
             // copy all elements; will only copy the maximal ones.
             // (copy or move value from the iterator depending on whether 
@@ -2297,8 +2297,8 @@ namespace impl
             //    or when the element is moved to a different position by erase-remove
             //    algorithm.
            
-            // NB: we could reuse the same logic for both input and Cont use-cases,
-            // but having multi-pass capability with Cont allows us to do less
+            // NB: we could reuse the same logic for both input and Container use-cases,
+            // but having multi-pass capability with Container allows us to do less
             // memory churn (we only need to move elements-of-interest into ret).
 
             Ret ret{};
@@ -2356,7 +2356,7 @@ namespace impl
                     [&, this](const typename Ret::value_type& x)
                     {
                         return impl::compare(key_fn(x), best_key)*use_max >= 0;
-                    })(std::forward<Cont>(cont));
+                    })(std::forward<Container>(cont));
             // BUG: best_key may contain a reference, which is invalidated mid-processing
             // when best-element is moved inside erase-remove loop in fn::where.
 #endif
@@ -2515,9 +2515,9 @@ namespace impl
     /////////////////////////////////////////////////////////////////////////
 
     // NB: initially thought of having stable_sort_by and unstable_sort_by versions,
-    // and for unstable_sort_by/Cont use std::sort, and for unstable_sort_by/seq<..>
+    // and for unstable_sort_by/Container use std::sort, and for unstable_sort_by/seq<..>
     // seq use lazy heap sort. The unstable-ness, however, is different between the two. 
-    // So instead decided to go with lazy_sort_by for both Cont and seq<>
+    // So instead decided to go with lazy_sort_by for both Container and seq<>
 
     // Initially dump all elements and heapify in O(n);
     // lazily yield elements with pop_heap in O(log(n))
@@ -2731,13 +2731,13 @@ namespace impl
         RANGELESS_FN_OVERLOAD_FOR_VIEW( key_fn, pred2, {}, {} )
 
         /////////////////////////////////////////////////////////////////////
-        template<typename Cont>
-        auto operator()(Cont cont) const -> std::vector<Cont>
+        template<typename Container>
+        auto operator()(Container cont) const -> std::vector<Container>
         {
             // NB: number of calls to key_fn shall be max(0, 2*(n-1))
             // (see chunker)
 
-            std::vector<Cont> ret;
+            std::vector<Container> ret;
 
             auto it = cont.begin();
             const auto it_end = cont.end();
@@ -2746,15 +2746,15 @@ namespace impl
                 return ret;
             }
 
-            ret.push_back(Cont{});
-            ret.back().insert(ret.back().end(), std::move(*it)); // [compilation-error-hint]: Expecting Cont's value-type to be end-insertable container.
+            ret.push_back(Container{});
+            ret.back().insert(ret.back().end(), std::move(*it)); // [compilation-error-hint]: Expecting Container's value-type to be end-insertable container.
             ++it;
 
             for(; it != it_end; ++it) {
                 if(!pred2(key_fn(*ret.back().crbegin()), // NB: last!
                           key_fn(*it)))
                 {
-                    ret.push_back(Cont{});
+                    ret.push_back(Container{});
                 }
                 auto& dest = ret.back();
                 dest.insert(dest.end(), std::move(*it));
@@ -2883,8 +2883,8 @@ namespace impl
         // while yielding groups one by one, rather than having to
         // allocate a separate std::vector per-group.
 
-        template<typename Gen>  // Cont or seq<...>
-        auto operator()(seq<Gen> range) const -> 
+        template<typename Gen>  // Container or seq<...>
+        auto operator()(seq<Gen> inps) const -> 
             seq<
                 typename group_adjacent_by_t::template gen<
                     to_seq::gen<
@@ -2895,14 +2895,14 @@ namespace impl
                     impl::to_seq{}(
                         sort_by<F>{ key_fn }(
                             impl::to_vector{}(
-                                std::move(range)))));
+                                std::move(inps)))));
         }
 
         /////////////////////////////////////////////////////////////////
-        template<typename Cont>
-        auto operator()(Cont cont) const
-            //-> std::vector<std::vector<typename Cont::value_type>>
-            //The above is almost correct, except if Cont is a map,
+        template<typename Container>
+        auto operator()(Container cont) const
+            //-> std::vector<std::vector<typename Container::value_type>>
+            //The above is almost correct, except if Container is a map,
             //conversion to vector removes the key-constness, so we
             //need to do it via decltype
             -> decltype(
@@ -2913,7 +2913,7 @@ namespace impl
 #if 0 
             // An example of what not to do
             using key_t = remove_cvref_t<decltype(key_fn(*cont.begin()))>;
-            std::map<key_t, Cont, lt_t> m;
+            std::map<key_t, Container, lt_t> m;
             for(auto&& x : cont) {
                 auto& dest = m[key_fn(x)];
                 dest.insert(dest.end(), std::move(x)); 
@@ -2922,7 +2922,7 @@ namespace impl
             }
             cont.clear(); 
 
-            std::vector<Cont> ret;
+            std::vector<Container> ret;
             ret.reserve(m.size());
             for(auto& kv : m) {
                 ret.push_back(std::move(kv.second));
@@ -2930,7 +2930,7 @@ namespace impl
             return ret;
 
             // Can't also implement is as collect elems into
-            // std::set<Cont, decltype(opless_by_keyfn_on_element)>,
+            // std::set<Container, decltype(opless_by_keyfn_on_element)>,
             // because if value_type is move-only, we won't be able
             // to move-out the elements from the set since 
             // set provides only const access to the elements.
@@ -4023,8 +4023,8 @@ namespace impl
                 // Process alignments for a locus...
             });  
 
-       Note: template<typename Cont> impl::group_all_by<F>::operator()(Cont inputs)
-       takes Cont by-value and moves elements into the output.
+       Note: template<typename Container> impl::group_all_by<F>::operator()(Container inputs)
+       takes Container by-value and moves elements into the output.
     @endcode
 
     Buffering space requirements for `seq`: `O(N)`.
@@ -4047,7 +4047,7 @@ namespace impl
     /// @see concat
     ///
     /// If arg is a container, works similar to `group_all_by`, except 
-    /// returns a `std::vector<Cont>` where each container
+    /// returns a `std::vector<Container>` where each container
     /// contains adjacently-equal elements having same value of key.
     ///
     /// If arg is a `seq<...>`, composes a `seq<...>`
