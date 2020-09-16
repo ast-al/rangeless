@@ -16,7 +16,7 @@ This library is intended for moderate to advanced-level c++ programmers that lik
 Motivations:
 - https://www.fluentcpp.com/2019/09/13/the-surprising-limitations-of-c-ranges-beyond-trivial-use-cases/
 - https://brevzin.github.io/c++/2020/07/06/split-view/
-- https://vector-of-bool.github.io/2019/10/21/rngs-static-ovr.html
+- http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2011r1.html
 - https://aras-p.info/blog/2018/12/28/Modern-C-Lamentations/
 
 
@@ -207,12 +207,12 @@ Groping/sorting/uniqing functions take a projection function rather than a binar
 ```cpp
 
     // Sort by employee_t::operator<.
-    employees %= fn::sort();
+    employees %= fn::sort(); // same as fn::sort_by( fn::by::identity{});
 
     // Sort by a projection involving multiple fields (first by last_name, then by first_name)
     employees %= fn::sort_by LAMBDA( std::make_pair( _.last_name, _.first_name) );
 
-    // The above may be inefficient (makes copies); prefer returning a tuple of references.
+    // The above may be inefficient (makes copies); prefer returning as tuple of references.
     employees %= fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
 
     // If need to create a mixed tuple of values and references, use std::ref() as appropriate.
@@ -250,7 +250,7 @@ Groping/sorting/uniqing functions take a projection function rather than a binar
               % fn::transform( fn::get::first{}) // or LAMBDA( std::move(_.first) )
               % fn::to_vector();
 
-    // Alternatively, the results of expensive_key_fn can be memoized
+    // Alternatively, expensive_key_fn can be wrapped with a unary-function-memoizer
     // (results are internally cached in std::map and subsequent lookups are log-time).
     employees %= fn::sort_by( fn::make_memoized( expensive_key_fn ));
 
