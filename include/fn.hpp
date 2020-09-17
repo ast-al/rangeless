@@ -4829,9 +4829,13 @@ namespace tsv
     VERIFY(result == "foo|;bar|baz|;");
     @endcode
     */
-    inline auto from(std::istream& istr, char delim = '\t', params params = {}) -> fn::impl::seq<fn::impl::transform<tsv::split_on_delim>::gen<fn::impl::catch_end<tsv::get_next_line> > >
+    inline auto from(std::istream& istr, char delim = '\t', params params = {}) 
+        -> fn::impl::seq<
+                fn::impl::transform< tsv::split_on_delim >::gen<
+                    fn::impl::catch_end< tsv::get_next_line > > >
     {
-        return fn::transform( split_on_delim{ delim, params.truncate_blanks } )( 
+        const auto truncate_blanks = params.truncate_blanks; // params will be moved from.
+        return fn::transform( split_on_delim{ delim, truncate_blanks } )( 
                      fn::seq(  get_next_line{ istr,  std::move(params) }) );
     }
 
@@ -4841,7 +4845,7 @@ namespace tsv
     /// throws `std::domain_error` if can't parse, or out of bounds, or input has trailing non-whitespaces, or the destination type is unsigned and the input is a negative number.
     /*!
      * @code
-     * bouble   a = tsv::to_num("");         // throws - expected a number
+     * double   a = tsv::to_num("");         // throws - expected a number
      * double   b = tsv::to_num(" 123xyz");  // throws - trailing garbage not allowed
      * int8_t   c = tsv::to_num(" 12345 ");  // throws - out of range
      * float    d = tsv::to_num("12e-456");  // throws - underflow
@@ -4923,7 +4927,7 @@ namespace tsv
             d = std::strtold(m_beg, endptr);
         }
 
-        void x_parse(double & d, char** endptr) const
+        void x_parse(double& d, char** endptr) const
         {
             d = std::strtod(m_beg, endptr);
         }
