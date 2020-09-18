@@ -3400,8 +3400,19 @@ namespace impl
     {
         using traits = impl::memoizer_detail::lambda_traits<F>;
         using    Arg = typename std::remove_reference<typename traits::arg>::type;
-        using    Ret = typename traits::ret; // NB: can be const and/or reference
+        using    Ret = typename traits::ret;
         using  Cache = std::map<Arg, Ret>;
+
+        // Even after std::remove_reference the type could be e.g. a 
+        // tuple containing references which may become dangling, 
+        // so to guard against those we're requiring move-assignable.
+        //
+        // Same goes for the output-type, e.g. if return type is a reference-wrapper
+        // we will disallow that to guard against dangling references.
+        //
+        // (also see unique_all_by)
+        static_assert(std::is_default_constructible<Arg>::value, "The argument-type must be default-constructible.");
+        static_assert(std::is_default_constructible<Ret>::value, "The return-type type must be default-constructible.");
 
                     F fn;
         mutable Cache m; // mutable, because operator() must be const
@@ -5747,6 +5758,12 @@ static void run_tests()
             exec_count++; 
             return s.size();
         }));
+
+        // this should not compile (decayed arg-type is not default-constructible)
+        // fn::make_memoized([&](std::tuple<int&> x) { return 123; });
+
+        // this should not compile (return type is not default-constructible)
+        // fn::make_memoized([&](int x) { return std::ref(x); });
 
         VERIFY((strs == std::vector<std::string>{{ "1", "22", "333", "4444" }}));
         VERIFY(exec_count == 4);
