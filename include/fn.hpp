@@ -768,7 +768,7 @@ namespace impl
             return other.val == this->val;
         }
 
-        // if val is a unary key-function
+        // if val is a unary key-function, e.g. fn::by::decreasing(key_fn);
         template<typename Arg>
         auto operator()(const Arg& arg) const -> gt<decltype(val(arg))>
         {
@@ -3421,6 +3421,8 @@ namespace impl
 
         const Ret& operator()(const Arg& arg) const
         {
+            static_assert(std::is_same<decltype(arg < arg), bool>::value, "The argument-type must have operator< to be viable as std::map key-type.");
+
             auto it = m.find(arg);
             return it != m.end() ? it->second
                                  : m.emplace(arg, fn(arg)).first->second;
@@ -4525,6 +4527,22 @@ namespace impl
     impl::scope_guard<F> make_scope_guard(F fn)
     {
         return { std::move(fn), false };
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Similar to `std::tie`; except capture lvalues as lvalue-references, and rvalues as values.
+    /*!
+    @code
+        const int x = 0;
+        const char* foo = "foo";
+        auto tpl = fn::capture_as_tuple(x, 42, std::ref(x), foo, "abc");
+        static_assert(std::is_same<decltype(tpl), std::tuple<const int&, int, std::reference_wrapper<const int>, const char*&, const char (&)[4]>>::value, "");
+    @code
+    */
+    template<typename... Ts>
+    auto capture_as_tuple(Ts&&... xs) -> std::tuple<Ts...>
+    {
+        return std::tuple<Ts...>(std::forward<Ts>(xs)...);
     }
 
     /// @}
