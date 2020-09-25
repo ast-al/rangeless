@@ -209,29 +209,26 @@ Groping/sorting/uniqing/where_max_by/etc. functions take a projection function r
     // Sort by employee_t::operator<.
     employees %= fn::sort(); // same as fn::sort_by( fn::by::identity{} );
 
-    // Sort by a projection involving multiple fields (first by last_name, then by first_name)
+    // Sort by a projection involving multiple fields (first by last_name, then by first_name):
     employees %= fn::sort_by L( std::make_pair( _.last_name, _.first_name ));
 
-    // The above may be inefficient (makes copies); prefer returning as tuple of references.
+    // The above may be inefficient (makes copies); prefer returning as tuple of references:
     employees %= fn::sort_by L( std::tie( _.last_name, _.first_name ));
 
     // If need to create a mixed tuple capturing lvalues as references and rvalues as values:
     employees %= fn::sort_by L( std::make_tuple( _.last_name.size(), std::ref( _.last_name ), std::ref( _.first_name )));
-    // equivalently:
-    employees %= fn::sort_by L( fn::capture_as_tuple( _.last_name.size(), _.last_name, _.first_name ));
 
-    // If need to sort in reverse order, the projection can be wrapped with
-    // fn::by::decreasing() that returns a wrapped projection with inverted operator<.
-    employees %= fn::sort_by(   fn::by::decreasing 
-                             L( fn::capture_as_tuple( _.last_name.size(), _.last_name, _.first_name )));
+    // Equivalently, using capture_as_tuple that captures lvalues as references and rvalues as values:
+#define L_TUPLE(...) ([&](const auto& _ ){ return fn::capture_as_tuple(__VA_ARGS__); })
+    employees %= fn::sort_by L_TUPLE( _.last_name.size(), _.last_name, _.first_name );
 
-    // fn::by::decreasing() can also wrap individual values or references, taken as references-wrappers.
+    // fn::by::decreasing() and fn::by::decreasing_ref() can wrap individual values or references,
     // The wrapper captures the value or reference and exposes inverted operator<.
     // E.g. to sort by (last_name's length, last_name descending, first_name):
-    employees %= fn::sort_by L( fn::capture_as_tuple( 
-                                                      _.last_name.size(), 
-                        fn::by::decreasing( std::ref( _.last_name )), 
-                                                      _.first_name ));
+    employees %= fn::sort_by L_TUPLE( _.last_name.size(), fn::by::decreasing_ref( _.last_name ), _.first_name ));
+
+    // fn::by::decreasing() can also wrap the entire projection-function:
+    employees %= fn::sort_by( fn::by::decreasing L_TUPLE( _.last_name.size(), _.last_name, _.first_name ));
 
     // If the projection function is expensive, and you want to invoke it once per element:
     auto expensive_key_fn = [](const employee_t& e) { return ... };

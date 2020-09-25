@@ -848,6 +848,14 @@ namespace by
         }
     };
 
+
+    // Notes on naming the function below by::decreasing
+    // "decr" - can be confused with "decrement"
+    // "desc" - can be confused with "describ.*"
+    // "reversing" or "reversed" - if type is a string, could be construed af string content is reversed
+    // "greater" - want to avoid confusion with std::greater
+    // "descending" - viable
+
     /// @brief Wraps the passed value and exposes inverted operator<.
     /*!
     @code
@@ -867,7 +875,7 @@ namespace by
 
         auto ret2 = inp % fn::sort_by([](const string& s)
         {
-            return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
+            return std::make_tuple(s.size(), fn::by::decreasing_ref(s));
         }) % fn::reverse();
         VERIFY(ret2 == expected);
 
@@ -875,7 +883,7 @@ namespace by
         // we can also compose by::decreasing with a key-function
         auto ret3 = inp % fn::sort_by(fn::by::decreasing([](const std::string& s)
         {
-            return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
+            return std::make_tuple(s.size(), fn::by::decreasing_ref(s));
         }));
         VERIFY(ret3 == expected);
 
@@ -908,7 +916,10 @@ namespace by
         //      // it becomes dangling after return.
         // });  
         // Instead, will allow the user to explicitly 
-        // capture by-reference via reference-wrapper below.
+        // capture by-reference via reference-wrapper below, or as decreasing_ref.
+        //
+        // Perhaps takes by forwarding reference and 
+        // assert that it's an rvalue-reference?
 
         return { std::move(x) };
     }
@@ -920,6 +931,14 @@ namespace by
         // because otherwise unwrapped reference_wrapper won't bind to
         // operator< in gt::operator<.
         return { x.get() };
+    }
+
+    template<typename T>
+    impl::gt<const T&> decreasing_ref(T& x)
+    {
+        // Taking T by non-const reference so we don't bind to rvalue-references.
+        // (this will still bind to const-references)
+        return { x };
     }
 
     /// @brief Make binary comparison predicate from a key-function
@@ -5898,7 +5917,7 @@ static void run_tests()
 
         auto ret1 = inp % fn::sort_by([](const std::string& s)
         {
-            return std::make_tuple(fn::by::decreasing(s.size()), std::ref(s));
+            return fn::capture_as_tuple(fn::by::decreasing(s.size()), s);
         });
         VERIFY(ret1 == expected);
 
@@ -5911,7 +5930,7 @@ static void run_tests()
 
         auto ret3 = inp % fn::sort_by(fn::by::decreasing([](const std::string& s)
         {
-            return std::make_tuple(s.size(), fn::by::decreasing(std::ref(s)));
+            return std::make_tuple(s.size(), fn::by::decreasing_ref(s));
         }));
 
         VERIFY(ret3 == expected);
