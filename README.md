@@ -56,8 +56,8 @@ struct employee_t
 
 auto employees = std::vector<employee_t>{/*...*/};
 
-employees = fn::where L( _.last_name != "Doe" )(                   std::move(employees) );
-employees = fn::take_top_n_by(10, L( _.years_onboard ))(           std::move(employees) );
+employees = fn::where L( _.last_name != "Doe" )( std::move(employees) );
+employees = fn::take_top_n_by(10, L( _.years_onboard ))( std::move(employees) );
 employees = fn::sort_by L( std::tie( _.last_name, _.first_name) )( std::move(employees) );
 
 // or, as single nested function call:
@@ -68,9 +68,9 @@ employees = fn::sort_by L( std::tie( _.last_name, _.first_name))(
                         std::move(employees) )));
 ```
 
-How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns a unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value.
+How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns a unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value (non-copying).
 
-`operator %`, invoked as `arg % unary_function`, is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
+The nested call is syntactically heavy (even more so with multiline lambdas). `operator %`, pronounced "then", invoked as `arg % unary_function`, is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
 ```cpp
     template<typename Arg, typename F>
     auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)( std::forward<Arg>(arg)) )
