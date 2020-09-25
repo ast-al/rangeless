@@ -38,7 +38,7 @@ namespace fn = rangeless::fn;
 // which are used a lot with this library. The macro can to alleviate it somewhat. 
 // I use it here just for demonstration and am personally ambivalent about it. 
 // It is not defined in the library.
-#define LAMBDA(expr) ([&](const auto& _ ){ return expr; })
+#define L(expr) ([&](const auto& _ ){ return expr; })
 
 struct employee_t
 {
@@ -56,15 +56,15 @@ struct employee_t
 
 auto employees = std::vector<employee_t>{/*...*/};
 
-employees = fn::where LAMBDA( _.last_name != "Doe" )(                   std::move(employees) );
-employees = fn::take_top_n_by(10, LAMBDA( _.years_onboard ))(           std::move(employees) );
-employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) )( std::move(employees) );
+employees = fn::where L( _.last_name != "Doe" )(                   std::move(employees) );
+employees = fn::take_top_n_by(10, L( _.years_onboard ))(           std::move(employees) );
+employees = fn::sort_by L( std::tie( _.last_name, _.first_name) )( std::move(employees) );
 
 // or, as single nested function call:
 
-employees = fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name))(
-                fn::take_top_n_by(10, LAMBDA( _.years_onboard ))(
-                    fn::where LAMBDA( _.last_name != "Doe" )(
+employees = fn::sort_by L( std::tie( _.last_name, _.first_name))(
+                fn::take_top_n_by(10, L( _.years_onboard ))(
+                    fn::where L( _.last_name != "Doe" )(
                         std::move(employees) )));
 ```
 
@@ -85,16 +85,16 @@ The original example can then be written as:
 using fn::operators::operator%;
 using fn::operators::operator%=;  // arg %= fn; // arg = fn( std::move(arg));
 
-employees %= fn::where LAMBDA( _.last_name != "Doe" );
-employees %= fn::take_top_n_by(10, LAMBDA( _.years_onboard ));
-employees %= fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
+employees %= fn::where L( _.last_name != "Doe" );
+employees %= fn::take_top_n_by(10, L( _.years_onboard ));
+employees %= fn::sort_by L( std::tie( _.last_name, _.first_name) );
 
 // or:
 
 employees = std::move(employees)
-          % fn::where LAMBDA( _.last_name != "Doe" )
-          % fn::take_top_n_by(10, LAMBDA( _.years_onboard ))
-          % fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
+          % fn::where L( _.last_name != "Doe" )
+          % fn::take_top_n_by(10, L( _.years_onboard ))
+          % fn::sort_by L( std::tie( _.last_name, _.first_name) );
 ```
 
 
@@ -112,15 +112,15 @@ employees = std::move(employees)
         std::istreambuf_iterator<char>(istr.rdbuf()),
         std::istreambuf_iterator<char>{})
         
-      % fn::transform LAMBDA( ('A' <= _ && _ <= 'Z') ? char(_ - ('Z' - 'z')) : _ ) // to-lower
+      % fn::transform L( ('A' <= _ && _ <= 'Z') ? char(_ - ('Z' - 'z')) : _ ) // to-lower
       % fn::group_adjacent_by(my_isalnum)             // returns sequence-of-std::string
-      % fn::where LAMBDA( my_isalnum(_.front()))      // discard strings with punctuation
+      % fn::where L( my_isalnum( _.front()))          // discard strings with punctuation
       % fn::counts()                                  // returns map<string,size_t> of word->count
-      % fn::group_all_by LAMBDA( _.first.size())      // returns [[(word, count)]], each subvector containing words of same length
+      % fn::group_all_by L( _.first.size())           // returns [[(word, count)]], each subvector containing words of same length
       % fn::transform(                                // transform each sub-vector...
             fn::take_top_n_by(5UL, fn::by::second{})) // by filtering it taking top-5 by count.
       % fn::concat()                                  // undo group_all_by (flatten)
-      % fn::for_each([](const counts_t::value_type& kv)
+      % fn::for_each( [](const counts_t::value_type& kv)
         {    
             std::cout << kv.first << "\t" << kv.second << "\n";
         })   
@@ -203,39 +203,35 @@ Note: `fn::from` can also be used to adapt an lvalue-reference to an `Iterable` 
 
 
 ### Primer on using projections
-Groping/sorting/uniqing functions take a projection function rather than a binary comparator as in `std::` algorithms.
+Groping/sorting/uniqing/where_max_by/etc. functions take a projection function rather than a binary comparator as in `std::` algorithms.
 ```cpp
 
     // Sort by employee_t::operator<.
-    employees %= fn::sort(); // same as fn::sort_by( fn::by::identity{});
+    employees %= fn::sort(); // same as fn::sort_by( fn::by::identity{} );
 
     // Sort by a projection involving multiple fields (first by last_name, then by first_name)
-    employees %= fn::sort_by LAMBDA( std::make_pair( _.last_name, _.first_name) );
+    employees %= fn::sort_by L( std::make_pair( _.last_name, _.first_name ));
 
     // The above may be inefficient (makes copies); prefer returning as tuple of references.
-    employees %= fn::sort_by LAMBDA( std::tie( _.last_name, _.first_name) );
+    employees %= fn::sort_by L( std::tie( _.last_name, _.first_name ));
 
-    // If need to create a mixed tuple of values and references, use std::ref() as appropriate.
-    employees %= fn::sort_by LAMBDA( std::make_tuple(   
-                                     _.last_name.size(),
-                           std::ref( _.last_name ),
-                           std::ref( _.first_name ) ));
+    // If need to create a mixed tuple capturing lvalues as references and rvalues as values:
+    employees %= fn::sort_by L( std::make_tuple( _.last_name.size(), std::ref( _.last_name ), std::ref( _.first_name )));
+    // equivalently:
+    employees %= fn::sort_by L( fn::capture_as_tuple( _.last_name.size(), _.last_name, _.first_name ));
 
     // If need to sort in reverse order, the projection can be wrapped with
     // fn::by::decreasing() that returns a wrapped projection with inverted operator<.
-    employees %= fn::sort_by(
-          fn::by::decreasing LAMBDA( std::make_tuple(   
-                                     _.last_name.size(),
-                           std::ref( _.last_name ),
-                           std::ref( _.first_name ) )));
+    employees %= fn::sort_by(   fn::by::decreasing 
+                             L( fn::capture_as_tuple( _.last_name.size(), _.last_name, _.first_name )));
 
-    // fn::by::decreasing() can also wrap individual values or references-wrappers.
+    // fn::by::decreasing() can also wrap individual values or references, taken as references-wrappers.
     // The wrapper captures the value or reference and exposes inverted operator<.
     // E.g. to sort by (last_name's length, last_name descending, first_name):
-    employees %= fn::sort_by LAMBDA( std::make_tuple(  
-                                     _.last_name.size(),
-       fn::by::decreasing( std::ref( _.last_name )),
-                           std::ref( _.first_name ) ));
+    employees %= fn::sort_by L( fn::capture_as_tuple( 
+                                                      _.last_name.size(), 
+                        fn::by::decreasing( std::ref( _.last_name )), 
+                                                      _.first_name ));
 
     // If the projection function is expensive, and you want to invoke it once per element:
     auto expensive_key_fn = [](const employee_t& e) { return ... };
@@ -244,10 +240,10 @@ Groping/sorting/uniqing functions take a projection function rather than a binar
               % fn::transform([&](employee_t e)
                 {
                     auto key = expensive_key_fn(e);
-                    return std::make_pair(std::move(e), std::move(key));
+                    return std::make_pair( std::move(e), std::move(key) );
                 })
-              % fn::sort_by( fn::by::second{})   // or LAMBDA( std::ref(_.second) )
-              % fn::transform( fn::get::first{}) // or LAMBDA( std::move(_.first) )
+              % fn::sort_by( fn::by::second{})   // or L( std::ref( _.second ))
+              % fn::transform( fn::get::first{}) // or L( std::move( _.first ))
               % fn::to_vector();
 
     // Alternatively, expensive_key_fn can be wrapped with a unary-function-memoizer
@@ -256,8 +252,8 @@ Groping/sorting/uniqing functions take a projection function rather than a binar
 
     // fn::make_comp() takes a projection and creates a binary Comparator object
     // that can be passed to algorithms that require one.
-    gfx::timsort(employees.begin(), employees.end(),
-                 fn::by::make_comp LAMBDA( std::tie( _.last_name, _.first_name) ));
+    gfx::timsort( employees.begin(), employees.end(),
+                  fn::by::make_comp L( std::tie( _.last_name, _.first_name )));
 ```
 
 ### `#include` and compilation-time overhead
@@ -360,7 +356,7 @@ const X x = [&]
 #### Reduced boilerplate.
 E.g. compare
 ```cpp
-employees %= fn::where LAMBDA( _.last_name != "Doe" );
+employees %= fn::where L( _.last_name != "Doe" );
 ```
 vs. idiomatic c++ way:
 ```cpp
