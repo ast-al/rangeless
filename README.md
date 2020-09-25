@@ -429,7 +429,7 @@ c++ -specific (in no particular order):
 - [ReactiveX/RxCpp](https://github.com/ReactiveX/RxCpp)
 - [arximboldi/zug](https://github.com/arximboldi/zug)
 - [MarcDirven/cpp-lazy](https://github.com/MarcDirven/cpp-lazy)
-
+- [qnope/Little-Type-Library](https://github.com/qnope/Little-Type-Library)
 
 Recommended blogs:
 - [Eric Niebler](https://ericniebler.com)
