@@ -15,6 +15,7 @@ This library is intended for moderate to advanced-level c++ programmers that lik
 
 Motivations:
 - https://www.fluentcpp.com/2019/09/13/the-surprising-limitations-of-c-ranges-beyond-trivial-use-cases/
+- https://www.fluentcpp.com/2019/02/12/the-terrible-problem-of-incrementing-a-smart-iterator/
 - https://brevzin.github.io/c++/2020/07/06/split-view/
 - http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2011r1.html
 - https://aras-p.info/blog/2018/12/28/Modern-C-Lamentations/
