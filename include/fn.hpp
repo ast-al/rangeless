@@ -4536,12 +4536,12 @@ namespace impl
     @code
         const int x = 0;
         const char* foo = "foo";
-        auto tpl = fn::capture_as_tuple(x, 42, std::ref(x), foo, "abc");
+        auto tpl = fn::tie_lvals(x, 42, std::ref(x), foo, "abc");
         static_assert(std::is_same<decltype(tpl), std::tuple<const int&, int, std::reference_wrapper<const int>, const char*&, const char (&)[4]>>::value, "");
     @code
     */
     template<typename... Ts>
-    auto capture_as_tuple(Ts&&... xs) -> std::tuple<Ts...>
+    auto tie_lvals(Ts&&... xs) -> std::tuple<Ts...>
     {
         return std::tuple<Ts...>(std::forward<Ts>(xs)...);
     }
@@ -5899,7 +5899,7 @@ static void run_tests()
 
         auto ret1 = inp % fn::sort_by([](const std::string& s)
         {
-            return fn::capture_as_tuple(fn::by::decreasing(s.size()), s);
+            return fn::tie_lvals(fn::by::decreasing(s.size()), s);
         });
         VERIFY(ret1 == expected);
 

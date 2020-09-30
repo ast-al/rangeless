@@ -39,7 +39,7 @@ namespace fn = rangeless::fn;
 // which are used a lot with this library. The macro can to alleviate it somewhat. 
 // I use it here just for demonstration and am personally ambivalent about it. 
 // It is not defined in the library.
-#define L(expr) ([&](const auto& _ ){ return expr; })
+#define L(expr) ([&](auto&& _ ){ return expr; })
 
 struct employee_t
 {
@@ -219,17 +219,16 @@ Groping/sorting/uniqing/where_max_by/etc. functions take a projection function r
     // If need to create a mixed tuple capturing lvalues as references and rvalues as values:
     employees %= fn::sort_by L( std::make_tuple( _.last_name.size(), std::ref( _.last_name ), std::ref( _.first_name )));
 
-    // Equivalently, using capture_as_tuple that captures lvalues as references and rvalues as values:
-#define L_TUPLE(...) ([&](const auto& _ ){ return fn::capture_as_tuple(__VA_ARGS__); })
-    employees %= fn::sort_by L_TUPLE( _.last_name.size(), _.last_name, _.first_name );
+    // Equivalently, using fn::tie_lvals(...) that captures lvalues as references like std::tie, and rvalues as values:
+    employees %= fn::sort_by L( fn::tie_lvals( _.last_name.size(), _.last_name, _.first_name ));
 
     // fn::by::decreasing() and fn::by::decreasing_ref() can wrap individual values or references,
     // The wrapper captures the value or reference and exposes inverted operator<.
     // E.g. to sort by (last_name's length, last_name descending, first_name):
-    employees %= fn::sort_by L_TUPLE( _.last_name.size(), fn::by::decreasing_ref( _.last_name ), _.first_name ));
+    employees %= fn::sort_by L( fn::tie_lvals( _.last_name.size(), fn::by::decreasing_ref( _.last_name ), _.first_name ));
 
     // fn::by::decreasing() can also wrap the entire projection-function:
-    employees %= fn::sort_by( fn::by::decreasing L_TUPLE( _.last_name.size(), _.last_name, _.first_name ));
+    employees %= fn::sort_by( fn::by::decreasing L( fn::tie_lvals( _.last_name.size(), _.last_name, _.first_name )));
 
     // If the projection function is expensive, and you want to invoke it once per element:
     auto expensive_key_fn = [](const employee_t& e) { return ... };
