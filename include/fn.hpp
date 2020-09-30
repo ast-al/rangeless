@@ -2604,7 +2604,7 @@ namespace impl
     struct take_top_n_by
     {
         const F      key_fn;
-        const size_t cap;
+        const size_t capacity;
 
         template<typename Iterable>
         auto operator()(Iterable src) const -> std::vector<typename Iterable::value_type>
@@ -2631,31 +2631,13 @@ namespace impl
             // it with move-only types.
 
             std::vector<value_type> heap{};  // min-heap, (min at front)
-            heap.reserve(cap);
+            heap.reserve(capacity);
 
-            if(cap > 0)
+            if(capacity > 0)
                 for(auto&& x : src)
+                    if(heap.size() < capacity || impl::compare(key_fn(x), key_fn(heap.front())) > 0)
             {
-                const bool insert = 
-                    heap.size() < cap 
-                 || [&]
-                    {
-                        const auto& key_x = key_fn(x);   // NB: temporary lifetime extension
-                        const auto& key_h = key_fn(heap.front());
-
-                        // key_fn is expected to be "light", but in case it's not negligibly light
-                        // we factor-out evaluation of key_fn here, because we can.
-
-                        return lt{}(key_x, key_h) ? false  // worse than current-min
-                             : lt{}(key_h, key_x) ? true   // better than current-min
-                             :                      false; // equiv to current-min (we're at capacity, so keeping current min)
-                    }();
-
-                if(!insert) {
-                    continue;
-                }
-
-                if(heap.size() >= cap) {
+                if(heap.size() >= capacity) {
                     std::pop_heap(heap.begin(), heap.end(), op_gt);
                     heap.pop_back();
                 }
