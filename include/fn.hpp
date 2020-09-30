@@ -704,7 +704,6 @@ namespace impl
 
     struct lt
     {
-
         template<typename T>
         bool operator()(const T& a, const T& b) const
         {
@@ -2752,7 +2751,7 @@ namespace impl
             ++it;
 
             for(; it != it_end; ++it) {
-                if(!pred2(key_fn(*ret.back().crbegin()), // NB: last!
+                if(!pred2(key_fn(*ret.back().rbegin()), // NB: last! NB[4]: not crbegin() here, see discussion below
                           key_fn(*it)))
                 {
                     ret.push_back(Container{});
@@ -2760,6 +2759,11 @@ namespace impl
                 auto& dest = ret.back();
                 dest.insert(dest.end(), std::move(*it));
             }
+
+            // If key_fn is e.g. [](auto&& x){ return std::tie(arg); } 
+            // then the return type will be std::tuple<X&> or std::tuple<const X&> depending
+            // on constness of x, so the args passed to pred2 must be of the same constness,
+            // or it will fail to match to pred2::operator(const T&, const T&)
 
             return ret;
         }
@@ -5090,6 +5094,16 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
 
     };
 #else 
+
+    tests["Test for NB[4]"] = [&]
+    {
+        auto xs = make_inputs({1,2,3}) 
+                % fn::where_max_by([](auto&& xx)
+                  {
+                     return std::tie(xx);
+                  });
+        VERIFY(xs.size() == 1);
+    };
 
 
     /////////////////////////////////////////////////////////////////////////
