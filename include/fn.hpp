@@ -2634,7 +2634,7 @@ namespace impl
 
             if(capacity > 0)
                 for(auto&& x : src)
-                    if(heap.size() < capacity || impl::compare(key_fn(x), key_fn(heap.front())) > 0)
+                    if(heap.size() < capacity || lt{}(key_fn(heap.front()), key_fn(x)))
             {
                 if(heap.size() >= capacity) {
                     std::pop_heap(heap.begin(), heap.end(), op_gt);
