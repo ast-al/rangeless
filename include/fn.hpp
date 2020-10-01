@@ -98,8 +98,11 @@ namespace impl
         maybe(const maybe&) = delete;
         maybe& operator=(const maybe&) = delete;
 
-        maybe(T&& val)
-        {
+        maybe(T val) // NB[5]: taking by value here rather than by rvalue-reference,
+        {            // because T maye be e.g. int, whereas passed arg `const int`, 
+                     // e.g. from { std::move(*it) } in to_seq::operator(), 
+                     // when the underlying Iterable yields by const-reference 
+                     // - that will fail to compile.
             reset(std::move(val));
         }
 
@@ -5607,6 +5610,14 @@ static void run_tests()
 
 
     /////////////////////////////////////////////////////////////////////////
+
+
+    test_other["Test for NB[5]"] = [&]
+    {
+        const auto inps = vec_t{{1,2,3}};
+        auto rel = fn::cfrom(inps) % fn::to_seq() % fn::to_vector();
+        VERIFY(res == inps);
+    };
 
     test_other["typerased"] = [&]
     {
