@@ -5615,7 +5615,7 @@ static void run_tests()
     test_other["Test for NB[5]"] = [&]
     {
         const auto inps = vec_t{{1,2,3}};
-        auto rel = fn::cfrom(inps) % fn::to_seq() % fn::to_vector();
+        auto res = fn::cfrom(inps) % fn::to_seq() % fn::to_vector();
         VERIFY(res == inps);
     };
 
