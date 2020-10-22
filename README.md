@@ -101,31 +101,18 @@ employees = std::move(employees)
 
 ### Example: Top-5 most frequent words chosen among the words of the same length.
 ```cpp
+    auto my_isalnum = L( std::isalnum(_) || _ == '_' );
 
-    auto my_isalnum = [](const int ch)
-    {    
-        return std::isalnum(ch) || ch == '_'; 
-    };   
-
-    using counts_t = std::map<std::string, size_t>;
-
-    fn::from(
-        std::istreambuf_iterator<char>(istr.rdbuf()),
-        std::istreambuf_iterator<char>{})
-        
-      % fn::transform L( ('A' <= _ && _ <= 'Z') ? char(_ - ('Z' - 'z')) : _ ) // to-lower
-      % fn::group_adjacent_by(my_isalnum)             // returns sequence-of-std::string
-      % fn::where L( my_isalnum( _.front()))          // discard strings with punctuation
-      % fn::counts()                                  // returns map<string,size_t> of word->count
-      % fn::group_all_by L( _.first.size())           // returns [[(word, count)]], each subvector containing words of same length
-      % fn::transform(                                // transform each sub-vector...
-            fn::take_top_n_by(5UL, fn::by::second{})) // by filtering it taking top-5 by count.
-      % fn::concat()                                  // undo group_all_by (flatten)
-      % fn::for_each( [](const counts_t::value_type& kv)
-        {    
-            std::cout << kv.first << "\t" << kv.second << "\n";
-        })   
-      ; 
+    fn::from( std::istreambuf_iterator<char>(istr.rdbuf()), {})
+  % fn::transform L( char(std::tolower(_)) )
+  % fn::group_adjacent_by(my_isalnum)             // returns sequence-of-std::string
+  % fn::where L( my_isalnum( _.front()))          // discard strings with punctuation
+  % fn::counts()                                  // returns map<string,size_t> of word->count
+  % fn::group_all_by L( _.first.size())           // returns [[(word, count)]], each subvector containing words of same length
+  % fn::transform(                                // transform each sub-vector...
+        fn::take_top_n_by(5UL, L( _.second))      // by filtering it taking top-5 by count.
+  % fn::concat()                                  // undo group_all_by (flatten)
+  % fn::for_each L( void(std::cout << _.first << "\t" << _.second << "\n") );
 
     // compilation time:
     // >>time g++ -I ../include/ -std=c++14 -o test.o -c test.cpp
@@ -400,7 +387,7 @@ There's a possibility that a user may instantiate a `seq` and then forget to act
 - [Elixir Stream](https://hexdocs.pm/elixir/Stream.html)
 - [Elm List](https://package.elm-lang.org/packages/elm/core/latest/List)
 - [O'Caml List](https://caml.inria.fr/pub/docs/manual-ocaml/libref/List.html)
-- [F# Collections.Seq](https://msdn.microsoft.com/en-us/visualfsharpdocs/conceptual/collections.seq-module-%5bfsharp%5d)
+- [F# Collections.Seq](https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences)
 - [D std.range](https://dlang.org/phobos/std_range.html)
 - [Rust Iterator](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
 
