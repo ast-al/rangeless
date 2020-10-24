@@ -2195,7 +2195,7 @@ namespace impl
             x_EraseRemove(cont); 
         }
 
-        // for a view I can't tell which idiom to use in SFINAE 
+        // for a view I can't tell which idiom to use in SFINAE
         // (e.g. is it a view into a map or into a vec?)
         // So will specialize for view and require random_access_iterator,
         // so we can be sure erase-remove is viable
@@ -2816,10 +2816,10 @@ namespace impl
                     return {};
                 }
 
-                auto next = in_gen();
-                reached_subend = !next || !pred2(key_fn(*current), key_fn(*next));
-                std::swap(current, next);
-                return std::move(next);
+                auto nxt = in_gen(); // not "next" to avoid shadow-warning
+                reached_subend = !nxt || !pred2(key_fn(*current), key_fn(*nxt));
+                std::swap(current, nxt);
+                return std::move(nxt);
             }
             
             maybe<value_type> operator()() // return seq for next group
@@ -4974,32 +4974,33 @@ namespace tsv
             d = std::strtof(m_beg, endptr);
         }
 
-        template<typename Integral>
+        // NB: originally had two functions below as one function and 
+        // chose dynamically how to parse based on std::is_signed<Integral>::value,
+        // but had to switch to static-dispatch to avoid the signed-vs-unsigned 
+        // comparison warnings
+
+        template<typename Integral, typename std::enable_if<std::is_signed<Integral>::value>::type* = nullptr >
         void x_parse(Integral& x, char** endptr) const
         {
             static_assert(std::is_integral<Integral>::value, "");
+            auto num = std::strtoll(m_beg, endptr, 10);
+            x = static_cast<Integral>(num);
+            throw_if(x != num, x, "overflow");
+        }
 
-            // NB: can do another round of static dispatching here,
-            // but chose pragmatic approach instead.
-
-            if(std::is_signed<Integral>::value) {
-
-                auto num = std::strtoll(m_beg, endptr, 10);
-                x = static_cast<Integral>(num);
-                throw_if(x != num, x, "overflow");
-
-            } else {
-
-                auto ptr = m_beg;
-                while(ptr < m_end && std::isspace(*ptr)) {
-                    ++ptr;
-                }
-                throw_if(ptr < m_end && *ptr == '-', x, "negative number in unsigned conversion");
-
-                auto num = std::strtoull(ptr, endptr, 10);
-                x = static_cast<Integral>(num);
-                throw_if(x != num, x, "overflow");
+        template<typename Integral, typename std::enable_if<std::is_unsigned<Integral>::value>::type* = nullptr >
+        void x_parse(Integral& x, char** endptr) const
+        {
+            static_assert(std::is_integral<Integral>::value, "");
+            auto ptr = m_beg;
+            while(ptr < m_end && std::isspace(*ptr)) {
+                ++ptr;
             }
+            throw_if(ptr < m_end && *ptr == '-', x, "negative number in unsigned conversion");
+
+            auto num = std::strtoull(ptr, endptr, 10);
+            x = static_cast<Integral>(num);
+            throw_if(x != num, x, "overflow");
         }
     }; // to_num
 
@@ -5098,6 +5099,8 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
     };
 #else 
 
+
+#if __cplusplus >= 201402L // gcc 4.9.3 complains about auto&& as lambda param with -std=c++11
     tests["Test for NB[4]"] = [&]
     {
         auto xs = make_inputs({1,2,3}) 
@@ -5107,6 +5110,7 @@ auto make_tests(UnaryCallable make_inputs) -> std::map<std::string, std::functio
                   });
         VERIFY(xs.size() == 1);
     };
+#endif
 
 
     /////////////////////////////////////////////////////////////////////////
@@ -6302,6 +6306,12 @@ static void run_tests()
         enum class my_int_t : int{};
         my_int_t my_int = tsv::to_num("42");
         VERIFY(my_int == my_int_t(42));
+
+        // exercise signed and unsigned integral cases
+        VERIFY(-42 == int(tsv::to_num("-42")) );
+
+        const unsigned int u42 = tsv::to_num("42");
+        VERIFY(u42 == 42 );
     };
 
 
