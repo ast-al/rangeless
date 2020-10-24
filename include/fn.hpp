@@ -2099,6 +2099,8 @@ namespace impl
 
         RANGELESS_FN_OVERLOAD_FOR_SEQ( pred )
 
+        RANGELESS_FN_OVERLOAD_FOR_VIEW( pred ) // could be an InputRange; treating as seq
+
         /////////////////////////////////////////////////////////////////////////
 
         // If cont is passed as const-reference, 
@@ -2193,17 +2195,6 @@ namespace impl
             // to support older compilers.
 
             x_EraseRemove(cont); 
-        }
-
-        // for a view I can't tell which idiom to use in SFINAE
-        // (e.g. is it a view into a map or into a vec?)
-        // So will specialize for view and require random_access_iterator,
-        // so we can be sure erase-remove is viable
-        template<typename Iterator>
-        void x_EraseFrom(view<Iterator>& v, pr_high) const
-        {
-            impl::require_iterator_category_at_least<std::random_access_iterator_tag>(v);
-            x_EraseRemove(v);
         }
 
         // Low-priority overload where remove_if is not viable, but
