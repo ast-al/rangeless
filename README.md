@@ -191,7 +191,7 @@ Note: `fn::from` can also be used to adapt an lvalue-reference to an `Iterable` 
 
 
 ### Primer on using projections
-Groping/sorting/uniqing/where_max_by/etc. functions take a projection function rather than a binary comparator as in `std::` algorithms.
+Grouping/sorting/uniqing/where_max_by/etc. functions take a projection function rather than a binary comparator as in `std::` algorithms.
 ```cpp
 
     // Sort by employee_t::operator<.
@@ -410,6 +410,7 @@ c++ -specific (in no particular order):
 - [arximboldi/zug](https://github.com/arximboldi/zug)
 - [MarcDirven/cpp-lazy](https://github.com/MarcDirven/cpp-lazy)
 - [qnope/Little-Type-Library](https://github.com/qnope/Little-Type-Library)
+- [ftlorg/ftl](https://github.com/ftlorg/ftl)
 
 Recommended blogs:
 - [Eric Niebler](https://ericniebler.com)
