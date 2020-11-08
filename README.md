@@ -33,14 +33,6 @@ Motivations:
 
 ### Simple examples
 ```cpp
-namespace fn = rangeless::fn;
-
-// A common complaint among c++ programmers is the verbosity of lambdas, 
-// which are used a lot with this library. The macro can to alleviate it somewhat. 
-// I use it here just for demonstration and am personally ambivalent about it. 
-// It is not defined in the library.
-#define L(expr) ([&](auto&& _ ){ return expr; })
-
 struct employee_t
 {
             int id;
@@ -54,37 +46,15 @@ struct employee_t
     }
 };
 
+namespace fn = rangeless::fn;
+using fn::operators::operator%;   // arg % fn   equivalent to fn(std::forward<Arg>(arg))
+using fn::operators::operator%=;  // arg %= fn; equivalent to arg = fn( std::move(arg));
+
+// Abbreviated lambda macro, see http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0573r2.html
+// (It is not defined in this library, because nobody likes macros except those we define ourselves).
+#define L(expr) ([&](auto&& _ ){ return expr; })
 
 auto employees = std::vector<employee_t>{/*...*/};
-
-employees = fn::where L( _.last_name != "Doe" )( std::move(employees) );
-employees = fn::take_top_n_by(10, L( _.years_onboard ))( std::move(employees) );
-employees = fn::sort_by L( std::tie( _.last_name, _.first_name) )( std::move(employees) );
-
-// or, as single nested function call:
-
-employees = fn::sort_by L( std::tie( _.last_name, _.first_name))(
-                fn::take_top_n_by(10, L( _.years_onboard ))(
-                    fn::where L( _.last_name != "Doe" )(
-                        std::move(employees) )));
-```
-
-How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns a unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value (non-copying).
-
-The nested call is syntactically heavy (even more so with multiline lambdas). `operator %`, pronounced "then", invoked as `arg % unary_function`, is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
-```cpp
-    template<typename Arg, typename F>
-    auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)( std::forward<Arg>(arg)) )
-    {
-        return std::forward<F>(fn)( std::forward<Arg>(arg));
-    }
-```
-
-The original example can then be written as:
-```cpp
-
-using fn::operators::operator%;
-using fn::operators::operator%=;  // arg %= fn; // arg = fn( std::move(arg));
 
 employees %= fn::where L( _.last_name != "Doe" );
 employees %= fn::take_top_n_by(10, L( _.years_onboard ));
@@ -96,6 +66,31 @@ employees = std::move(employees)
           % fn::where L( _.last_name != "Doe" )
           % fn::take_top_n_by(10, L( _.years_onboard ))
           % fn::sort_by L( std::tie( _.last_name, _.first_name) );
+```
+
+How does this work? E.g. `fn::sort_by(projection_fn)` is a higher-order function that returns a unary function that takes inputs by value (normally passed as rvalue), sorts them by the user-provided projection, and returns them by value (non-copying). Similarly, `fn::where(predicate)` filters the input to those satisfying the predicate.
+
+`operator %`, pronounced "then", invoked as `arg % unary_function`, is syntax-sugar, similar to F#'s operator `|>`, that enables structuring your code in top-down manner, consistent with the direction of the data-flow, similar to UNIX pipes. It is implemented as:
+```cpp
+    template<typename Arg, typename F>
+    auto operator % (Arg&& arg, F&& fn) -> decltype( std::forward<F>(fn)( std::forward<Arg>(arg)) )
+    {
+        return std::forward<F>(fn)( std::forward<Arg>(arg));
+    }
+```
+
+Without using `operator%` the above example would look as follows:
+```cpp
+employees = fn::where L( _.last_name != "Doe" )( std::move(employees) );
+employees = fn::take_top_n_by(10, L( _.years_onboard ))( std::move(employees) );
+employees = fn::sort_by L( std::tie( _.last_name, _.first_name) )( std::move(employees) );
+
+// or, as single nested function call:
+
+employees = fn::sort_by L( std::tie( _.last_name, _.first_name))(
+                fn::take_top_n_by(10, L( _.years_onboard ))(
+                    fn::where L( _.last_name != "Doe" )(
+                        std::move(employees) )));
 ```
 
 
@@ -132,15 +127,15 @@ Unlike `range-v3`, this library is centered around value-semantics rather than r
 
 E.g.
 - `fn::where`
-  - given a container, passed by rvalue, returns the same container filtered to elements satisfying the predicate.
-  - given a container, passed by lvalue-reference, returns a copy of the container with elements satisfying the predicate.
-  - given a `seq`, passed by value, composes and returns a `seq` that will skip the elements not satisfying the predicate.
+  - given a container, passed by rvalue, returns the same container filtered to elements satisfying the predicate, using the erase-remove or iterate-erase idioms under the hood, as appropriate.
+  - given a container, passed by lvalue-reference, returns a copy of the container with elements satisfying the predicate, using `std::copy_if` under the hood.
+  - given a `seq`, passed by value, composes and returns a `seq` that will skip the elements not satisfying the predicate (lazy).
 - `fn::sort`
   - given a container, passed by value, returns the sorted container.
   - given a `seq`, passed by value, moves elements into a `std::vector`, and delegates to the above.
 - `fn::transform`
-  - given a `seq`, passed by value, returns a `seq` wrapping a composition of the transform-function over the underlying `NullaryInvokable`.
-  - given a container, passed by value, wraps it as `seq` and delegates to the above.
+  - given a `seq`, passed by value, returns a `seq` wrapping a composition of the transform-function over the underlying `NullaryInvokable` that will lazily yield the results of transform-function.
+  - given a container, passed by value, wraps it as `seq` and delegates to the above (i.e. also lazy).
 
 
 Some functions in this library internally buffer elements, as appropriate, with single-pass streaming inputs, whereas `range-v3`, on the other hand, imposes multipass ForwardRange or stronger requirement on the inputs in situations that would otherwise require buffering. This makes this library conceptually more similar to UNIX pipelines with eager `sort` and lazy `sed`, than to c++ ranges.
