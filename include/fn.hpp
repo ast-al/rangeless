@@ -2999,7 +2999,21 @@ namespace impl
 
             auto operator()() -> maybe<value_type>
             {
-                // get next group if !started or reached end-of-current
+                if(current_group) {
+                    // NB: we do not return { std::move(*it++) },
+                    // and instead the defer the increment until
+                    // the next call, because the user code consuming ret may have
+                    // side-effects that affect how and whether the
+                    // iterator is advanced, so we don't want to advance
+                    // it prematurely. 
+                    //
+                    // For example, ret's type could be
+                    // some proxy-object that will fetch an object from a stream,
+                    // and the lazy-sequnece's operator++ checks whether
+                    // the stream is empty to check whether it reached end.
+                    ++it;
+                }
+
                 while(!current_group || it == (*current_group).end()) {
                     current_group = gen();
                     
@@ -3010,10 +3024,7 @@ namespace impl
                     it = (*current_group).begin();
                 }
 
-                //postfix++ may not be available
-                value_type ret = std::move(*it);
-                ++it;
-                return { std::move(ret) };
+                return { std::move(*it) };
             }
         };
 
@@ -3473,6 +3484,7 @@ namespace impl
         // (there's only going to be a single instance that 
         // is used to construct any_seq_t with, so the state
         // is not actually shared).
+
         auto gen_ptr = std::make_shared<Gen>( std::move(seq.get_gen()) );
         return {{ 
             [gen_ptr]() -> impl::maybe<T>
