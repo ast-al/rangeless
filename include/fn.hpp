@@ -37,6 +37,7 @@
 #include <string> // for to_string
 #include <iterator> // for std::inserter, MSVC
 #include <cassert>
+#include <memory> // make_shared
 
 #if defined(DOXYGEN) || (defined(RANGELESS_FN_ENABLE_RUN_TESTS) && RANGELESS_FN_ENABLE_RUN_TESTS)
 #    define RANGELESS_FN_ENABLE_PARALLEL 1
@@ -3461,7 +3462,25 @@ namespace impl
     template<typename Gen, typename T = typename Gen::value_type>
     inline any_seq_t<T> make_typerased(impl::seq<Gen> seq)
     {
+#if 0
         return { std::move(seq) };
+#else
+        // seqs's gen(erator) may contain move-only state, 
+        // not satisfying CopyConstructible, so we can't use it
+        // for std::function payload for any_gen.
+        // So we need to first wrap gen as a shared_ptr and create
+        // a copyable gen-wrapper.
+        // (there's only going to be a single instance that 
+        // is used to construct any_seq_t with, so the state
+        // is not actually shared).
+        auto gen_ptr = std::make_shared<Gen>( std::move(seq.get_gen()) );
+        return {{ 
+            [gen_ptr]() -> impl::maybe<T>
+            {
+                return (*gen_ptr)();
+            }
+        }};
+#endif
     }
 
     /// @defgroup to_vec to_vector/to_seq
@@ -5617,15 +5636,15 @@ static void run_tests()
     test_other["typerased"] = [&]
     {
         int i = 0;
-        fn::any_seq_t<int> myseq = //fn::make_typerased(
-            fn::seq([i]() mutable
+        auto myseq = fn::make_typerased(
+            fn::seq([i, p = std::unique_ptr<int>()]() mutable // p is just to make sure it works for move-only lambdas
             {
                 return i < 10 ? i++ : fn::end_seq();
             })
           % fn::where([](int x)
             {
                 return x % 2 == 0;
-            });
+            }));
 
         int res = 0;
         for(const auto& x : myseq) {
